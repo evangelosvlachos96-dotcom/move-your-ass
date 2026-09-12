@@ -1,12 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Mya.Api.Features.Health;
 
 /// <summary>
-/// Liveness only. Must never touch the database so keep-alive pings stay cheap (docs/04 section 1).
+/// Liveness only. Must never touch the database so keep-alive pings stay cheap.
 /// </summary>
 [ApiController]
 [Route("health")]
+[AllowAnonymous]
 public sealed class HealthController : ControllerBase
 {
     [HttpGet]

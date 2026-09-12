@@ -18,13 +18,22 @@ inward only:
 - **Domain** references nothing. Entities, enums, domain exceptions. No EF attributes.
 - **Application** references Domain. Use cases, DTOs, validators, and *interfaces* for
   everything external (`IAppDbContext`, `IEmailSender`, `IVideoStorage`, `IClock`, `ICurrentUser`).
-- **Infrastructure** references Application + Domain. Implements those interfaces. EF Core lives
-  here and nowhere else.
+- **Infrastructure** references Application + Domain. Implements those interfaces. The database
+  provider, the `DbContext`, configurations and migrations live here and nowhere else.
 - **Api** references Application + Infrastructure. Controllers, middleware, DI composition.
 
-The rule that keeps this honest: **`Mya.Application` must not reference
-`Microsoft.EntityFrameworkCore.SqlServer` or `Microsoft.AspNetCore.*`.** Add an architecture
-test (NetArchTest) that fails the build if it does.
+The rule that keeps this honest, stated precisely:
+
+- `Mya.Application` **may** reference the `Microsoft.EntityFrameworkCore` package — the
+  abstractions: `DbSet<T>`, `FirstOrDefaultAsync`, `ToListAsync`, `ExecuteUpdateAsync`. That is
+  what lets `IAppDbContext` expose `DbSet<T>` and handlers stay free of repository boilerplate.
+- `Mya.Application` **must not** reference `Microsoft.EntityFrameworkCore.SqlServer` (or
+  `Microsoft.Data.SqlClient`) — the provider is an Infrastructure concern.
+- `Mya.Application` **must not** reference `Microsoft.AspNetCore.*`.
+- `Mya.Domain` references nothing outside the BCL.
+
+`Mya.ArchitectureTests/LayeringTests.cs` asserts exactly these four statements and fails the
+build if any is broken.
 
 ## 2. Full tree
 

@@ -4,10 +4,15 @@
     <ProjectReference Include="..\Mya.Domain\Mya.Domain.csproj" />
   </ItemGroup>
 
-  <!-- Must never reference EF Core or ASP.NET. Enforced by Mya.ArchitectureTests. -->
+  <!-- May reference Microsoft.EntityFrameworkCore (DbSet, async LINQ) but never the SqlServer provider
+       or ASP.NET. Enforced by Mya.ArchitectureTests. -->
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="16.2.0" />
     <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.12" />
   </ItemGroup>
 
 </Project>

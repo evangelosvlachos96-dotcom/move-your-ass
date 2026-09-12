@@ -47,3 +47,8 @@ dotnet_diagnostic.CA2007.severity = none      # ConfigureAwait not needed in ASP
 dotnet_diagnostic.CA1848.severity = none      # LoggerMessage source-gen — overkill here
 dotnet_diagnostic.CA2016.severity = error     # forward CancellationToken
 dotnet_diagnostic.CA1062.severity = warning   # validate public args
+
+# --- EF Core migrations are generated code; never hand-edited, never style-checked ---
+[**/Migrations/**.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
