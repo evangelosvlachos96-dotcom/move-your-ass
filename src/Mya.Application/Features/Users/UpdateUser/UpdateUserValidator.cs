@@ -3,7 +3,8 @@ using Mya.Application.Common.Validation;
 
 namespace Mya.Application.Features.Users.UpdateUser;
 
-public sealed class UpdateUserValidator : AbstractValidator<UpdateUserCommand>
+/// <summary>Validates the wire shape; the action filter runs it on the bound request body.</summary>
+public sealed class UpdateUserValidator : AbstractValidator<UpdateUserRequest>
 {
     public UpdateUserValidator()
     {

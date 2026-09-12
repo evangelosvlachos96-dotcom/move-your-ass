@@ -9,13 +9,16 @@ using Mya.Domain.Enums;
 
 namespace Mya.Application.Features.Users.DeclineUser;
 
-/// <summary>Body of POST /api/admin/users/{id}/decline; the controller fills <see cref="UserId"/>.</summary>
+/// <summary>Optional body of POST /api/admin/users/{id}/decline. The target user comes from the route only.</summary>
+public sealed record DeclineUserRequest(string? Reason);
+
+/// <summary>Built by the controller from the route id and the <see cref="DeclineUserRequest"/> body.</summary>
 public sealed record DeclineUserCommand(string? Reason)
 {
     public string UserId { get; init; } = string.Empty;
 }
 
-public sealed class DeclineUserValidator : AbstractValidator<DeclineUserCommand>
+public sealed class DeclineUserValidator : AbstractValidator<DeclineUserRequest>
 {
     public DeclineUserValidator()
     {

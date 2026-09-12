@@ -9,13 +9,16 @@ using Mya.Domain.Enums;
 
 namespace Mya.Application.Features.Users.SuspendUser;
 
-/// <summary>Body of POST /api/admin/users/{id}/suspend; the controller fills <see cref="UserId"/>.</summary>
+/// <summary>Optional body of POST /api/admin/users/{id}/suspend. The target user comes from the route only.</summary>
+public sealed record SuspendUserRequest(string? Reason);
+
+/// <summary>Built by the controller from the route id and the <see cref="SuspendUserRequest"/> body.</summary>
 public sealed record SuspendUserCommand(string? Reason)
 {
     public string UserId { get; init; } = string.Empty;
 }
 
-public sealed class SuspendUserValidator : AbstractValidator<SuspendUserCommand>
+public sealed class SuspendUserValidator : AbstractValidator<SuspendUserRequest>
 {
     public SuspendUserValidator()
     {

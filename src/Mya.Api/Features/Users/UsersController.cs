@@ -14,6 +14,10 @@ using Mya.Application.Features.Users.UpdateUser;
 
 namespace Mya.Api.Features.Users;
 
+/// <summary>
+/// The target user is always identified by the route. Request bodies carry only the fields the
+/// route cannot: the command is assembled here from both.
+/// </summary>
 [ApiController]
 [Route("api/admin/users")]
 [Authorize(Policy = Policies.AdminOnly)]
@@ -38,10 +42,12 @@ public sealed class UsersController(
             Created($"/api/admin/users/{created.Id}", created));
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(string id, UpdateUserCommand command, CancellationToken ct)
+    public async Task<IActionResult> Update(string id, UpdateUserRequest request, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(command);
-        return (await update.Handle(command with { UserId = id }, ct)).ToActionResult(HttpContext, NoContent);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var command = new UpdateUserCommand(request.FirstName, request.LastName, request.Role) { UserId = id };
+        return (await update.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
     }
 
     [HttpPost("{id}/approve")]
@@ -49,13 +55,13 @@ public sealed class UsersController(
         (await approve.Handle(new ApproveUserCommand(id), ct)).ToActionResult(HttpContext, NoContent);
 
     [HttpPost("{id}/decline")]
-    public async Task<IActionResult> Decline(string id, DeclineUserCommand? command, CancellationToken ct) =>
-        (await decline.Handle((command ?? new DeclineUserCommand(null)) with { UserId = id }, ct))
+    public async Task<IActionResult> Decline(string id, DeclineUserRequest? request, CancellationToken ct) =>
+        (await decline.Handle(new DeclineUserCommand(request?.Reason) { UserId = id }, ct))
             .ToActionResult(HttpContext, NoContent);
 
     [HttpPost("{id}/suspend")]
-    public async Task<IActionResult> Suspend(string id, SuspendUserCommand? command, CancellationToken ct) =>
-        (await suspend.Handle((command ?? new SuspendUserCommand(null)) with { UserId = id }, ct))
+    public async Task<IActionResult> Suspend(string id, SuspendUserRequest? request, CancellationToken ct) =>
+        (await suspend.Handle(new SuspendUserCommand(request?.Reason) { UserId = id }, ct))
             .ToActionResult(HttpContext, NoContent);
 
     [HttpPost("{id}/reactivate")]
