@@ -28,3 +28,25 @@ export interface RefreshResponse {
   accessToken: string;
   expiresIn: number;
 }
+
+export interface RegisterRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+}
+
+/** 202: nothing to log into yet. The admin has been notified and must approve first. */
+export interface RegisterResponse {
+  status: UserStatus;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface UpdateProfileRequest {
+  firstName: string;
+  lastName: string;
+}

@@ -22,14 +22,17 @@ export class RewardEarlyPunishLateErrorStateMatcher implements ErrorStateMatcher
   private readonly liveControls = new WeakSet<AbstractControl>();
 
   isErrorState(control: AbstractControl | null, form: FormGroupDirective | NgForm | null): boolean {
-    if (!control || control.valid) {
+    if (!control) {
       return false;
     }
 
-    const show =
-      this.liveControls.has(control) ||
-      (form?.submitted ?? false) ||
-      (control.touched && !this.isEmptyAndOnlyRequired(control));
+    const errors = this.errorKeys(control);
+    if (errors.length === 0) {
+      return false;
+    }
+
+    const emptyAndOnlyRequired = errors.length === 1 && errors[0] === 'required' && isEmpty(control.value);
+    const show = this.liveControls.has(control) || (form?.submitted ?? false) || (control.touched && !emptyAndOnlyRequired);
 
     if (show) {
       this.liveControls.add(control);
@@ -38,11 +41,29 @@ export class RewardEarlyPunishLateErrorStateMatcher implements ErrorStateMatcher
     return show;
   }
 
-  private isEmptyAndOnlyRequired(control: AbstractControl): boolean {
-    const errors = Object.keys(control.errors ?? {});
-    const onlyRequired = errors.length === 1 && errors[0] === 'required';
-    const value: unknown = control.value;
-    const empty = value == null || value === '' || (Array.isArray(value) && value.length === 0);
-    return empty && onlyRequired;
+  /** The error keys that count against this control. Subclasses may add cross-field errors. */
+  protected errorKeys(control: AbstractControl): string[] {
+    return Object.keys(control.errors ?? {});
   }
+}
+
+/**
+ * Same rules, but the listed errors on the parent group also count against this control — a
+ * confirm-password field showing the group's `passwordMismatch`, for example. Not injectable:
+ * create one per field and bind it with `[errorStateMatcher]`.
+ */
+export class CrossFieldErrorStateMatcher extends RewardEarlyPunishLateErrorStateMatcher {
+  constructor(private readonly parentErrorKeys: readonly string[]) {
+    super();
+  }
+
+  protected override errorKeys(control: AbstractControl): string[] {
+    const parent = control.parent;
+    const inherited = parent ? this.parentErrorKeys.filter((key) => parent.hasError(key)) : [];
+    return [...super.errorKeys(control), ...inherited];
+  }
+}
+
+function isEmpty(value: unknown): boolean {
+  return value == null || value === '' || (Array.isArray(value) && value.length === 0);
 }

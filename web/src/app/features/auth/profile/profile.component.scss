@@ -1,0 +1,48 @@
+:host {
+  display: block;
+}
+
+.profile {
+  max-width: 520px;
+  border-color: var(--brand-border);
+}
+
+.profile__header {
+  padding-bottom: 8px;
+}
+
+.profile__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.profile__row {
+  display: flex;
+  gap: 12px;
+
+  > * {
+    flex: 1;
+    min-width: 0;
+  }
+
+  @media (max-width: 479px) {
+    flex-direction: column;
+  }
+}
+
+.profile__field {
+  width: 100%;
+}
+
+.profile__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.profile__submit {
+  min-width: 140px;
+}

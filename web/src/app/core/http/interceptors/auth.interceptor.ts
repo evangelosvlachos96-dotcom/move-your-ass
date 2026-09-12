@@ -33,7 +33,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             code === ErrorCodes.AccountSuspended ||
             code === ErrorCodes.AccountDeclined ||
             code === ErrorCodes.AccountPending;
-          auth.forceLogout(explained ? undefined : 'Η σύνδεση έληξε. Συνδεθείτε ξανά.');
+          auth.forceLogout(explained ? undefined : 'Η σύνδεση έληξε. Συνδέσου ξανά.');
           return throwError(() => error);
         }),
         switchMap(() => next(withBearer(req, store.accessToken()))),

@@ -1,5 +1,6 @@
 @use '@angular/material' as mat;
 @use 'styles/brand';
+@use 'styles/auth-page';
 
 html {
   height: 100%;
@@ -93,4 +94,23 @@ body {
   left: 0;
   right: 0;
   z-index: 1100;
+}
+
+// mat-error and mat-hint sat flush against the outline. Give the subscript line room on every
+// side; the 12px gap between stacked fields (auth-page__form) absorbs the extra height.
+.mat-mdc-form-field-error-wrapper,
+.mat-mdc-form-field-hint-wrapper {
+  padding: 4px 16px 0;
+  box-sizing: border-box;
+}
+
+.mat-mdc-form-field-error,
+.mat-mdc-form-field-hint {
+  line-height: 1.35;
+}
+
+// Inside a filled (accent) button the loader replaces the label and takes the label colour;
+// accent-on-accent would be invisible.
+.mat-mdc-unelevated-button app-chevron-loader {
+  color: inherit;
 }

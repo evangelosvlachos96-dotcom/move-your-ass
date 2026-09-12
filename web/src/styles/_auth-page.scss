@@ -1,0 +1,101 @@
+// Shared layout for the signed-out pages (login, register, pending): full-height centred panel,
+// the stacked wordmark above an outlined card. Global on purpose so three components share one
+// definition instead of three copies.
+
+.auth-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.auth-page__panel {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.auth-page__panel--wide {
+  max-width: 520px;
+}
+
+.auth-page__logo {
+  display: block;
+  width: 160px;
+  height: auto;
+}
+
+.auth-page__card {
+  width: 100%;
+  border-color: var(--brand-border);
+}
+
+.auth-page__header {
+  padding-bottom: 8px;
+}
+
+.auth-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.auth-page__row {
+  display: flex;
+  gap: 12px;
+
+  > * {
+    flex: 1;
+    min-width: 0;
+  }
+
+  @media (max-width: 479px) {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.auth-page__field {
+  width: 100%;
+}
+
+.auth-page__submit {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.auth-page__links {
+  margin: 16px 0 0;
+  text-align: center;
+  color: var(--brand-muted);
+
+  a {
+    color: var(--brand-text);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+// Form-level error (not tied to one field): text first, colour second.
+.form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--brand-danger);
+  border-radius: 8px;
+  color: var(--brand-text);
+  font: var(--mat-sys-body-medium);
+
+  mat-icon {
+    flex: none;
+    color: var(--brand-danger);
+  }
+}

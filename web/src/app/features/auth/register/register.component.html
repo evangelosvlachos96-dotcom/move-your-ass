@@ -1,0 +1,114 @@
+<div class="auth-page">
+  <div class="auth-page__panel auth-page__panel--wide">
+    <img class="auth-page__logo" src="assets/brand/logo-stacked.svg" alt="MoveYourAss" width="160" height="92" />
+
+    <mat-card class="auth-page__card" appearance="outlined">
+      <mat-card-header class="auth-page__header">
+        <mat-card-title>Εγγραφή</mat-card-title>
+        <mat-card-subtitle>Φτιάξε λογαριασμό. Ο διαχειριστής θα τον ενεργοποιήσει.</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form class="auth-page__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="auth-page__row">
+            <mat-form-field class="auth-page__field">
+              <mat-label>Όνομα</mat-label>
+              <input matInput formControlName="firstName" autocomplete="given-name" />
+              @if (form.controls.firstName.hasError('required')) {
+                <mat-error>Συμπλήρωσε το όνομα</mat-error>
+              } @else if (form.controls.firstName.hasError('maxlength')) {
+                <mat-error>Μέχρι {{ nameMaxLength }} χαρακτήρες</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field class="auth-page__field">
+              <mat-label>Επώνυμο</mat-label>
+              <input matInput formControlName="lastName" autocomplete="family-name" />
+              @if (form.controls.lastName.hasError('required')) {
+                <mat-error>Συμπλήρωσε το επώνυμο</mat-error>
+              } @else if (form.controls.lastName.hasError('maxlength')) {
+                <mat-error>Μέχρι {{ nameMaxLength }} χαρακτήρες</mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <mat-form-field class="auth-page__field">
+            <mat-label>Email</mat-label>
+            <input matInput type="email" formControlName="email" autocomplete="email" />
+            @if (form.controls.email.hasError('required')) {
+              <mat-error>Συμπλήρωσε το email</mat-error>
+            } @else if (form.controls.email.hasError('email')) {
+              <mat-error>Μη έγκυρο email</mat-error>
+            } @else if (form.controls.email.hasError('maxlength')) {
+              <mat-error>Πολύ μεγάλο email</mat-error>
+            } @else if (form.controls.email.hasError('emailTaken')) {
+              <mat-error>Το email χρησιμοποιείται ήδη</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field class="auth-page__field">
+            <mat-label>Κωδικός</mat-label>
+            <input
+              matInput
+              [type]="hidePassword() ? 'password' : 'text'"
+              formControlName="password"
+              autocomplete="new-password"
+              aria-describedby="register-password-rules"
+            />
+            <button
+              matIconButton
+              matSuffix
+              type="button"
+              (click)="hidePassword.set(!hidePassword())"
+              [attr.aria-label]="hidePassword() ? 'Εμφάνιση κωδικού' : 'Απόκρυψη κωδικού'"
+              [attr.aria-pressed]="!hidePassword()"
+            >
+              <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            @if (form.controls.password.hasError('required')) {
+              <mat-error>Συμπλήρωσε τον κωδικό</mat-error>
+            } @else if (form.controls.password.hasError('maxlength')) {
+              <mat-error>Μέχρι {{ passwordMaxLength }} χαρακτήρες</mat-error>
+            } @else if (form.controls.password.hasError('passwordPolicy')) {
+              <mat-error>Ο κωδικός δεν πληροί τους κανόνες</mat-error>
+            }
+          </mat-form-field>
+
+          <app-password-checklist id="register-password-rules" [password]="passwordValue()" />
+
+          <mat-form-field class="auth-page__field">
+            <mat-label>Επιβεβαίωση κωδικού</mat-label>
+            <input
+              matInput
+              [type]="hidePassword() ? 'password' : 'text'"
+              formControlName="confirmPassword"
+              autocomplete="new-password"
+              [errorStateMatcher]="confirmMatcher"
+            />
+            @if (form.controls.confirmPassword.hasError('required')) {
+              <mat-error>Επανάλαβε τον κωδικό</mat-error>
+            } @else if (form.hasError('passwordMismatch')) {
+              <mat-error>Οι κωδικοί δεν ταιριάζουν</mat-error>
+            }
+          </mat-form-field>
+
+          <button
+            matButton="filled"
+            type="submit"
+            class="auth-page__submit"
+            [disabled]="submitting()"
+            [attr.aria-busy]="submitting()"
+          >
+            @if (submitting()) {
+              <app-chevron-loader size="sm" />
+            } @else {
+              Εγγραφή
+            }
+          </button>
+        </form>
+
+        <p class="auth-page__links">Έχεις ήδη λογαριασμό; <a routerLink="/login">Σύνδεση</a></p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
