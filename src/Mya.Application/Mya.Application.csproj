@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mya.Domain\Mya.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- Must never reference EF Core or ASP.NET. Enforced by Mya.ArchitectureTests. -->
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="16.2.0" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain references nothing. Enforced by Mya.ArchitectureTests. -->
+
+</Project>

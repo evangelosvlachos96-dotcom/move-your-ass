@@ -87,3 +87,6 @@ desktop.ini
 *.m3u8
 # NOTE: HLS segments are also .ts files. Do NOT add *.ts here — it would
 # silently ignore every TypeScript file in web/. Keep encoder output in /media/.
+
+## local prompt scratchpad
+Instructions.txt
