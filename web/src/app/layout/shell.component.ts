@@ -2,6 +2,7 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
@@ -18,7 +19,13 @@ interface NavItem {
   link: string;
 }
 
-/** Toolbar + sidenav + outlet. Sidenav is a drawer under 960px and a fixed column above. */
+/**
+ * Toolbar + sidenav + outlet. Sidenav is a drawer under 960px and a fixed column above.
+ *
+ * While the user must change a temporary password (`forced`) there is nowhere else to go: the
+ * sidenav, the logo link and the menu shortcuts are hidden and only "log out" remains. The API
+ * enforces this regardless (403 MUST_CHANGE_PASSWORD); the UI just stops pretending otherwise.
+ */
 @Component({
   selector: 'app-shell',
   imports: [
@@ -31,6 +38,7 @@ interface NavItem {
     MatButtonModule,
     MatIconModule,
     MatMenuModule,
+    MatDividerModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './shell.component.html',
@@ -41,6 +49,7 @@ export class ShellComponent {
   private readonly auth = inject(AuthService);
 
   protected readonly store = inject(AuthStore);
+  protected readonly forced = this.store.mustChangePassword;
 
   protected readonly isWide = toSignal(
     this.breakpoints.observe('(min-width: 960px)').pipe(map((result) => result.matches)),

@@ -7,25 +7,21 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
-import { EMPTY, catchError, finalize, of, switchMap } from 'rxjs';
+import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
-import { AuthStore } from '../../../core/auth/auth.store';
 import { ErrorCodes, problemCode } from '../../../core/http/problem-details';
-import { NotifyService } from '../../../core/ui/notify.service';
 import { focusControl, focusFirstInvalid } from '../../../shared/forms/focus-first-invalid';
 import { PASSWORD_MAX_LENGTH, passwordPolicy, passwordsMatch } from '../../../shared/forms/password-rules';
 import { CrossFieldErrorStateMatcher } from '../../../shared/forms/reward-early-punish-late-error-state-matcher';
 import { ChevronLoaderComponent } from '../../../shared/ui/chevron-loader/chevron-loader.component';
 import { PasswordChecklistComponent } from '../../../shared/ui/password-checklist/password-checklist.component';
 
-/**
- * Two ways in: forced by mustChangePasswordGuard after an admin-created temporary password
- * (the shell hides navigation while `store.mustChangePassword()` is true), or voluntarily from
- * the user menu. Same form; different heading, and the forced path drops the token claim with
- * one refresh before moving on.
- */
+const NAME_MAX_LENGTH = 80;
+const EMAIL_MAX_LENGTH = 256;
+
+/** Self-service registration: lands on /pending, the admin approves from their side. */
 @Component({
-  selector: 'app-change-password',
+  selector: 'app-register',
   imports: [
     ReactiveFormsModule,
     RouterLink,
@@ -38,37 +34,45 @@ import { PasswordChecklistComponent } from '../../../shared/ui/password-checklis
     PasswordChecklistComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './change-password.component.html',
-  styleUrl: './change-password.component.scss',
+  templateUrl: './register.component.html',
 })
-export class ChangePasswordComponent {
+export class RegisterComponent {
   private readonly auth = inject(AuthService);
-  private readonly store = inject(AuthStore);
   private readonly router = inject(Router);
-  private readonly notify = inject(NotifyService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  protected readonly forced = this.store.mustChangePassword;
   protected readonly submitting = signal(false);
-  protected readonly hideCurrent = signal(true);
-  protected readonly hideNew = signal(true);
+  protected readonly hidePassword = signal(true);
+  protected readonly nameMaxLength = NAME_MAX_LENGTH;
   protected readonly passwordMaxLength = PASSWORD_MAX_LENGTH;
 
   protected readonly form = new FormGroup(
     {
-      currentPassword: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-      newPassword: new FormControl('', {
+      firstName: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.maxLength(NAME_MAX_LENGTH)],
+      }),
+      lastName: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.maxLength(NAME_MAX_LENGTH)],
+      }),
+      email: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.email, Validators.maxLength(EMAIL_MAX_LENGTH)],
+      }),
+      password: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, Validators.maxLength(PASSWORD_MAX_LENGTH), passwordPolicy()],
       }),
       confirmPassword: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     },
-    { validators: passwordsMatch('newPassword', 'confirmPassword') },
+    { validators: passwordsMatch('password', 'confirmPassword') },
   );
 
+  /** The mismatch lives on the group; the confirm field is where it is shown. */
   protected readonly confirmMatcher = new CrossFieldErrorStateMatcher(['passwordMismatch']);
 
-  protected readonly newPasswordValue = toSignal(this.form.controls.newPassword.valueChanges, { initialValue: '' });
+  protected readonly passwordValue = toSignal(this.form.controls.password.valueChanges, { initialValue: '' });
 
   protected submit(): void {
     if (this.submitting()) {
@@ -83,34 +87,22 @@ export class ChangePasswordComponent {
       return;
     }
 
-    const { currentPassword, newPassword } = this.form.getRawValue();
-    const wasForced = this.forced();
+    const { firstName, lastName, email, password } = this.form.getRawValue();
 
     this.submitting.set(true);
     this.auth
-      .changePassword({ currentPassword, newPassword })
-      .pipe(
-        // Forced path: the access token still says must_change_password until refreshed.
-        switchMap(() => (wasForced ? this.auth.clearMustChangePassword() : of(null))),
-        catchError((error: unknown) => {
-          if (problemCode(error) === ErrorCodes.CurrentPasswordWrong) {
+      .register({ firstName, lastName, email, password })
+      .pipe(finalize(() => this.submitting.set(false)))
+      .subscribe({
+        next: () => void this.router.navigateByUrl('/pending'),
+        error: (error: unknown) => {
+          if (problemCode(error) === ErrorCodes.EmailAlreadyExists) {
             // Cleared by the next keystroke: the validators re-run and replace the error set.
-            this.form.controls.currentPassword.setErrors({ wrong: true });
-            focusControl(this.host.nativeElement, 'currentPassword');
-            return EMPTY;
-          }
-          if (wasForced && this.form.valid) {
-            // The password changed but the refresh did not come back: start over with the new one.
-            this.auth.forceLogout('Ο κωδικός άλλαξε. Συνδέσου ξανά με τον νέο κωδικό.');
+            this.form.controls.email.setErrors({ emailTaken: true });
+            focusControl(this.host.nativeElement, 'email');
           }
           // Anything else was already reported by the error interceptor.
-          return EMPTY;
-        }),
-        finalize(() => this.submitting.set(false)),
-      )
-      .subscribe(() => {
-        this.notify.info('Ο κωδικός σου άλλαξε.');
-        void this.router.navigateByUrl('/dashboard');
+        },
       });
   }
 }

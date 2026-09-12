@@ -5,7 +5,7 @@ import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
 import { AuthStore } from '../../auth/auth.store';
 import { NotifyService } from '../../ui/notify.service';
-import { SILENT_REQUEST } from '../http-context';
+import { HANDLED_ERROR_CODES, SILENT_REQUEST } from '../http-context';
 import { ErrorCodes, problemCode } from '../problem-details';
 
 /**
@@ -21,7 +21,11 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req).pipe(
     catchError((error: unknown) => {
       if (error instanceof HttpErrorResponse) {
-        handle(error, req.context.get(SILENT_REQUEST), { router, notify, auth, store });
+        handle(
+          error,
+          { silent: req.context.get(SILENT_REQUEST), handledCodes: req.context.get(HANDLED_ERROR_CODES) },
+          { router, notify, auth, store },
+        );
       }
       return throwError(() => error);
     }),
@@ -35,19 +39,26 @@ interface Deps {
   store: AuthStore;
 }
 
-function handle(error: HttpErrorResponse, isSilent: boolean, { router, notify, auth, store }: Deps): void {
-  switch (problemCode(error)) {
+interface RequestFlags {
+  silent: boolean;
+  handledCodes: readonly string[];
+}
+
+function handle(error: HttpErrorResponse, flags: RequestFlags, { router, notify, auth, store }: Deps): void {
+  const code = problemCode(error);
+
+  switch (code) {
     case ErrorCodes.AccountPending:
       void router.navigateByUrl('/pending');
       return;
 
     case ErrorCodes.AccountSuspended:
       auth.forceLogout();
-      notify.error('Ο λογαριασμός σας έχει ανασταλεί. Επικοινωνήστε με τον διαχειριστή.');
+      notify.error('Ο λογαριασμός σου έχει ανασταλεί. Επικοινώνησε με τον διαχειριστή.');
       return;
 
     case ErrorCodes.AccountDeclined:
-      notify.error('Η εγγραφή σας δεν έγινε δεκτή.');
+      notify.error('Η εγγραφή σου δεν έγινε δεκτή.');
       return;
 
     case ErrorCodes.MustChangePassword:
@@ -60,11 +71,13 @@ function handle(error: HttpErrorResponse, isSilent: boolean, { router, notify, a
       return;
 
     default:
-      if (isSilent) {
+      if (flags.silent || (code !== undefined && flags.handledCodes.includes(code))) {
         return;
       }
       // A 401 after the session was dropped is already explained by the auth interceptor.
-      if (error.status === 401 && !store.isAuthenticated()) {
+      // INVALID_CREDENTIALS is the one 401 a signed-out visitor must hear about: it is the
+      // answer to their login attempt.
+      if (error.status === 401 && code !== ErrorCodes.InvalidCredentials && !store.isAuthenticated()) {
         return;
       }
       notify.error(messageFor(error));
@@ -80,11 +93,11 @@ function messageFor(error: HttpErrorResponse): string {
     case ErrorCodes.EmailAlreadyExists:
       return 'Το email χρησιμοποιείται ήδη.';
     case ErrorCodes.ValidationFailed:
-      return 'Ελέγξτε τα στοιχεία που συμπληρώσατε.';
+      return 'Έλεγξε τα στοιχεία που συμπλήρωσες.';
     case ErrorCodes.RateLimited:
-      return 'Πολλές προσπάθειες. Δοκιμάστε ξανά σε λίγο.';
+      return 'Πολλές προσπάθειες. Δοκίμασε ξανά σε λίγο.';
     case ErrorCodes.Forbidden:
-      return 'Δεν έχετε δικαίωμα για αυτή την ενέργεια.';
+      return 'Δεν έχεις δικαίωμα για αυτή την ενέργεια.';
     case ErrorCodes.Unauthenticated:
       return 'Απαιτείται σύνδεση.';
     case ErrorCodes.UserNotFound:
@@ -95,8 +108,6 @@ function messageFor(error: HttpErrorResponse): string {
     case ErrorCodes.CannotDeleteLastAdmin:
       return 'Η ενέργεια δεν επιτρέπεται.';
     default:
-      return error.status === 0
-        ? 'Δεν υπάρχει σύνδεση με τον διακομιστή.'
-        : 'Κάτι πήγε στραβά. Δοκιμάστε ξανά.';
+      return error.status === 0 ? 'Δεν υπάρχει σύνδεση με τον διακομιστή.' : 'Κάτι πήγε στραβά. Δοκίμασε ξανά.';
   }
 }

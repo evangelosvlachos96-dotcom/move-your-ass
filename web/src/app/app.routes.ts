@@ -10,6 +10,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login/login.component').then((m) => m.LoginComponent),
   },
   {
+    path: 'register',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./features/auth/register/register.component').then((m) => m.RegisterComponent),
+  },
+  {
     path: 'pending',
     loadComponent: () => import('./features/auth/pending/pending.component').then((m) => m.PendingComponent),
   },
@@ -24,6 +29,11 @@ export const routes: Routes = [
         canActivate: [mustChangePasswordGuard],
         loadComponent: () =>
           import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+      },
+      {
+        path: 'profile',
+        canActivate: [mustChangePasswordGuard],
+        loadComponent: () => import('./features/auth/profile/profile.component').then((m) => m.ProfileComponent),
       },
       {
         path: 'change-password',

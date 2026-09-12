@@ -1,0 +1,55 @@
+<mat-card class="profile" appearance="outlined">
+  <mat-card-header class="profile__header">
+    <mat-card-title>Προφίλ</mat-card-title>
+    <mat-card-subtitle>Το όνομα που βλέπει ο διαχειριστής.</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <form class="profile__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="profile__row">
+        <mat-form-field class="profile__field">
+          <mat-label>Όνομα</mat-label>
+          <input matInput formControlName="firstName" autocomplete="given-name" />
+          @if (form.controls.firstName.hasError('required')) {
+            <mat-error>Συμπλήρωσε το όνομα</mat-error>
+          } @else if (form.controls.firstName.hasError('maxlength')) {
+            <mat-error>Μέχρι {{ nameMaxLength }} χαρακτήρες</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field class="profile__field">
+          <mat-label>Επώνυμο</mat-label>
+          <input matInput formControlName="lastName" autocomplete="family-name" />
+          @if (form.controls.lastName.hasError('required')) {
+            <mat-error>Συμπλήρωσε το επώνυμο</mat-error>
+          } @else if (form.controls.lastName.hasError('maxlength')) {
+            <mat-error>Μέχρι {{ nameMaxLength }} χαρακτήρες</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <mat-form-field class="profile__field">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" />
+        <mat-hint>Το email δεν αλλάζει. Αν χρειάζεται, μίλησε με τον διαχειριστή.</mat-hint>
+      </mat-form-field>
+
+      <div class="profile__actions">
+        <a matButton routerLink="/dashboard">Άκυρο</a>
+        <button
+          matButton="filled"
+          type="submit"
+          class="profile__submit"
+          [disabled]="submitting()"
+          [attr.aria-busy]="submitting()"
+        >
+          @if (submitting()) {
+            <app-chevron-loader size="sm" />
+          } @else {
+            Αποθήκευση
+          }
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
