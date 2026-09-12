@@ -171,3 +171,37 @@ the quota is hit. SQL serverless auto-pause stacks a second cold start on top.
 **Trigger to upgrade:** acceptance criterion 14 in `docs/04` — measure cold-start latency against
 the deployed environment. If a first login of the day exceeds ~10 seconds, move to B1 (~€12/mo).
 Do not agonise over this; it is twelve euros.
+
+---
+
+## Status changes — September 2026 (booking dropped, see `docs/04-roadmap.md`)
+
+- **ADR-006** (slot booking in one SQL statement) — **withdrawn**. No booking, no slot race.
+- **ADR-007** (idempotency keys on user-initiated mutations) — **narrowed**. `IdempotencyRecord`
+  stays; the only planned use is video creation.
+- **ADR-008** (pre-encoded HLS on Blob) — **superseded** by Bunny Stream behind `IVideoStorage`.
+  The trainer uploads from a phone and will never run ffmpeg.
+
+---
+
+### ADR-013 — Email 2FA deferred
+
+**Status:** accepted
+
+Password-only login for now. Email 2FA doubles the login surface and couples the first deploy to
+a working mail provider. `TwoFactorTicket` stays in the schema, unused, so enabling it later is
+code only.
+
+**Cost:** a leaked password is enough to log in until 2FA returns. Mitigated by lockout (5
+failures, 15 minutes), per-email rate limiting and single active session.
+
+---
+
+### ADR-014 — Automated tests deferred beyond the architecture tests
+
+**Status:** accepted, revisit once the catalogue has real content
+
+Deliberate, to reach a deployed product faster. `Mya.ArchitectureTests` stays green; the phase 1
+seeder, converter and settings tests stay; nothing new is written for phases 2–4.
+
+**Cost:** regressions are found by the trainer in production rather than by CI.

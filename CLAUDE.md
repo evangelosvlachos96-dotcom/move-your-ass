@@ -5,9 +5,10 @@ changes. This is a **mono-repo**: backend, frontend, infra, and docs live togeth
 
 ## What this is
 
-A private training platform. One trainer (Admin) publishes video content and 1:1 session slots.
-Clients register, get manually approved by the Admin, then log in to watch videos and book
-sessions on a calendar.
+A private video library for one trainer (Admin). Clients register, get manually approved by the
+Admin, then log in to browse and watch categorised workout videos. Session booking was part of the
+original design and was **dropped in September 2026** — see `docs/04-roadmap.md` and
+`docs/06-video-catalogue.md`.
 
 Not a marketplace. Not multi-tenant. One admin, tens-to-low-hundreds of clients. Headed for
 production, not a demo.
@@ -24,8 +25,9 @@ production, not a demo.
 | Frontend | Angular, standalone + signals | latest (`ng new` default) |
 | UI kit | Angular Material | matching Angular major |
 | Auth | ASP.NET Core Identity + JWT | — |
+| Video | Bunny Stream behind `IVideoStorage` | — |
 | Hosting | Azure App Service (API) + Static Web Apps (SPA) | — |
-| Tests | xUnit / NSubstitute / Shouldly, Vitest / Testing Library | — |
+| Tests | xUnit / NSubstitute / Shouldly, Vitest / Testing Library | deferred beyond architecture tests (ADR-014) |
 
 ## Licensing notes
 
@@ -45,21 +47,29 @@ production, not a demo.
 2. **Angular features never import `HttpClient`.** Everything goes through `core/http/ApiClient`.
    There is an ESLint rule enforcing this — do not disable it.
 3. **All times are UTC** in the database and on the wire. Convert to `Europe/Athens` in the UI only.
-4. **Slot booking is one atomic SQL UPDATE.** Never `SELECT` then `UPDATE`. See `docs/03` §5.1.
-   Nothing in the UI, session model, or token design is allowed to become the guarantee.
+4. **`MustChangePassword` is enforced server-side.** While it is set, every authenticated endpoint
+   except `/auth/me`, `/auth/change-password` and `/auth/logout` returns 403 `MUST_CHANGE_PASSWORD`
+   (`MustChangePasswordMiddleware`). A guard in Angular is a convenience, not the control.
 5. **Every mutating endpoint a user can double-submit takes an `Idempotency-Key` header.**
-   The key is generated when the dialog opens, not when the button is clicked.
-6. **`Mya.Application` must not reference EF Core or ASP.NET.** Enforced by `Mya.ArchitectureTests`.
+   Video creation when it lands; `IdempotencyRecord` is kept for it. The key is generated when
+   the dialog opens, not when the button is clicked.
+6. **`Mya.Application` may reference `Microsoft.EntityFrameworkCore` (the abstractions: `DbSet<T>`,
+   async LINQ) but must not reference `Microsoft.EntityFrameworkCore.SqlServer` or
+   `Microsoft.AspNetCore.*`. `Mya.Domain` references nothing.** Enforced by `Mya.ArchitectureTests`;
+   see `docs/02` §1 for the exact statement.
 7. **No secrets in the repo.** Local: user-secrets. Azure: App Service config backed by Key Vault.
+8. **Admin rules live in handlers, not the UI.** Cannot delete or suspend self, cannot delete or
+   demote the last Admin, approve/decline only from `PendingApproval`, duplicate emails decided by
+   the unique index (`DbUpdateException`), never by a pre-check query.
 
 ## Layout
 
 ```
 /src
-  Mya.Api/              ASP.NET Core host, controllers, middleware
+  Mya.Api/              ASP.NET Core host, controllers, filters, middleware
   Mya.Application/      use cases, DTOs, validators, profiles, abstractions
-  Mya.Domain/           entities, enums, domain exceptions
-  Mya.Infrastructure/   EF Core, Identity, blob, email
+  Mya.Domain/           entities, enums, constants
+  Mya.Infrastructure/   EF Core, Identity, JWT, email, outbox dispatcher
 /tests
   Mya.Application.UnitTests/
   Mya.Api.IntegrationTests/
@@ -72,33 +82,51 @@ production, not a demo.
 
 ## Current phase
 
-**Phase 1 — auth skeleton + deployment.** See `docs/04-phase-1-scope.md`.
+**Phase 2 — backend auth and user management.** See `docs/04-roadmap.md` §"Phases" and
+§"API surface after phase 2". Phase 1 (foundation) is done.
 
-Do not build booking, videos, or change requests yet. The goal of phase 1 is a deployed, working
-login on Azure with two roles and a plain UI. Nothing more. If a task is not in `docs/04` §1, it
-goes in `docs/backlog.md`.
+Decisions in force for this phase:
+
+- **ADR-013 — email 2FA deferred.** Password-only login. `TwoFactorTicket` stays in the schema,
+  unused, so enabling 2FA later is code only.
+- **ADR-014 — automated tests deferred beyond the architecture tests.** Do not add unit or
+  integration tests until the catalogue has real content; `Mya.ArchitectureTests` must stay green.
+- **`AppUser.FullName` is gone.** Users have `FirstName` and `LastName` (80 each, required) and a
+  `MustChangePassword` bit. The seeded Admin's names come from `Seed:AdminFirstName/AdminLastName`.
+- **Booking is dropped.** Nothing in `docs/03` §5 applies. Booking items sit in `docs/backlog.md`
+  under "Dropped — may return".
+
+If a task is not in the current phase of `docs/04-roadmap.md`, it goes in `docs/backlog.md`.
 
 ## Conventions
 
-- `Result<T>` returned from handlers; controllers translate to `IActionResult`.
-- Errors on the wire are RFC 7807 `ProblemDetails` with a stable machine-readable `code`.
-  The Angular error interceptor switches on `code`, never on `message`.
+- `Result<T>` returned from handlers; controllers translate to `IActionResult` via
+  `ResultExtensions.ToActionResult`.
+- Errors on the wire are RFC 7807 `ProblemDetails` with a stable machine-readable `code`
+  (`ErrorCodes`). The Angular error interceptor switches on `code`, never on `message`.
+- Business-rule numbers come from `PlatformSettings`; no magic numbers in handlers.
 - EF configurations in `Persistence/Configurations/`, one file per entity. No data annotations.
 - AutoMapper profiles live beside their feature in `Mya.Application/Features/<Feature>/`.
-  Add `AssertConfigurationIsValid()` to a unit test so a broken profile fails the build.
-- Migrations are committed. Never edit an applied migration; add a new one.
-- Commit style: `feat(auth): ...`, `fix(booking): ...`, `docs: ...`, `chore(infra): ...`.
-- Branch per step from `docs/04` §7. Small PRs — the design docs are worthless if a 4,000-line
-  PR lands that quietly ignores them.
+- Migrations are committed and excluded from style analysis (`.editorconfig`). Never edit an
+  applied migration; add a new one.
+- Commit style: `feat(auth): ...`, `fix(users): ...`, `docs: ...`, `chore(infra): ...`.
+- Branch per phase from `docs/04-roadmap.md`. Small PRs — the design docs are worthless if a
+  4,000-line PR lands that quietly ignores them.
 
 ## Commands
 
 ```bash
 # backend
-dotnet run --project src/Mya.Api
+dotnet run --project src/Mya.Api            # Development: seeds roles + admin, Swagger at /swagger
 dotnet ef migrations add <Name> --project src/Mya.Infrastructure --startup-project src/Mya.Api
 dotnet ef database update --project src/Mya.Infrastructure --startup-project src/Mya.Api
 dotnet test
+
+# local secrets (never in appsettings)
+dotnet user-secrets set "ConnectionStrings:Default" "<LocalDB connection string>" --project src/Mya.Api
+dotnet user-secrets set "Jwt:SigningKey" "<32+ random chars>" --project src/Mya.Api
+dotnet user-secrets set "Seed:AdminEmail" "<email>" --project src/Mya.Api
+dotnet user-secrets set "Seed:AdminPassword" "<password>" --project src/Mya.Api
 
 # frontend
 cd web && npm start
@@ -119,10 +147,17 @@ This ships to real clients, so the Azure free tiers are not the target:
 
 ## Things that will bite you
 
-- Serverless SQL auto-pause means a cold first request. Expected, not a bug — but measure it
-  (acceptance criterion 14 in `docs/04`) and set the min-vCore floor accordingly.
-- SQLite cannot host the concurrency tests (no `rowversion`, no filtered indexes). Integration
-  tests use SQL Server via Testcontainers.
+- Serverless SQL auto-pause means a cold first request. Expected, not a bug — measure it during
+  phase 4 and set the min-vCore floor accordingly.
+- SQLite cannot host SQL Server semantics (no `rowversion`, different concurrency). The seeder
+  test runs on SQLite in-memory because it needs neither; anything touching concurrency uses
+  SQL Server via Testcontainers.
+- The `must_change_password` claim is baked into the access token. After a password change the
+  client must call `/auth/refresh` once to get a token without it.
+- The refresh cookie is `Secure`. Over plain `http://localhost` browsers still accept it, but
+  behind a TLS-terminating proxy the API must see `X-Forwarded-Proto` (phase 4).
+- Outside Development the email sender is `UnconfiguredEmailSender`: outbox rows fail and
+  dead-letter with a clear `LastError` until SMTP lands in phase 4.
 - Angular Material's date picker is UTC-naive. Normalise at the API boundary, every time.
 - Migrations never run automatically on startup in production. Generate an idempotent script and
   apply it as a gated workflow step.
