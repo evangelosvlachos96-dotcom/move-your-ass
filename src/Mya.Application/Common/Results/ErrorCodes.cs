@@ -18,7 +18,9 @@ public static class ErrorCodes
     public const string UserNotFound = "USER_NOT_FOUND";
     public const string UserNotPending = "USER_NOT_PENDING";
     public const string CannotDeleteSelf = "CANNOT_DELETE_SELF";
+    public const string CannotModifySelf = "CANNOT_MODIFY_SELF";
     public const string CannotDeleteLastAdmin = "CANNOT_DELETE_LAST_ADMIN";
+    public const string SessionSuperseded = "SESSION_SUPERSEDED";
 
     // --- transport (emitted by the host, not by handlers) ---
     public const string Unauthenticated = "UNAUTHENTICATED";
