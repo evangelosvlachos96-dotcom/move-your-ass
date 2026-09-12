@@ -1,0 +1,16 @@
+// The only file that may contain a colour literal. Swap the palette here and nowhere else.
+//
+// Accent is reserved for three things: the primary button, the active navigation item and
+// focus rings. Everything else is surface, border and text. Text on the accent is always
+// --brand-on-accent — white on the accent is roughly 1.4:1 and unreadable.
+:root {
+  --brand-bg: #0e0e10;
+  --brand-surface: #17171a;
+  --brand-surface-2: #1f1f24;
+  --brand-border: #26262b;
+  --brand-accent: #c6f24e;
+  --brand-on-accent: #0e0e10;
+  --brand-text: #f5f5f0;
+  --brand-muted: #8b8b84;
+  --brand-danger: #e24b4a;
+}

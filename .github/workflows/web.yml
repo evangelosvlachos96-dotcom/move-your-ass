@@ -34,8 +34,15 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # ADR-014: automated tests are deferred. Vitest fails the run when no spec file exists,
+      # so the step is skipped until the first spec lands; then it runs unconditionally.
       - name: Test
-        run: npm run test -- --run
+        run: |
+          if find src -name '*.spec.ts' | grep -q .; then
+            npm run test -- --watch=false
+          else
+            echo "No spec files yet (ADR-014); skipping tests."
+          fi
 
       - name: Build
         run: npm run build -- --configuration production

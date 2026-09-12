@@ -1,0 +1,96 @@
+@use '@angular/material' as mat;
+@use 'styles/brand';
+
+html {
+  height: 100%;
+  color-scheme: dark;
+
+  @include mat.theme(
+    (
+      color: (
+        theme-type: dark,
+        primary: mat.$chartreuse-palette,
+        tertiary: mat.$chartreuse-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+
+  // Map Material's system tokens onto the brand variables so every component inherits the
+  // palette from _brand.scss. Declared after the mixin so they win.
+  --mat-sys-background: var(--brand-bg);
+  --mat-sys-on-background: var(--brand-text);
+  --mat-sys-surface: var(--brand-surface);
+  --mat-sys-surface-dim: var(--brand-bg);
+  --mat-sys-surface-bright: var(--brand-surface-2);
+  --mat-sys-surface-container-lowest: var(--brand-bg);
+  --mat-sys-surface-container-low: var(--brand-surface);
+  --mat-sys-surface-container: var(--brand-surface-2);
+  --mat-sys-surface-container-high: var(--brand-surface-2);
+  --mat-sys-surface-container-highest: var(--brand-surface-2);
+  --mat-sys-surface-variant: var(--brand-surface-2);
+  --mat-sys-on-surface: var(--brand-text);
+  --mat-sys-on-surface-variant: var(--brand-muted);
+  --mat-sys-outline: var(--brand-border);
+  --mat-sys-outline-variant: var(--brand-border);
+  --mat-sys-inverse-surface: var(--brand-text);
+  --mat-sys-inverse-on-surface: var(--brand-bg);
+
+  // Accent: primary button, active nav item, focus rings. Nothing else.
+  --mat-sys-primary: var(--brand-accent);
+  --mat-sys-on-primary: var(--brand-on-accent);
+  --mat-sys-primary-container: var(--brand-accent);
+  --mat-sys-on-primary-container: var(--brand-on-accent);
+  --mat-sys-secondary: var(--brand-text);
+  --mat-sys-on-secondary: var(--brand-bg);
+  --mat-sys-secondary-container: var(--brand-surface-2);
+  --mat-sys-on-secondary-container: var(--brand-text);
+  --mat-sys-tertiary: var(--brand-text);
+  --mat-sys-on-tertiary: var(--brand-bg);
+
+  --mat-sys-error: var(--brand-danger);
+  --mat-sys-on-error: var(--brand-text);
+  --mat-sys-error-container: var(--brand-danger);
+  --mat-sys-on-error-container: var(--brand-text);
+
+  // The global progress bar is not a primary action: keep it out of the accent.
+  --mat-progress-bar-active-indicator-color: var(--brand-text);
+  --mat-progress-bar-track-color: var(--brand-border);
+
+  // Toolbar and sidenav are plain surfaces.
+  --mat-toolbar-container-background-color: var(--brand-surface);
+  --mat-toolbar-container-text-color: var(--brand-text);
+  --mat-sidenav-container-background-color: var(--brand-surface);
+  --mat-sidenav-content-background-color: var(--brand-bg);
+  --mat-sidenav-container-divider-color: var(--brand-border);
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  background-color: var(--brand-bg);
+  color: var(--brand-text);
+  font: var(--mat-sys-body-medium);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+// Error snackbar: danger surface with brand text.
+.snack-error {
+  --mat-snack-bar-container-color: var(--brand-danger);
+  --mat-snack-bar-supporting-text-color: var(--brand-text);
+  --mat-snack-bar-button-color: var(--brand-text);
+}
+
+.global-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+}
