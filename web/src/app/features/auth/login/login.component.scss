@@ -1,0 +1,53 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.login {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.login__panel {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.login__logo {
+  display: block;
+  width: 160px;
+  height: auto;
+}
+
+.login__card {
+  width: 100%;
+  border-color: var(--brand-border);
+}
+
+.login__header {
+  padding-bottom: 8px;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.login__field {
+  width: 100%;
+}
+
+.login__submit {
+  margin-top: 8px;
+  width: 100%;
+}

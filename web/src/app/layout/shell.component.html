@@ -1,0 +1,62 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav
+    class="shell__nav"
+    [mode]="isWide() ? 'side' : 'over'"
+    [opened]="isWide() || drawerOpen()"
+    (closedStart)="drawerOpen.set(false)"
+  >
+    <nav aria-label="Κύρια πλοήγηση">
+      <mat-nav-list>
+        @for (item of navItems; track item.link) {
+          <a
+            mat-list-item
+            [routerLink]="item.link"
+            routerLinkActive="shell__nav-item--active"
+            ariaCurrentWhenActive="page"
+            (click)="closeDrawerIfNarrow()"
+          >
+            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+            <span matListItemTitle>{{ item.label }}</span>
+          </a>
+        }
+      </mat-nav-list>
+    </nav>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="shell__body">
+    <mat-toolbar class="shell__toolbar">
+      @if (!isWide()) {
+        <button matIconButton type="button" (click)="toggleDrawer()" aria-label="Μενού">
+          <mat-icon>menu</mat-icon>
+        </button>
+      }
+
+      <a class="shell__logo" routerLink="/dashboard" aria-label="Αρχική">
+        <img class="shell__logo-img" src="assets/brand/logo-horizontal.svg" alt="MoveYourAss" width="170" height="36" />
+      </a>
+
+      <span class="shell__spacer"></span>
+
+      <button matButton type="button" class="shell__user" [matMenuTriggerFor]="userMenu" aria-label="Μενού χρήστη">
+        <mat-icon>account_circle</mat-icon>
+        <span class="shell__user-name">{{ store.fullName() }}</span>
+        <mat-icon>expand_more</mat-icon>
+      </button>
+
+      <mat-menu #userMenu="matMenu" xPosition="before">
+        <div class="shell__menu-header">
+          <strong>{{ store.fullName() }}</strong>
+          <small>{{ store.user()?.email }}</small>
+        </div>
+        <button mat-menu-item type="button" (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>Αποσύνδεση</span>
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+
+    <main class="shell__content">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

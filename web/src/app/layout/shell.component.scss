@@ -1,0 +1,92 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.shell {
+  height: 100%;
+}
+
+.shell__nav {
+  width: 240px;
+  border-right: 1px solid var(--brand-border);
+  padding-top: 8px;
+}
+
+// Active navigation item: the second of the three permitted uses of the accent.
+.shell__nav-item--active {
+  --mat-list-list-item-label-text-color: var(--brand-accent);
+  --mat-list-list-item-leading-icon-color: var(--brand-accent);
+  box-shadow: inset 3px 0 0 var(--brand-accent);
+}
+
+.shell__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.shell__toolbar {
+  gap: 8px;
+  border-bottom: 1px solid var(--brand-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.shell__logo {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+.shell__logo-img {
+  display: block;
+  height: 36px;
+  width: auto;
+}
+
+.shell__spacer {
+  flex: 1;
+}
+
+.shell__user {
+  --mat-button-text-label-text-color: var(--brand-text);
+}
+
+.shell__user-name {
+  margin: 0 4px;
+}
+
+.shell__menu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--brand-border);
+
+  small {
+    color: var(--brand-muted);
+  }
+}
+
+.shell__content {
+  flex: 1;
+  padding: 24px;
+  max-width: 1200px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+@media (max-width: 599px) {
+  .shell__user-name {
+    display: none;
+  }
+
+  .shell__content {
+    padding: 16px;
+  }
+}
