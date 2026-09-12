@@ -171,15 +171,24 @@ The Angular error interceptor switches on these, never on message text.
 ACCOUNT_PENDING          403   registered, not yet approved
 ACCOUNT_DECLINED         403   registration was rejected
 ACCOUNT_SUSPENDED        403   access revoked by admin
-INVALID_CREDENTIALS      401   wrong email or password — identical for unknown email
+INVALID_CREDENTIALS      401   wrong email or password — identical for unknown email; also
+                               every refresh failure except the one below (unknown, expired,
+                               reused token — deliberately vague)
+SESSION_SUPERSEDED       401   on refresh: this session was replaced by a newer login on
+                               another device (docs/03 §4.3, §5.4)
 MUST_CHANGE_PASSWORD     403   temp password still in place
 CURRENT_PASSWORD_WRONG   400   on change-password
-EMAIL_ALREADY_EXISTS     409   on register or admin-create
+EMAIL_ALREADY_EXISTS     409   on register or admin-create — except a Declined account, which
+                               register resets back to PendingApproval and returns 202
 USER_NOT_FOUND           404
 USER_NOT_PENDING         409   approve/decline on a non-pending user
-CANNOT_DELETE_SELF       409
-CANNOT_DELETE_LAST_ADMIN 409
+CANNOT_DELETE_SELF       409   delete on your own account
+CANNOT_MODIFY_SELF       409   suspend on your own account
+CANNOT_DELETE_LAST_ADMIN 409   delete or demote the last remaining Admin
 ```
+
+Transport-level codes emitted by the host, not by handlers: `UNAUTHENTICATED` 401,
+`FORBIDDEN` 403, `VALIDATION_FAILED` 400, `RATE_LIMITED` 429, `INTERNAL_ERROR` 500.
 
 ---
 

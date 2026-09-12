@@ -120,6 +120,41 @@ public sealed class UserService(UserManager<AppUser> userManager, AppDbContext d
         return Result.Success(ToAccount(user, account.Role));
     }
 
+    public async Task<UserAccount> ReRegisterDeclinedAsync(string userId, string firstName, string lastName, string password, CancellationToken cancellationToken)
+    {
+        var user = await RequireAsync(userId);
+        if (user.Status is not UserStatus.Declined)
+        {
+            throw new InvalidOperationException($"User '{userId}' is {user.Status}, not Declined; only declined accounts can re-register.");
+        }
+
+        user.FirstName = firstName;
+        user.LastName = lastName;
+        user.Status = UserStatus.PendingApproval;
+        user.MustChangePassword = false;
+        user.ApprovedAtUtc = null;
+        user.ApprovedByUserId = null;
+        user.SuspendedAtUtc = null;
+        user.SuspensionReason = null;
+        user.ActiveSessionId = null;
+        user.ActiveSessionStartedAtUtc = null;
+        user.ActiveSessionUserAgent = null;
+        user.CreatedAtUtc = clock.UtcNow;
+        user.AccessFailedCount = 0;
+        user.LockoutEnd = null;
+        (await userManager.UpdateAsync(user)).ThrowIfFailed("reset the declined account");
+
+        if (await userManager.HasPasswordAsync(user))
+        {
+            (await userManager.RemovePasswordAsync(user)).ThrowIfFailed("remove the old password");
+        }
+
+        (await userManager.AddPasswordAsync(user, password)).ThrowIfFailed("set the new password");
+        (await userManager.UpdateSecurityStampAsync(user)).ThrowIfFailed("rotate the security stamp");
+
+        return await ToAccountAsync(user);
+    }
+
     public async Task<PasswordCheckOutcome> CheckPasswordAsync(string userId, string password, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(userId);

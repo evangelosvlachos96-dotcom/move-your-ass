@@ -31,7 +31,14 @@ public static class Errors
         new(ErrorCodes.UserNotPending, "User is not pending approval", ResultStatus.Conflict);
 
     public static readonly Error CannotDeleteSelf =
-        new(ErrorCodes.CannotDeleteSelf, "You cannot perform this action on your own account", ResultStatus.Conflict);
+        new(ErrorCodes.CannotDeleteSelf, "You cannot delete your own account", ResultStatus.Conflict);
+
+    public static readonly Error CannotModifySelf =
+        new(ErrorCodes.CannotModifySelf, "You cannot suspend your own account", ResultStatus.Conflict);
+
+    /// <summary>docs/03 section 4.3: the refresh token belongs to a session a newer login replaced.</summary>
+    public static readonly Error SessionSuperseded =
+        new(ErrorCodes.SessionSuperseded, "Signed out because this account logged in on another device", ResultStatus.Unauthorized);
 
     public static readonly Error CannotDeleteLastAdmin =
         new(ErrorCodes.CannotDeleteLastAdmin, "The last remaining Admin cannot be removed", ResultStatus.Conflict);

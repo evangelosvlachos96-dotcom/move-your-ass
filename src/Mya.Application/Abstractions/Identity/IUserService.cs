@@ -23,6 +23,12 @@ public interface IUserService
     /// <summary>Fails with EMAIL_ALREADY_EXISTS when the unique index rejects the email.</summary>
     public Task<Result<UserAccount>> CreateAsync(NewUserAccount account, string password, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Re-registration of a Declined account: new names and password, back to PendingApproval,
+    /// decline traces and lockout cleared. Throws if the account is not Declined.
+    /// </summary>
+    public Task<UserAccount> ReRegisterDeclinedAsync(string userId, string firstName, string lastName, string password, CancellationToken cancellationToken);
+
     /// <summary>Lockout-aware: counts failures and reports a locked account as such.</summary>
     public Task<PasswordCheckOutcome> CheckPasswordAsync(string userId, string password, CancellationToken cancellationToken);
 

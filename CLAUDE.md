@@ -109,9 +109,16 @@ If a task is not in the current phase of `docs/04-roadmap.md`, it goes in `docs/
 - AutoMapper profiles live beside their feature in `Mya.Application/Features/<Feature>/`.
 - Migrations are committed and excluded from style analysis (`.editorconfig`). Never edit an
   applied migration; add a new one.
+
+## Git policy
+
 - Commit style: `feat(auth): ...`, `fix(users): ...`, `docs: ...`, `chore(infra): ...`.
-- Branch per phase from `docs/04-roadmap.md`. Small PRs — the design docs are worthless if a
-  4,000-line PR lands that quietly ignores them.
+- Branch per phase from `docs/04-roadmap.md`, merged through a PR. Small PRs — the design docs
+  are worthless if a 4,000-line PR lands that quietly ignores them.
+- **Branches are never deleted after merging, locally or on the remote.** They stay as a record
+  of what each phase touched. Do not pass `--delete-branch`, do not tick "delete branch" on the
+  PR, do not prune.
+- Claude Code never runs `git add`, `git commit` or `git push`; the owner handles git.
 
 ## Commands
 

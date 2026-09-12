@@ -35,7 +35,7 @@ public sealed class SuspendUserHandler(IUserService users, IAppDbContext db, ICl
 
         if (string.Equals(command.UserId, currentUser.UserId, StringComparison.Ordinal))
         {
-            return Result.Failure(Errors.CannotDeleteSelf);
+            return Result.Failure(Errors.CannotModifySelf);
         }
 
         var user = await users.FindByIdAsync(command.UserId, cancellationToken);
