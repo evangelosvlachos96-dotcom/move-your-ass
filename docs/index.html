@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Platform — video library and 1:1 booking for one trainer</title>
+<meta name="description" content="A private platform for a personal trainer and their clients: admin-approved registration, email 2FA, a streamed video library and conflict-free 1:1 session booking. ASP.NET Core 10 + Angular on Azure.">
+<meta property="og:title" content="Training Platform — video library and 1:1 booking">
+<meta property="og:description" content="Clients register, the trainer approves, then they watch videos and book sessions. ASP.NET Core 10 + Angular on Azure.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --board:#e9edf1; --paper:#fff; --ink:#1b2733; --muted:#5d6c7b; --rule:#cfd6dd;
+    --accent:#6b4fbb;
+  }
+  * { box-sizing:border-box }
+  body { margin:0; font-family:"Public Sans","Segoe UI",system-ui,sans-serif; color:var(--ink); background:var(--board); line-height:1.5 }
+  a { color:var(--accent) }
+  .wrap { max-width:1040px; margin:0 auto; padding:0 1.5rem }
+  header { background:var(--paper); border-bottom:1px solid var(--rule); border-top:4px solid var(--accent) }
+  header .wrap { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.5rem }
+  header b { font-size:1.05rem }
+  nav a { margin-left:1.25rem; color:var(--muted); text-decoration:none; font-size:.95rem }
+  nav a:hover { color:var(--ink) }
+  .hero { padding:3.5rem 0 2.5rem }
+  .hero h1 { font-size:clamp(2rem,4.5vw,3rem); line-height:1.1; margin:0 0 1rem; letter-spacing:-.01em; max-width:14ch }
+  .hero p { font-size:1.15rem; color:var(--muted); max-width:52ch; margin:0 0 1.75rem }
+  .cta { display:inline-flex; gap:.75rem; flex-wrap:wrap }
+  .btn { display:inline-block; padding:.7rem 1.25rem; border-radius:6px; text-decoration:none; font-weight:500; border:1px solid var(--rule); background:var(--paper); color:var(--ink) }
+  .btn--primary { background:var(--accent); color:#fff; border-color:var(--accent) }
+  .btn:hover { border-color:var(--accent) }
+  .shot { background:var(--paper); border:1px solid var(--rule); border-radius:10px; overflow:hidden; box-shadow:0 12px 40px rgba(27,39,51,.12) }
+  .shot img { display:block; width:100% }
+  section { padding:3rem 0 }
+  section h2 { font-size:1.6rem; margin:0 0 .5rem }
+  section > .wrap > p.lead { color:var(--muted); max-width:60ch; margin:0 0 2rem }
+  .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1.25rem }
+  .step { background:var(--paper); border:1px solid var(--rule); border-radius:8px; padding:1.25rem }
+  .step b { display:block; font-size:1.05rem; margin-bottom:.35rem }
+  .step p { margin:0; color:var(--muted) }
+  .step code, .rules code { background:var(--board); padding:.1em .35em; border-radius:3px; font-size:.9em }
+  .feature { display:grid; grid-template-columns:1fr 1.4fr; gap:2rem; align-items:center; margin-bottom:3rem }
+  .feature:nth-child(even) { grid-template-columns:1.4fr 1fr }
+  .feature:nth-child(even) .text { order:2 }
+  .feature h3 { margin:0 0 .5rem; font-size:1.25rem }
+  .feature p { margin:0; color:var(--muted) }
+  .legend { list-style:none; padding:0; margin:1rem 0 0; display:grid; gap:.4rem }
+  .legend li { padding-left:1rem; border-left:5px solid var(--accent) }
+  .rules { background:var(--paper); border:1px solid var(--rule); border-radius:8px; padding:1.5rem 1.75rem }
+  .rules ol, .rules ul { margin:.5rem 0 0; padding-left:1.25rem }
+  .rules li { margin:.35rem 0 }
+  .rules .note { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--rule); color:var(--muted) }
+  pre { background:var(--ink); color:#dfe7ee; padding:1rem 1.25rem; border-radius:8px; overflow:auto; font-size:.9rem; margin:0 }
+  .hero pre { margin-top:2.5rem }
+  section pre { margin-top:1.5rem }
+  footer { border-top:1px solid var(--rule); padding:2rem 0; color:var(--muted); font-size:.9rem }
+  @media (max-width:760px) { .feature, .feature:nth-child(even) { grid-template-columns:1fr } .feature:nth-child(even) .text { order:0 } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <b>Training Platform</b>
+    <nav>
+      <a href="#start">Start</a>
+      <a href="#how">What it does</a>
+      <a href="#design">Design</a>
+      <a href="https://github.com/evangelosvlachos96-dotcom/move-your-ass">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <h1>One trainer, their clients, a video library and a calendar.</h1>
+    <p>A private platform for a personal trainer with tens to low hundreds of clients. Clients register, the trainer approves them by hand, and from then on they log in to stream the video library and book 1:1 sessions. ASP.NET Core 10 API, Angular SPA, deployed on Azure. Not a marketplace, not multi-tenant.</p>
+    <div class="cta">
+      <a class="btn btn--primary" href="https://github.com/evangelosvlachos96-dotcom/move-your-ass">View on GitHub</a>
+      <a class="btn" href="https://github.com/evangelosvlachos96-dotcom/move-your-ass#readme">Read the README</a>
+    </div>
+  </div>
+  <div class="wrap">
+<pre>Angular SPA ──────────────────────────────┐  video bytes, direct (SAS)
+  │                                        ▼
+  │ JSON + Bearer JWT            Azure Blob Storage
+  ▼
+ASP.NET Core API ──▶ Azure SQL
+  │
+  └── outbox ──▶ email provider</pre>
+  </div>
+</div>
+
+<section id="start">
+  <div class="wrap">
+    <h2>Start in four steps</h2>
+    <p class="lead">Prerequisites: .NET 10 SDK, Node 22+, Docker for the test database, Azure CLI. Configuration lives in user-secrets, never in the repo.</p>
+    <div class="steps">
+      <div class="step"><b>1 · Restore and configure</b><p><code>dotnet restore</code>, then <code>dotnet user-secrets set "ConnectionStrings:Default" "…" --project src/Mya.Api</code>.</p></div>
+      <div class="step"><b>2 · Create the database</b><p><code>dotnet ef database update --project src/Mya.Infrastructure --startup-project src/Mya.Api</code>. The seeder creates the two roles and the first admin from configuration.</p></div>
+      <div class="step"><b>3 · Run the API</b><p><code>dotnet run --project src/Mya.Api</code> — listens on <code>https://localhost:7001</code>.</p></div>
+      <div class="step"><b>4 · Run the SPA</b><p><code>cd web &amp;&amp; npm ci &amp;&amp; npm start</code> — opens at <code>http://localhost:4200</code>. Tests: <code>dotnet test</code> and <code>npm run test</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="lead">Two roles, one trainer. There is no public path to becoming an admin.</p>
+    <div class="steps">
+      <div class="step"><b>Approved registration</b><p>A client registers with email and the account stays inactive until the trainer approves it. The trainer can also reject, suspend or reactivate any account.</p></div>
+      <div class="step"><b>Login with a one-time code</b><p>Email and password, confirmed by a code sent to the inbox. JWT access tokens with rotating refresh tokens.</p></div>
+      <div class="step"><b>Video library</b><p>The trainer uploads and publishes content. Clients stream it as HLS straight from Blob Storage — the bytes never pass through the API.</p></div>
+      <div class="step"><b>1:1 booking</b><p>A calendar showing only free slots, up to five active bookings per client. The trainer publishes weekly availability and can move or cancel any session.</p></div>
+      <div class="step"><b>Change requests</b><p>Clients ask to move or cancel a booking and can withdraw the request while it is pending. The trainer gets an email and approves or rejects.</p></div>
+      <div class="step"><b>Current status</b><p>Phase 1 is built and deployed: registration, approval, email 2FA, roles, session control. Booking, calendar, videos and change requests are designed but not yet built.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="design">
+  <div class="wrap">
+    <h2>Two design decisions worth knowing</h2>
+    <p class="lead">Both are enforced by the database or by a test, not by convention.</p>
+    <div class="rules">
+      <ol>
+        <li><b>Booking conflicts are resolved by the database, not the UI.</b> Claiming a slot is a single conditional <code>UPDATE</code> whose affected-row count decides the winner. Polling, tab sync and idempotency keys sit on top as UX; none of them is the guarantee.</li>
+        <li><b>Every user-initiated mutation carries an <code>Idempotency-Key</code> header.</b> The key is generated when the user forms the intent — the dialog opens — not when the button is clicked. Deduplicated per user for 24 hours, replaying the original response.</li>
+      </ol>
+      <p class="note">Four layered backend projects — <code>Mya.Api</code>, <code>Mya.Application</code>, <code>Mya.Domain</code>, <code>Mya.Infrastructure</code> — with feature folders inside each. <code>Mya.Application</code> may not reference EF Core or ASP.NET; an architecture test fails the build if it does. API, SPA, infra and docs ship in one mono-repo, so an API contract change is one commit and one PR.</p>
+    </div>
+<pre>src/Mya.Api/              controllers, middleware, DI composition
+src/Mya.Application/      use cases, DTOs, validators, abstractions
+src/Mya.Domain/           entities, enums, domain exceptions
+src/Mya.Infrastructure/   EF Core, Identity, blob, email
+tests/                    unit · integration · architecture
+web/                      Angular app
+infra/                    Bicep / az CLI deployment</pre>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    ASP.NET Core 10 · EF Core 10 · Azure SQL · Angular · Azure Blob Storage · Azure App Service &amp; Static Web Apps &nbsp;·&nbsp;
+    <a href="https://github.com/evangelosvlachos96-dotcom/move-your-ass">Source on GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>
