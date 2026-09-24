@@ -70,6 +70,15 @@ export class ChangePasswordComponent {
 
   protected readonly newPasswordValue = toSignal(this.form.controls.newPassword.valueChanges, { initialValue: '' });
 
+  constructor() {
+    // Forced change: the user logged in with the temporary password seconds ago and the admin
+    // knows it anyway. The API confirms MustChangePassword from the database before accepting a
+    // request without it, so the field is not just hidden, it is not sent.
+    if (this.forced()) {
+      this.form.controls.currentPassword.disable();
+    }
+  }
+
   protected submit(): void {
     if (this.submitting()) {
       return;
@@ -88,7 +97,7 @@ export class ChangePasswordComponent {
 
     this.submitting.set(true);
     this.auth
-      .changePassword({ currentPassword, newPassword })
+      .changePassword(wasForced ? { newPassword } : { currentPassword, newPassword })
       .pipe(
         // Forced path: the access token still says must_change_password until refreshed.
         switchMap(() => (wasForced ? this.auth.clearMustChangePassword() : of(null))),

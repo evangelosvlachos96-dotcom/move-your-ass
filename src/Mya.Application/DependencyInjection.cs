@@ -29,6 +29,7 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         services.AddSingleton<IClock, UtcClock>();
+        services.AddScoped<Mya.Application.Common.Security.PasswordInvitations>();
 
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
 

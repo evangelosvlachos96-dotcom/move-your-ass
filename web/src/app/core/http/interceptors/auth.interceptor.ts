@@ -6,7 +6,7 @@ import { AuthStore } from '../../auth/auth.store';
 import { ErrorCodes, problemCode } from '../problem-details';
 
 /** Endpoints whose 401 means "the credentials themselves were rejected", never "refresh and retry". */
-const NO_RETRY_PATHS = ['/auth/login', '/auth/refresh', '/auth/register'];
+const NO_RETRY_PATHS = ['/auth/login', '/auth/refresh', '/auth/register', '/auth/accept-invitation'];
 
 /**
  * Attaches the bearer token. On a 401 for an authenticated request it runs the single-flight

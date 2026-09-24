@@ -1,0 +1,34 @@
+<header class="heading"><div><h1>Χρήστες</h1><p>Εγγραφές, προσκλήσεις και διαχείριση πρόσβασης.</p></div>
+  <button mat-flat-button type="button" (click)="open('create')">Πρόσκληση χρήστη</button>
+</header>
+<form class="filters" (ngSubmit)="filter()">
+  <mat-form-field><mat-label>Αναζήτηση ονόματος ή email</mat-label><input matInput [formControl]="search" maxlength="100"></mat-form-field>
+  <mat-form-field><mat-label>Κατάσταση</mat-label><mat-select [formControl]="status" (selectionChange)="filter()">
+    <mat-option value="">Όλες</mat-option>@for (s of statuses; track s) { <mat-option [value]="s">{{ labels[s] }}</mat-option> }
+  </mat-select></mat-form-field>
+  <button mat-button type="submit">Αναζήτηση</button><button mat-button type="button" (click)="reload()">Ανανέωση</button>
+</form>
+@if (loading()) { <p role="status">Φόρτωση χρηστών…</p> }
+@else if (failed()) { <p role="alert">Δεν ήταν δυνατή η φόρτωση. Δοκίμασε την ανανέωση.</p> }
+@else if (users().length === 0) { <p role="status">Δεν βρέθηκαν χρήστες.</p> }
+@else {
+  <div class="users">
+  @for (user of users(); track user.id) {
+    <article class="user">
+      <div><h2>{{ fullName(user) }}</h2><p class="email">{{ user.email }}</p><p>{{ labels[user.status] }} · {{ user.role === 'Admin' ? 'Διαχειριστής' : 'Πελάτης' }}</p><p>Εγγραφή: {{ user.createdAtUtc | athensDate }}</p></div>
+      <div class="actions">
+        <button mat-button type="button" (click)="open('edit', user)">Επεξεργασία</button>
+        @if (user.status === 'PendingApproval') {
+          <button mat-flat-button type="button" (click)="open('approve', user)">Έγκριση</button>
+          <button mat-button type="button" (click)="open('decline', user)">Απόρριψη</button>
+        }
+        @if (user.status === 'Invited') { <button mat-button type="button" (click)="open('resend', user)">Νέα πρόσκληση</button> }
+        @if (user.status === 'Active' && user.id !== store.user()?.id) { <button mat-button type="button" (click)="open('suspend', user)">Αναστολή</button> }
+        @if (user.status === 'Suspended' || user.status === 'Declined') { <button mat-button type="button" (click)="open('reactivate', user)">Ενεργοποίηση</button> }
+        @if (user.id !== store.user()?.id) { <button mat-button type="button" (click)="open('delete', user)">Διαγραφή</button> }
+      </div>
+    </article>
+  }
+  </div>
+}
+<mat-paginator [length]="total()" [pageIndex]="pageIndex()" [pageSize]="pageSize()" [pageSizeOptions]="[10, 20, 50]" (page)="paginate($event)" aria-label="Σελίδες χρηστών" />

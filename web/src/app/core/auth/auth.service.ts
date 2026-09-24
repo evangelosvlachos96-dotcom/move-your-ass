@@ -44,6 +44,10 @@ export class AuthService {
     });
   }
 
+  acceptInvitation(token: string, newPassword: string): Observable<void> {
+    return this.api.post<void>('/auth/accept-invitation', { token, newPassword });
+  }
+
   /**
    * Single-flight refresh. Every caller that arrives while a refresh is running subscribes to
    * the same observable and gets the same outcome. Two parallel refreshes would present the

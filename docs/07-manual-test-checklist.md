@@ -121,3 +121,25 @@ Things that look wrong but are not, so nobody wastes time on them:
 
 Anything that failed and is not being fixed immediately goes in `docs/backlog.md` with a date.
 A checklist with permanently unticked boxes stops being read.
+
+
+## H. Invitations and admin management
+
+- [ ] Admin dashboard shows real pending registrations; its link opens the pending filter.
+- [ ] Client cannot access /admin/users or any admin API endpoint.
+- [ ] Register a client; verify admin notification, approve and verify client email/login.
+- [ ] Decline a pending client and verify the notification and refused login.
+- [ ] Invite a client; response contains only id, state is Invited, email contains setup link.
+- [ ] Open setup link without logging in; account stays inactive until submitting a valid password.
+- [ ] Choose password, confirm success, log in using it; reused link is rejected.
+- [ ] Invalid and expired links fail; resend invalidates the previous link.
+- [ ] Two simultaneous submissions of the same link result in only one successful activation.
+- [ ] Invite cannot be activated by approve, suspend/reactivate or temporary-password reset.
+- [ ] Search, status filter, pagination, loading/empty/error states work on mobile and desktop.
+- [ ] Edit names/role; duplicate email creation is reported without closing the dialog.
+- [ ] Destructive dialogs name the user; cancel changes nothing; double-submit is disabled.
+- [ ] Suspend/reactivate an active client; delete a test client; self/last-admin rules still hold.
+- [ ] Console mode prints local emails; SMTP mode delivers to a real inbox and logs no body/token.
+- [ ] Failed SMTP delivery retries; successful outbox messages have their payload cleared.
+
+Real provider delivery requires operator-supplied SMTP configuration (docs/09-email-setup.md).

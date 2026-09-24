@@ -1,206 +1,95 @@
 # 04 — Roadmap
 
-Replaces the earlier phase-1 scope document, which was written for the booking product.
-Delete `docs/04-phase-1-scope.md` when this lands.
+This file is the single milestone sequence. The product is a private workout video library for
+one trainer and approved clients. No booking, slots, calendar or booking change requests.
 
----
+## Checkpoint — 2026-09-24
 
-## What changed
+Account onboarding and admin UI implementation is ready for owner review and commit on
+feat/web-admin. Backend build, existing tests, Angular development build and lint passed;
+35 API/database checks passed in an isolated LocalDB database. Core admin browser interactions
+were exercised. See docs/08-milestone-handover.md for the exact evidence and remaining checks.
 
-Session booking is dropped. The product is a private video library with two roles. See
-`docs/06-video-catalogue.md` for the catalogue design.
+Pause here: the owner runs git add/commit/push and gives the green light before further work.
+Real SMTP delivery still needs credentials and inbox verification. Video implementation has not started.
 
-Consequences:
+## Phase 1 — Foundation
 
-- `docs/03` §5.1 (atomic slot `UPDATE`), §5.4 and the 5-booking cap no longer apply
-- ADR-006 and ADR-007 are withdrawn — no booking means no slot race and no double-submit risk
-  worth an idempotency table
-- ADR-008 is superseded: video hosting moves from Blob + hand-encoded HLS to Bunny Stream,
-  because the trainer uploads from a phone and will never run ffmpeg
-- Auth, roles, and admin approval are unchanged and still the foundation
+Layered .NET projects, EF Core/Identity, migrations, seeder, Angular scaffold. Implemented.
 
-New decisions recorded here:
+## Phase 2 — Accounts and email backend
 
-- **ADR-013 — email 2FA deferred.** It doubles the login surface and couples the first deploy to
-  a working mail provider. `TwoFactorTicket` stays in the schema, so enabling it later is code
-  only. Cost: password-only auth until it returns.
-- **ADR-014 — automated tests deferred beyond the architecture tests.** Deliberate, to reach a
-  deployed product faster. Cost: regressions are found by the trainer in production rather than
-  by CI. Revisit once the catalogue has real content.
+Implementation complete at this checkpoint; live SMTP provider configuration remains Phase 4 work.
 
----
+Registration with admin approval; password login, JWT/refresh/logout; profile and password changes;
+admin user management. Admin-created users are invited by email and cannot log in until they set
+their password using a single-use, expiring link. Resending invalidates previous links.
+Console and SMTP delivery share the transactional outbox. No login 2FA in this scope.
 
-## Capabilities
+## Phase 3 — Browser onboarding and administration (current)
 
-| | Client | Admin |
+Implementation checkpoint complete. Remaining browser regression checks are recorded in the handover.
+
+Login/register/pending/profile screens and protected shell; invitation password setup; admin dashboard
+with pending registrations; searchable, paged user list with approve/decline, invite/resend, edit,
+suspend/reactivate and confirmed deletion. The client dashboard remains a video-library placeholder.
+
+Done when the manual checklist passes for both account creation paths, invalid/expired invitation
+links, admin/client access boundaries and responsive screens. Build/lint are not a substitute for
+these checks. The owner reviews, commits and pushes this milestone before the next phase.
+
+## Phase 4 — Deployment and real delivery verification
+
+Provision/configure App Service, Azure SQL and Static Web Apps; migrations, HTTPS, CORS, production
+seeding, real SMTP credentials, domain and monitoring. Verify delivery to an actual inbox.
+Done when the trainer completes onboarding and logs in from her phone on the real URL.
+Complete this before video implementation.
+
+## Phase 5 — Video backend
+
+Video/Tag/VideoTag and migrations, admin CRUD, Bunny Stream adapter behind IVideoStorage,
+upload credentials, authenticated provider webhook, published/ready-only client query and playback.
+Idempotency for video creation. See docs/06-video-catalogue.md.
+
+## Phase 6 — Video UI
+
+Admin uploads with progress, classifiers/tags and publishing; client filters/search, responsive
+cards, pagination and player. No fictional usage/progress metrics.
+
+## Phase 7 — Content and handover
+
+Trainer uploads real workouts; onboard initial clients; transfer admin ownership and verify operations.
+
+## Account API
+
+| Method | Path | Result |
 |---|---|---|
-| Register (self-service) | ✅ → pending | — |
-| Log in | ✅ once active | ✅ |
-| Change own password | ✅ | ✅ |
-| Edit own first/last name | ✅ | ✅ |
-| Change own email | ❌ | ❌ |
-| Browse + filter video library | ✅ | ✅ |
-| Approve / decline pending registrations | — | ✅ |
-| Create a user directly with a temp password | — | ✅ |
-| Edit / suspend / delete any user | — | ✅ |
-| Add / edit / delete videos and tags | — | ✅ |
+| POST | /api/auth/register | 202 PendingApproval; admin notification queued |
+| POST | /api/auth/accept-invitation | 204; token + newPassword; activates invited account |
+| POST | /api/auth/login | Access token + user + refresh cookie |
+| POST | /api/auth/refresh | Rotated refresh cookie and access token |
+| GET | /api/auth/me | Current user |
+| POST | /api/auth/change-password | 204; currentPassword required except forced change |
+| PUT | /api/auth/profile | 204; own names |
+| POST | /api/auth/logout | 204 |
+| GET | /api/admin/users | Paged list; status/search/page/pageSize |
+| POST | /api/admin/users | 201 { id }; creates Invited and queues setup email |
+| PUT | /api/admin/users/{id} | 204; names/role |
+| POST | /api/admin/users/{id}/approve | Updated UserDto |
+| POST | /api/admin/users/{id}/decline | Optional reason; updated UserDto |
+| POST | /api/admin/users/{id}/suspend | Optional reason; updated UserDto |
+| POST | /api/admin/users/{id}/reactivate | Updated UserDto |
+| POST | /api/admin/users/{id}/resend-invitation | 204; Invited accounts only |
+| POST | /api/admin/users/{id}/reset-password | Existing active-user temporary-password reset |
+| DELETE | /api/admin/users/{id} | 204; confirmed hard delete |
+| GET | /health | Health response |
 
-Every destructive admin action — decline, delete, unpublish — goes through a confirmation modal
-naming the affected user or video. No bare icon buttons that delete on click.
+Error codes live in Application/Common/Results/ErrorCodes.cs. New onboarding codes:
+INVALID_INVITATION (400), ACCOUNT_INVITED (403), INVALID_USER_STATE (409).
+Invited is enum value 4; existing persisted status values remain unchanged.
 
----
+## Email events
 
-## Registration paths
-
-There are two, and they produce different initial states.
-
-**Self-service.** Client registers → `Status = PendingApproval`, cannot log in → email fires to
-the **admin**, not the client → admin approves or declines from the pending list → on approval
-the client gets an email and can log in.
-
-**Admin-created.** Admin fills first name, last name, email, and a temporary password →
-`Status = Active`, `MustChangePassword = true` → admin passes the credentials to the client out
-of band → on first login the client is forced to the change-password screen and cannot navigate
-away until it is done.
-
-`MustChangePassword` is enforced **server-side**: while it is true, every endpoint except
-`/auth/me`, `/auth/change-password` and `/auth/logout` returns 403 `MUST_CHANGE_PASSWORD`. A
-guard in Angular is a convenience, not the control.
-
----
-
-## Schema changes needed
-
-Against the current migration:
-
-```
-AspNetUsers
-  - FullName                → replaced by
-  + FirstName  nvarchar(80)  NOT NULL
-  + LastName   nvarchar(80)  NOT NULL
-  + MustChangePassword bit   NOT NULL DEFAULT 0
-```
-
-Plus `Video`, `Tag`, `VideoTag` from `docs/06` §3 when phase 5 lands.
-
-Drop `IdempotencyRecord`? No — keep it. Video creation still benefits, and the table is free
-when unused.
-
----
-
-## Phases
-
-Each phase is one Claude Code session, one branch, one PR. Do not merge two.
-
-### Phase 1 — foundation ✅ done
-Scaffold, layered projects, EF model, Identity, seeder, platform settings.
-
-### Phase 2 — backend auth and user management
-JWT issue/refresh/revoke, the two registration paths, password change, profile edit, admin user
-CRUD, `IEmailSender` with a console implementation for local development.
-
-Done when: every endpoint in §"API surface" below responds correctly from Swagger or curl.
-
-### Phase 3 — Angular shell and auth UI
-`ApiClient`, interceptors, guards, login, register, pending, forced password change, admin user
-list with confirmation modals, placeholder client dashboard. Material, plain theme.
-
-Done when: you can register, approve yourself as admin, log in as a client, and change your
-password — in a browser.
-
-### Phase 4 — deploy
-App Service, SQL, Static Web Apps, CORS, real SMTP, custom domain. **Do this before writing a
-line of video code.** A deployment problem found here costs an afternoon; found in phase 7 it
-costs a week.
-
-Done when: the trainer can log in from her own phone, on the real URL.
-
-### Phase 5 — video backend
-`Video`, `Tag`, `VideoTag`. Admin CRUD. Bunny Stream adapter behind `IVideoStorage`. Upload
-credentials endpoint, webhook for transcode-complete. Filtered, paged client query.
-
-### Phase 6 — video UI
-Admin album: table, add/edit form with the four classifiers, upload with a real progress bar,
-confirmation modals. Client library: filter bar, responsive card grid, pagination, player.
-
-### Phase 7 — real content and handover
-Trainer uploads real videos, first clients onboarded, admin account transferred to her.
-
----
-
-## API surface after phase 2
-
-```
-# Auth — anonymous
-POST   /api/auth/register                  202 { status: "PendingApproval" }
-POST   /api/auth/login                     200 { accessToken, expiresIn, user } + refresh cookie
-POST   /api/auth/refresh                   200 { accessToken, expiresIn }
-
-# Auth — authenticated
-GET    /api/auth/me                        200 { id, firstName, lastName, email, role,
-                                                 status, mustChangePassword }
-POST   /api/auth/change-password           204   { currentPassword, newPassword }
-PUT    /api/auth/profile                   204   { firstName, lastName }
-POST   /api/auth/logout                    204
-
-# Admin
-GET    /api/admin/users                    ?status=&search=&page=&pageSize=
-POST   /api/admin/users                    201  create directly, MustChangePassword = true
-PUT    /api/admin/users/{id}               204  first name, last name, role
-POST   /api/admin/users/{id}/approve       204
-POST   /api/admin/users/{id}/decline       204  { reason }
-POST   /api/admin/users/{id}/suspend       204  { reason }
-POST   /api/admin/users/{id}/reactivate    204
-POST   /api/admin/users/{id}/reset-password 200 { temporaryPassword }
-DELETE /api/admin/users/{id}               204  hard delete, admin-only, confirmed in UI
-
-GET    /health                             200
-```
-
-`DELETE` is a real delete here, not a soft one — the earlier "never delete users" rule existed
-to protect booking history, and there is no booking history any more. An admin cannot delete
-themselves or the last remaining admin; the handler enforces both.
-
----
-
-## Error codes
-
-The Angular error interceptor switches on these, never on message text.
-
-```
-ACCOUNT_PENDING          403   registered, not yet approved
-ACCOUNT_DECLINED         403   registration was rejected
-ACCOUNT_SUSPENDED        403   access revoked by admin
-INVALID_CREDENTIALS      401   wrong email or password — identical for unknown email; also
-                               every refresh failure except the one below (unknown, expired,
-                               reused token — deliberately vague)
-SESSION_SUPERSEDED       401   on refresh: this session was replaced by a newer login on
-                               another device (docs/03 §4.3, §5.4)
-MUST_CHANGE_PASSWORD     403   temp password still in place
-CURRENT_PASSWORD_WRONG   400   on change-password
-EMAIL_ALREADY_EXISTS     409   on register or admin-create — except a Declined account, which
-                               register resets back to PendingApproval and returns 202
-USER_NOT_FOUND           404
-USER_NOT_PENDING         409   approve/decline on a non-pending user
-CANNOT_DELETE_SELF       409   delete on your own account
-CANNOT_MODIFY_SELF       409   suspend on your own account
-CANNOT_DELETE_LAST_ADMIN 409   delete or demote the last remaining Admin
-```
-
-Transport-level codes emitted by the host, not by handlers: `UNAUTHENTICATED` 401,
-`FORBIDDEN` 403, `VALIDATION_FAILED` 400, `RATE_LIMITED` 429, `INTERNAL_ERROR` 500.
-
----
-
-## Email
-
-Three messages in phase 2, all through the existing outbox:
-
-| Trigger | To | Contents |
-|---|---|---|
-| Client registers | **Admin** | who registered, link to the pending list |
-| Admin approves | Client | you can now log in |
-| Admin declines | Client | registration not accepted, optional reason |
-
-Locally, `IEmailSender` writes to the Serilog console. Nothing about phase 2 or 3 should require
-a real SMTP account — that arrives in phase 4.
+Self-registration → admin; approval/decline → client; admin create/resend → client password setup link.
+Default expiry is 24 hours. Development logs and configurable SMTP are supported; real delivery
+still requires provider credentials. See docs/09-email-setup.md.

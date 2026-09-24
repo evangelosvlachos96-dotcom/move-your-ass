@@ -4,6 +4,7 @@ using Mya.Api.Authorization;
 using Mya.Api.Extensions;
 using Mya.Application.Features.Users.ApproveUser;
 using Mya.Application.Features.Users.CreateUser;
+using Mya.Application.Features.Users.ResendInvitation;
 using Mya.Application.Features.Users.DeclineUser;
 using Mya.Application.Features.Users.DeleteUser;
 using Mya.Application.Features.Users.ListUsers;
@@ -24,6 +25,7 @@ namespace Mya.Api.Features.Users;
 public sealed class UsersController(
     ListUsersHandler list,
     CreateUserHandler create,
+    ResendInvitationHandler resendInvitation,
     UpdateUserHandler update,
     ApproveUserHandler approve,
     DeclineUserHandler decline,
@@ -52,25 +54,29 @@ public sealed class UsersController(
 
     [HttpPost("{id}/approve")]
     public async Task<IActionResult> Approve(string id, CancellationToken ct) =>
-        (await approve.Handle(new ApproveUserCommand(id), ct)).ToActionResult(HttpContext, NoContent);
+        (await approve.Handle(new ApproveUserCommand(id), ct)).ToActionResult(HttpContext, user => Ok(user));
 
     [HttpPost("{id}/decline")]
     public async Task<IActionResult> Decline(string id, DeclineUserRequest? request, CancellationToken ct) =>
         (await decline.Handle(new DeclineUserCommand(request?.Reason) { UserId = id }, ct))
-            .ToActionResult(HttpContext, NoContent);
+            .ToActionResult(HttpContext, user => Ok(user));
 
     [HttpPost("{id}/suspend")]
     public async Task<IActionResult> Suspend(string id, SuspendUserRequest? request, CancellationToken ct) =>
         (await suspend.Handle(new SuspendUserCommand(request?.Reason) { UserId = id }, ct))
-            .ToActionResult(HttpContext, NoContent);
+            .ToActionResult(HttpContext, user => Ok(user));
 
     [HttpPost("{id}/reactivate")]
     public async Task<IActionResult> Reactivate(string id, CancellationToken ct) =>
-        (await reactivate.Handle(new ReactivateUserCommand(id), ct)).ToActionResult(HttpContext, NoContent);
+        (await reactivate.Handle(new ReactivateUserCommand(id), ct)).ToActionResult(HttpContext, user => Ok(user));
 
     [HttpPost("{id}/reset-password")]
     public async Task<IActionResult> ResetPassword(string id, CancellationToken ct) =>
         (await resetPassword.Handle(new ResetPasswordCommand(id), ct)).ToActionResult(HttpContext, response => Ok(response));
+
+    [HttpPost("{id}/resend-invitation")]
+    public async Task<IActionResult> ResendInvitation(string id, CancellationToken ct) =>
+        (await resendInvitation.Handle(id, ct)).ToActionResult(HttpContext, NoContent);
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id, CancellationToken ct) =>

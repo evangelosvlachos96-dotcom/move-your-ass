@@ -3,9 +3,8 @@
 **Scope change, September 2026.** Session booking is dropped. The product is a private video
 library: the trainer uploads and categorises workout videos, clients browse and filter them.
 
-Auth, roles, and admin approval are unchanged and still required. Everything in `docs/03` §5
-about booking concurrency — the atomic `UPDATE`, the 5-booking cap, tab sync — no longer applies
-and moves to `docs/backlog.md`. Idempotency keys survive, but only on video creation.
+Auth, roles, admin approval and email invitations are required. Booking concurrency is outside
+scope. Idempotency keys are planned for video creation only.
 
 ---
 
@@ -237,14 +236,8 @@ Provider's embedded player, title, description, tags. Nothing else.
 
 ---
 
-## 7. Revised phases
+## 7. Delivery order
 
-| Phase | Contents | Status |
-|---|---|---|
-| 1 | Auth, roles, admin approval, email 2FA, plain shell UI | in progress |
-| 2 | Video + Tag schema, admin CRUD, upload, webhook | next |
-| 3 | Client library: filters, search, player | |
-| 4 | Deploy to Azure, custom domain, real content | |
-
-Booking, slots, and change requests are recorded in `docs/backlog.md` under "dropped — may
-return". The design work is not wasted if a calendar comes back later.
+The single phase sequence is maintained in `docs/04-roadmap.md`: finish account onboarding
+and admin user management, deploy with real email, then implement the video backend and UI.
+Session booking is outside the product scope.
