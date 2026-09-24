@@ -82,8 +82,12 @@ production, not a demo.
 
 ## Current phase
 
-**Phase 2 — backend auth and user management.** See `docs/04-roadmap.md` §"Phases" and
-§"API surface after phase 2". Phase 1 (foundation) is done.
+**Checkpoint pause (2026-09-24):** onboarding and admin UI implementation is ready for the owner
+to review, add, commit and push. See `docs/08-milestone-handover.md` for verified results and remaining
+setup. Do not start further milestone work until the owner gives the green light.
+
+**Phase 3 — browser onboarding and administration.** See `docs/04-roadmap.md` §"Phases" and
+§"Account API". Phase 1 (foundation) is done.
 
 Decisions in force for this phase:
 
@@ -94,7 +98,10 @@ Decisions in force for this phase:
 - **`AppUser.FullName` is gone.** Users have `FirstName` and `LastName` (80 each, required) and a
   `MustChangePassword` bit. The seeded Admin's names come from `Seed:AdminFirstName/AdminLastName`.
 - **Booking is dropped.** Nothing in `docs/03` §5 applies. Booking items sit in `docs/backlog.md`
-  under "Dropped — may return".
+  under "Out of scope".
+
+Admin creation now uses an Invited account and a single-use email password setup link (ADR-015).
+Console delivery is Development-only; Email:Mode=Smtp enables real email with metadata logs.
 
 If a task is not in the current phase of `docs/04-roadmap.md`, it goes in `docs/backlog.md`.
 
@@ -163,8 +170,7 @@ This ships to real clients, so the Azure free tiers are not the target:
   client must call `/auth/refresh` once to get a token without it.
 - The refresh cookie is `Secure`. Over plain `http://localhost` browsers still accept it, but
   behind a TLS-terminating proxy the API must see `X-Forwarded-Proto` (phase 4).
-- Outside Development the email sender is `UnconfiguredEmailSender`: outbox rows fail and
-  dead-letter with a clear `LastError` until SMTP lands in phase 4.
+- Production requires valid SMTP configuration at startup. Development can use Console delivery.
 - Angular Material's date picker is UTC-naive. Normalise at the API boundary, every time.
 - Migrations never run automatically on startup in production. Generate an idempotent script and
   apply it as a gated workflow step.

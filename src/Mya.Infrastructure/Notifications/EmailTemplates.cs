@@ -21,6 +21,8 @@ public sealed class EmailTemplates(IConfiguration configuration)
 
         return message.Type switch
         {
+            OutboxMessageTypes.PasswordInvitation => PasswordInvitation(
+                EmailOutbox.Deserialize<PasswordInvitationPayload>(message.PayloadJson)),
             OutboxMessageTypes.AdminNewRegistration => AdminNewRegistration(
                 EmailOutbox.Deserialize<AdminNewRegistrationPayload>(message.PayloadJson)),
             OutboxMessageTypes.AccountApproved => AccountApproved(
@@ -29,6 +31,21 @@ public sealed class EmailTemplates(IConfiguration configuration)
                 EmailOutbox.Deserialize<AccountDeclinedPayload>(message.PayloadJson)),
             _ => throw new InvalidOperationException($"No email template for outbox message type '{message.Type}'."),
         };
+    }
+
+    private EmailMessage PasswordInvitation(PasswordInvitationPayload p)
+    {
+        if (_spaOrigin is null)
+        {
+            throw new InvalidOperationException("Cors:AllowedOrigin is required for invitation links.");
+        }
+
+        // Fragment keeps the credential out of web-server request URLs and referrer headers.
+        return new EmailMessage(p.To, "Ορίστε τον κωδικό σας στο Move Your Ass",
+            $"Γεια σας {p.FirstName},\n\nΟρίστε τον κωδικό σας για να ενεργοποιήσετε τον λογαριασμό σας.\n" +
+            $"Ο σύνδεσμος χρησιμοποιείται μία φορά και λήγει στις {p.ExpiresAtUtc:yyyy-MM-dd HH:mm} UTC.\n\n" +
+            $"{_spaOrigin}/set-password#token={Uri.EscapeDataString(p.Token)}\n\n" +
+            "Αν ο σύνδεσμος έχει λήξει, ζητήστε νέα πρόσκληση από τον διαχειριστή.");
     }
 
     private EmailMessage AdminNewRegistration(AdminNewRegistrationPayload p) => new(

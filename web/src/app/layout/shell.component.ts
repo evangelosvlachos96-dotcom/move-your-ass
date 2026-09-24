@@ -1,5 +1,5 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -12,6 +12,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
 import { AuthStore } from '../core/auth/auth.store';
+import { PendingRegistrationsService } from '../core/admin/pending-registrations.service';
 
 interface NavItem {
   label: string;
@@ -49,6 +50,7 @@ export class ShellComponent {
   private readonly auth = inject(AuthService);
 
   protected readonly store = inject(AuthStore);
+  protected readonly pending = inject(PendingRegistrationsService);
   protected readonly forced = this.store.mustChangePassword;
 
   protected readonly isWide = toSignal(
@@ -59,7 +61,17 @@ export class ShellComponent {
   /** Drawer state in narrow mode; ignored in wide mode where the nav is always open. */
   protected readonly drawerOpen = signal(false);
 
-  protected readonly navItems: readonly NavItem[] = [{ label: 'Πίνακας', icon: 'dashboard', link: '/dashboard' }];
+  protected readonly navItems = computed<readonly NavItem[]>(() => [
+    { label: 'Πίνακας', icon: 'dashboard', link: '/dashboard' },
+    ...(this.store.user()?.role === 'Admin' ? [{ label: 'Χρήστες', icon: 'group', link: '/admin/users' }] : []),
+  ]);
+
+  constructor() {
+    effect(() => {
+      if (this.store.user()?.role === 'Admin' && !this.forced()) this.pending.refresh();
+      else this.pending.clear();
+    });
+  }
 
   protected toggleDrawer(): void {
     this.drawerOpen.update((open) => !open);

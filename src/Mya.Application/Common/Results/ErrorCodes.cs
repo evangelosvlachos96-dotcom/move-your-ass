@@ -7,6 +7,10 @@ namespace Mya.Application.Common.Results;
 /// </summary>
 public static class ErrorCodes
 {
+    public const string InvalidInvitation = "INVALID_INVITATION";
+    public const string AccountInvited = "ACCOUNT_INVITED";
+    public const string InvalidUserState = "INVALID_USER_STATE";
+
     // --- business (docs/04-roadmap.md) ---
     public const string AccountPending = "ACCOUNT_PENDING";
     public const string AccountDeclined = "ACCOUNT_DECLINED";

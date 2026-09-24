@@ -24,6 +24,11 @@ public sealed class ResetPasswordHandler(IUserService users, IAppDbContext db, I
             return Result.Failure<ResetPasswordResponse>(Errors.UserNotFound);
         }
 
+        if (user.Status != Mya.Domain.Enums.UserStatus.Active)
+        {
+            return Result.Failure<ResetPasswordResponse>(Errors.InvalidUserState);
+        }
+
         var temporaryPassword = TemporaryPassword.Generate();
         var now = clock.UtcNow;
 

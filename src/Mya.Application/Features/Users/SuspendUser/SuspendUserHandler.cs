@@ -1,3 +1,4 @@
+using AutoMapper;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Mya.Application.Abstractions.Identity;
@@ -5,6 +6,7 @@ using Mya.Application.Abstractions.Persistence;
 using Mya.Application.Abstractions.System;
 using Mya.Application.Common.Results;
 using Mya.Application.Common.Validation;
+using Mya.Application.Features.Common;
 using Mya.Domain.Enums;
 
 namespace Mya.Application.Features.Users.SuspendUser;
@@ -28,28 +30,34 @@ public sealed class SuspendUserValidator : AbstractValidator<SuspendUserRequest>
 
 /// <summary>
 /// docs/03 section 4.4: status, security stamp, refresh tokens and session all go at once. The
-/// user's current access token keeps working for at most 15 minutes (ADR-005).
+/// user's current access token keeps working for at most 15 minutes (ADR-005). Returns the
+/// updated user so the admin list can patch the row without a second request.
 /// </summary>
-public sealed class SuspendUserHandler(IUserService users, IAppDbContext db, IClock clock, ICurrentUser currentUser)
+public sealed class SuspendUserHandler(IUserService users, IAppDbContext db, IClock clock, ICurrentUser currentUser, IMapper mapper)
 {
-    public async Task<Result> Handle(SuspendUserCommand command, CancellationToken cancellationToken)
+    public async Task<Result<UserDto>> Handle(SuspendUserCommand command, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
 
         if (string.Equals(command.UserId, currentUser.UserId, StringComparison.Ordinal))
         {
-            return Result.Failure(Errors.CannotModifySelf);
+            return Result.Failure<UserDto>(Errors.CannotModifySelf);
         }
 
         var user = await users.FindByIdAsync(command.UserId, cancellationToken);
         if (user is null)
         {
-            return Result.Failure(Errors.UserNotFound);
+            return Result.Failure<UserDto>(Errors.UserNotFound);
         }
 
         if (user.Status is UserStatus.Suspended)
         {
-            return Result.Success();
+            return Result.Success(mapper.Map<UserDto>(user));
+        }
+
+        if (user.Status != UserStatus.Active)
+        {
+            return Result.Failure<UserDto>(Errors.InvalidUserState);
         }
 
         var reason = string.IsNullOrWhiteSpace(command.Reason) ? null : command.Reason.Trim();
@@ -64,6 +72,8 @@ public sealed class SuspendUserHandler(IUserService users, IAppDbContext db, ICl
         await users.EndSessionAsync(user.Id, cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
-        return Result.Success();
+
+        var updated = await users.FindByIdAsync(user.Id, cancellationToken);
+        return Result.Success(mapper.Map<UserDto>(updated));
     }
 }

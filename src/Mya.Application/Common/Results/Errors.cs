@@ -3,6 +3,10 @@ namespace Mya.Application.Common.Results;
 /// <summary>The one place a code is paired with its HTTP semantics. Handlers return these.</summary>
 public static class Errors
 {
+    public static readonly Error InvalidInvitation = new(ErrorCodes.InvalidInvitation, "Invitation is invalid or expired", ResultStatus.Invalid);
+    public static readonly Error AccountInvited = new(ErrorCodes.AccountInvited, "Complete password setup from your email", ResultStatus.Forbidden);
+    public static readonly Error InvalidUserState = new(ErrorCodes.InvalidUserState, "Action is not available for this account status", ResultStatus.Conflict);
+
     public static readonly Error AccountPending =
         new(ErrorCodes.AccountPending, "Account pending approval", ResultStatus.Forbidden);
 
@@ -49,6 +53,7 @@ public static class Errors
     /// <summary>Login and refresh refuse any non-active account with the code for its status.</summary>
     public static Error ForInactiveStatus(Domain.Enums.UserStatus status) => status switch
     {
+        Domain.Enums.UserStatus.Invited => AccountInvited,
         Domain.Enums.UserStatus.PendingApproval => AccountPending,
         Domain.Enums.UserStatus.Declined => AccountDeclined,
         Domain.Enums.UserStatus.Suspended => AccountSuspended,

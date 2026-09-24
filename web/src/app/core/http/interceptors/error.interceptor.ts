@@ -86,6 +86,12 @@ function handle(error: HttpErrorResponse, flags: RequestFlags, { router, notify,
 
 function messageFor(error: HttpErrorResponse): string {
   switch (problemCode(error)) {
+    case 'INVALID_INVITATION':
+      return 'Ο σύνδεσμος έχει λήξει ή χρησιμοποιηθεί. Ζήτησε νέα πρόσκληση από τον διαχειριστή.';
+    case 'ACCOUNT_INVITED':
+      return 'Ολοκλήρωσε τη δημιουργία κωδικού από το email πρόσκλησης.';
+    case 'INVALID_USER_STATE':
+      return 'Η ενέργεια δεν επιτρέπεται για την τρέχουσα κατάσταση του λογαριασμού.';
     case ErrorCodes.InvalidCredentials:
       return 'Λάθος email ή κωδικός.';
     case ErrorCodes.CurrentPasswordWrong:

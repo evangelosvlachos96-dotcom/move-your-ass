@@ -12,7 +12,8 @@ namespace Mya.Infrastructure.Notifications;
 /// <summary>
 /// Polls the outbox every 15 seconds (ADR-010). Rows are claimed with a single
 /// UPDATE ... OUTPUT that also counts the attempt and takes a lease, so a second instance or a
-/// restart mid-send can never deliver the same row twice. Failures back off 1m, 5m, 30m, 2h and
+/// restart cannot claim a row until its lease expires. Delivery is at least once: a crash after
+/// SMTP accepts a message but before marking it processed can result in a duplicate email. Failures back off 1m, 5m, 30m, 2h and
 /// then dead-letter (Attempts = 5, never picked again, LastError says why).
 /// </summary>
 public sealed class OutboxDispatcher(
@@ -113,7 +114,9 @@ public sealed class OutboxDispatcher(
         await db.OutboxMessages
             .Where(m => m.Id == messageId)
             .ExecuteUpdateAsync(
-                s => s.SetProperty(m => m.ProcessedAtUtc, now).SetProperty(m => m.LockedUntilUtc, (DateTime?)null),
+                s => s.SetProperty(m => m.ProcessedAtUtc, now)
+                    .SetProperty(m => m.PayloadJson, "{}")
+                    .SetProperty(m => m.LockedUntilUtc, (DateTime?)null),
                 cancellationToken);
     }
 

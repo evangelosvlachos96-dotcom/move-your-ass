@@ -14,6 +14,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// <summary>Identity's default key length; every UserId column in docs/04 section 4 is nvarchar(450).</summary>
     private const int StringKeyLength = 450;
 
+    public DbSet<PasswordInvitation> PasswordInvitations => Set<PasswordInvitation>();
+
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<TwoFactorTicket> TwoFactorTickets => Set<TwoFactorTicket>();

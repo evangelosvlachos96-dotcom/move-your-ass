@@ -13,21 +13,11 @@ public sealed class PlatformSettingsTests
     {
         using var provider = BuildProvider(new Dictionary<string, string?>
         {
-            ["Platform:MaxActiveBookings"] = "3",
-            ["Platform:SessionDurationMinutes"] = "45",
-            ["Platform:MinBookingNoticeHours"] = "6",
-            ["Platform:CancellationWindowHours"] = "48",
-            ["Platform:SlotHorizonWeeks"] = "4",
             ["Platform:TimeZone"] = "Europe/Athens",
         });
 
         var settings = provider.GetRequiredService<IOptions<PlatformSettings>>().Value;
 
-        settings.MaxActiveBookings.ShouldBe(3);
-        settings.SessionDurationMinutes.ShouldBe(45);
-        settings.MinBookingNoticeHours.ShouldBe(6);
-        settings.CancellationWindowHours.ShouldBe(48);
-        settings.SlotHorizonWeeks.ShouldBe(4);
         settings.TimeZone.ShouldBe("Europe/Athens");
     }
 
@@ -36,11 +26,6 @@ public sealed class PlatformSettingsTests
     {
         using var provider = BuildProvider(new Dictionary<string, string?>
         {
-            ["Platform:MaxActiveBookings"] = "5",
-            ["Platform:SessionDurationMinutes"] = "60",
-            ["Platform:MinBookingNoticeHours"] = "12",
-            ["Platform:CancellationWindowHours"] = "24",
-            ["Platform:SlotHorizonWeeks"] = "8",
             ["Platform:TimeZone"] = "Europe/Athens",
         });
 
@@ -48,9 +33,6 @@ public sealed class PlatformSettingsTests
     }
 
     [Theory]
-    [InlineData("Platform:MaxActiveBookings", "0")]
-    [InlineData("Platform:SessionDurationMinutes", "5")]
-    [InlineData("Platform:SlotHorizonWeeks", "0")]
     [InlineData("Platform:TimeZone", "")]
     [InlineData("Platform:TimeZone", "Mars/Olympus_Mons")]
     public void Startup_validation_rejects_invalid_values(string key, string value)

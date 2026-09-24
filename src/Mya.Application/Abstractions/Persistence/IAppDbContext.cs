@@ -12,6 +12,8 @@ namespace Mya.Application.Abstractions.Persistence;
 /// </summary>
 public interface IAppDbContext
 {
+    public DbSet<PasswordInvitation> PasswordInvitations { get; }
+
     public DbSet<RefreshToken> RefreshTokens { get; }
 
     public DbSet<TwoFactorTicket> TwoFactorTickets { get; }

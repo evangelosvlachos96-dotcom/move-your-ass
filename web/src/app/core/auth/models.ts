@@ -1,6 +1,6 @@
 export type UserRole = 'Admin' | 'Client';
 
-export type UserStatus = 'PendingApproval' | 'Active' | 'Suspended' | 'Declined';
+export type UserStatus = 'PendingApproval' | 'Active' | 'Suspended' | 'Declined' | 'Invited';
 
 /** GET /auth/me and the `user` part of the login response. */
 export interface User {
@@ -41,8 +41,9 @@ export interface RegisterResponse {
   status: UserStatus;
 }
 
+/** currentPassword is omitted on a forced change; the API checks MustChangePassword in the DB. */
 export interface ChangePasswordRequest {
-  currentPassword: string;
+  currentPassword?: string;
   newPassword: string;
 }
 

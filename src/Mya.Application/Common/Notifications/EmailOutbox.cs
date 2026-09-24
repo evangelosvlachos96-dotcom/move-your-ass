@@ -6,10 +6,13 @@ namespace Mya.Application.Common.Notifications;
 
 public static class OutboxMessageTypes
 {
+    public const string PasswordInvitation = "PasswordInvitation";
     public const string AdminNewRegistration = "AdminNewRegistration";
     public const string AccountApproved = "AccountApproved";
     public const string AccountDeclined = "AccountDeclined";
 }
+
+public sealed record PasswordInvitationPayload(string To, string FirstName, string Token, DateTime ExpiresAtUtc);
 
 public sealed record AdminNewRegistrationPayload(string To, string FirstName, string LastName, string Email);
 
@@ -18,7 +21,7 @@ public sealed record AccountApprovedPayload(string To, string FirstName);
 public sealed record AccountDeclinedPayload(string To, string FirstName, string? Reason);
 
 /// <summary>
-/// Builds the outbox rows for the three phase 2 emails. Handlers add these in the same
+/// Builds account notification and invitation emails. Handlers add these in the same
 /// transaction as the state change; the dispatcher renders and sends them later (ADR-010).
 /// </summary>
 public static class EmailOutbox
@@ -44,6 +47,13 @@ public static class EmailOutbox
     {
         ArgumentNullException.ThrowIfNull(user);
         return Create(OutboxMessageTypes.AccountDeclined, new AccountDeclinedPayload(user.Email, user.FirstName, reason), nowUtc);
+    }
+
+    public static OutboxMessage PasswordInvitation(UserAccount user, string token, DateTime nowUtc, DateTime expiresAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        return Create(OutboxMessageTypes.PasswordInvitation,
+            new PasswordInvitationPayload(user.Email, user.FirstName, token, expiresAtUtc), nowUtc);
     }
 
     public static T Deserialize<T>(string payloadJson) =>

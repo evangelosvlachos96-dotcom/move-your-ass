@@ -8,7 +8,7 @@
     >
       <nav aria-label="Κύρια πλοήγηση">
         <mat-nav-list>
-          @for (item of navItems; track item.link) {
+          @for (item of navItems(); track item.link) {
             <a
               mat-list-item
               [routerLink]="item.link"
@@ -17,7 +17,7 @@
               (click)="closeDrawerIfNarrow()"
             >
               <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-              <span matListItemTitle>{{ item.label }}</span>
+              <span matListItemTitle>{{ item.label }} @if (item.link === '/admin/users' && pending.count()) { ({{ pending.count() }}) }</span>
             </a>
           }
         </mat-nav-list>

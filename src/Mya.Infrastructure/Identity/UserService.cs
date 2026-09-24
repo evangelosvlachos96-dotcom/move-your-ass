@@ -241,7 +241,7 @@ public sealed class UserService(UserManager<AppUser> userManager, AppDbContext d
         switch (status)
         {
             case UserStatus.Active:
-                if (user.Status == UserStatus.PendingApproval)
+                if (user.Status is UserStatus.PendingApproval or UserStatus.Invited)
                 {
                     user.ApprovedAtUtc = now;
                     user.ApprovedByUserId = actorUserId;
@@ -258,6 +258,7 @@ public sealed class UserService(UserManager<AppUser> userManager, AppDbContext d
 
             case UserStatus.Declined:
             case UserStatus.PendingApproval:
+            case UserStatus.Invited:
                 break;
 
             default:

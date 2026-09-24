@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Mya.Api.Authorization;
 using Mya.Api.Extensions;
 using Mya.Application.Features.Auth.ChangePassword;
+using Mya.Application.Features.Auth.AcceptInvitation;
 using Mya.Application.Features.Auth.Login;
 using Mya.Application.Features.Auth.Logout;
 using Mya.Application.Features.Auth.Me;
@@ -16,6 +17,7 @@ namespace Mya.Api.Features.Auth;
 [ApiController]
 [Route("api/auth")]
 public sealed class AuthController(
+    AcceptInvitationHandler acceptInvitation,
     RegisterHandler register,
     LoginHandler login,
     RefreshHandler refresh,
@@ -24,6 +26,12 @@ public sealed class AuthController(
     UpdateProfileHandler updateProfile,
     LogoutHandler logout) : ControllerBase
 {
+    [HttpPost("accept-invitation")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.AuthPerEmail)]
+    public async Task<IActionResult> AcceptInvitation(AcceptInvitationCommand command, CancellationToken ct) =>
+        (await acceptInvitation.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.AuthPerEmail)]

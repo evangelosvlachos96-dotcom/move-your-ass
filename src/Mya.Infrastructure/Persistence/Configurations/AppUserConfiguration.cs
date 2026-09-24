@@ -12,7 +12,7 @@ public sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.ToTable(t => t.HasCheckConstraint("CK_AspNetUsers_Status", "[Status] IN (0, 1, 2, 3)"));
+        builder.ToTable(t => t.HasCheckConstraint("CK_AspNetUsers_Status", "[Status] IN (0, 1, 2, 3, 4)"));
 
         builder.Property(u => u.FirstName).HasMaxLength(NameMaxLength).IsRequired();
         builder.Property(u => u.LastName).HasMaxLength(NameMaxLength).IsRequired();

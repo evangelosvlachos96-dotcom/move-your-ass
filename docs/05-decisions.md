@@ -205,3 +205,20 @@ Deliberate, to reach a deployed product faster. `Mya.ArchitectureTests` stays gr
 seeder, converter and settings tests stay; nothing new is written for phases 2–4.
 
 **Cost:** regressions are found by the trainer in production rather than by CI.
+
+
+## Current scope overrides — 2026-09-24
+
+The historical ADR text above is retained as a decision record, not current scope.
+Booking is excluded (ADR-006 withdrawn); idempotency is planned only for video creation
+(ADR-007 narrowed); Bunny Stream replaces manual Blob/HLS (ADR-008 superseded).
+The only phase sequence is docs/04-roadmap.md; old deployment step numbers are obsolete.
+
+### ADR-015 — Email invitation for admin-created accounts
+
+Accepted. Create an inactive Invited account and queue a single-use, expiring password setup
+link. Do not return or email temporary passwords for this creation path. Activation requires
+the client to choose a password. Resending invalidates earlier unused links.
+
+Console delivery remains available in Development; configurable TLS SMTP sends real mail with
+metadata-only logging. Approval/invitations are not 2FA; password login remains in force.

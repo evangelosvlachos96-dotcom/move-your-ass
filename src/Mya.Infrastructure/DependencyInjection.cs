@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MimeKit;
 using Mya.Application.Abstractions.Identity;
 using Mya.Application.Abstractions.Notifications;
 using Mya.Application.Abstractions.Persistence;
@@ -59,14 +60,24 @@ public static class DependencyInjection
         services.Configure<SeedSettings>(configuration.GetSection(SeedSettings.SectionName));
         services.AddScoped<DatabaseSeeder>();
 
+        services.AddOptions<EmailSettings>()
+            .Bind(configuration.GetSection(EmailSettings.SectionName))
+            .Validate(s => s.Mode is "Console" or "Smtp", "Email:Mode must be Console or Smtp.")
+            .Validate(s => environment.IsDevelopment() || s.Mode == "Smtp", "Console email is only allowed in Development.")
+            .Validate(s => s.Mode != "Smtp" ||
+                (!string.IsNullOrWhiteSpace(s.Host) && s.Port is > 0 and <= 65535 &&
+                 !string.IsNullOrWhiteSpace(s.User) && !string.IsNullOrWhiteSpace(s.Password) &&
+                 MailboxAddress.TryParse(s.From, out _) && s.Security is "StartTls" or "SslOnConnect"),
+                "SMTP requires Host, Port, User, Password, From and StartTls or SslOnConnect security.")
+            .ValidateOnStart();
         services.AddSingleton<EmailTemplates>();
-        if (environment.IsDevelopment())
+        if (configuration["Email:Mode"] == "Smtp")
         {
-            services.AddSingleton<IEmailSender, ConsoleEmailSender>();
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
         }
         else
         {
-            services.AddSingleton<IEmailSender, UnconfiguredEmailSender>();
+            services.AddSingleton<IEmailSender, ConsoleEmailSender>();
         }
 
         services.AddHostedService<OutboxDispatcher>();

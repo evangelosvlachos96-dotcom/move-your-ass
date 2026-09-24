@@ -13,7 +13,7 @@ parameter files ending in `.parameters.local.json` are gitignored.
 | SQL server | `sql-mya-dev` | `sql-mya-prod` |
 | SQL database | free offer | serverless GP, min-vCore floor set, PITR on |
 | Static Web App | Free | Free (sufficient — includes SSL + custom domain) |
-| Storage account | `stmyadev` | `stmyaprod` — StorageV2, LRS, Hot, private, soft delete on |
+| Video provider (phase 5) | Bunny Stream test library | Private Bunny Stream library with protected playback |
 | Key Vault | `kv-mya-dev` | `kv-mya-prod` |
 | Application Insights | `appi-mya-dev` | `appi-mya-prod` |
 
@@ -23,8 +23,10 @@ parameter files ending in `.parameters.local.json` are gitignored.
 - [ ] `AUTOMAPPER_LICENSE_KEY` set in App Service configuration
 - [ ] JWT signing key in Key Vault, referenced via managed identity
 - [ ] CORS set to the exact SWA origin — no wildcards
-- [ ] SQL firewall: Azure services allowed, no `0.0.0.0` rule
-- [ ] Blob containers private, no public access at the account level
+- [ ] SQL firewall/network access restricted to required application and operator access
+- [ ] SMTP configured and invitation/approval email verified in a real inbox
+- [ ] Reviewed migrations applied, admin seeded, frontend origin verified
+- [ ] Phase 5: protected video playback and provider webhook validation
 - [ ] Alerts on App Service failure rate and SQL DTU/vCore
 - [ ] Custom domain + managed certificate
 

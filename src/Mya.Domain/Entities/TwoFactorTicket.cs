@@ -1,6 +1,6 @@
 namespace Mya.Domain.Entities;
 
-/// <summary>Server-side ticket for the email 2FA step (docs/03 section 4.2).</summary>
+/// <summary>Unused legacy email 2FA ticket; retained with existing migrations (ADR-013).</summary>
 public sealed class TwoFactorTicket
 {
     public Guid Id { get; init; }

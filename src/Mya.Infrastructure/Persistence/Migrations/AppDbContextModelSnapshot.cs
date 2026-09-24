@@ -253,6 +253,40 @@ namespace Mya.Infrastructure.Persistence.Migrations
                     b.ToTable("OutboxMessage", (string)null);
                 });
 
+            modelBuilder.Entity("Mya.Domain.Entities.PasswordInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordInvitation", (string)null);
+                });
+
             modelBuilder.Entity("Mya.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -452,7 +486,7 @@ namespace Mya.Infrastructure.Persistence.Migrations
 
                     b.ToTable("AspNetUsers", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AspNetUsers_Status", "[Status] IN (0, 1, 2, 3)");
+                            t.HasCheckConstraint("CK_AspNetUsers_Status", "[Status] IN (0, 1, 2, 3, 4)");
                         });
                 });
 
@@ -499,6 +533,15 @@ namespace Mya.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
+                {
+                    b.HasOne("Mya.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Mya.Domain.Entities.PasswordInvitation", b =>
                 {
                     b.HasOne("Mya.Infrastructure.Identity.AppUser", null)
                         .WithMany()
