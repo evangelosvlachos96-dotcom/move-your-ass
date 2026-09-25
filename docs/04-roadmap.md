@@ -10,7 +10,8 @@ feat/web-admin. Backend build, existing tests, Angular development build and lin
 35 API/database checks passed in an isolated LocalDB database. Core admin browser interactions
 were exercised. See docs/08-milestone-handover.md for the exact evidence and remaining checks.
 
-Pause here: the owner runs git add/commit/push and gives the green light before further work.
+The owner committed this checkpoint and gave the green light on 2026-09-25. Current work is
+Phase 4 on `feature/prod-readiness`; see `docs/10-production-readiness.md`.
 Real SMTP delivery still needs credentials and inbox verification. Video implementation has not started.
 
 ## Phase 1 — Foundation
@@ -26,7 +27,7 @@ admin user management. Admin-created users are invited by email and cannot log i
 their password using a single-use, expiring link. Resending invalidates previous links.
 Console and SMTP delivery share the transactional outbox. No login 2FA in this scope.
 
-## Phase 3 — Browser onboarding and administration (current)
+## Phase 3 — Browser onboarding and administration
 
 Implementation checkpoint complete. Remaining browser regression checks are recorded in the handover.
 
@@ -38,7 +39,7 @@ Done when the manual checklist passes for both account creation paths, invalid/e
 links, admin/client access boundaries and responsive screens. Build/lint are not a substitute for
 these checks. The owner reviews, commits and pushes this milestone before the next phase.
 
-## Phase 4 — Deployment and real delivery verification
+## Phase 4 — Deployment and real delivery verification (current)
 
 Provision/configure App Service, Azure SQL and Static Web Apps; migrations, HTTPS, CORS, production
 seeding, real SMTP credentials, domain and monitoring. Verify delivery to an actual inbox.

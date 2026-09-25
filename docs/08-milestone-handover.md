@@ -2,6 +2,10 @@
 
 Date: 2026-09-24. Branch: feat/web-admin.
 
+Follow-up 2026-09-25: the owner committed the checkpoint and authorized `feature/prod-readiness`.
+The production build now passes in the actual repository. This document retains the original
+checkpoint results; current status is in `docs/10-production-readiness.md`.
+
 This is a reviewable implementation checkpoint. Stop here for the owner to run git add,
 git commit and git push. Do not begin the next milestone until the owner gives the green light.
 

@@ -82,14 +82,13 @@ production, not a demo.
 
 ## Current phase
 
-**Checkpoint pause (2026-09-24):** onboarding and admin UI implementation is ready for the owner
-to review, add, commit and push. See `docs/08-milestone-handover.md` for verified results and remaining
-setup. Do not start further milestone work until the owner gives the green light.
+**Phase 4 — production readiness (started 2026-09-25).** The owner committed the onboarding
+checkpoint and gave the green light on `feature/prod-readiness`. See `docs/10-production-readiness.md`
+for current evidence and outstanding configuration decisions. The production Angular build passes.
+Local database migration and SMTP provider setup are the next steps; no cloud resources have been provisioned.
 
-**Phase 3 — browser onboarding and administration.** See `docs/04-roadmap.md` §"Phases" and
-§"Account API". Phase 1 (foundation) is done.
+Decisions still in force:
 
-Decisions in force for this phase:
 
 - **ADR-013 — email 2FA deferred.** Password-only login. `TwoFactorTicket` stays in the schema,
   unused, so enabling 2FA later is code only.
@@ -120,7 +119,7 @@ If a task is not in the current phase of `docs/04-roadmap.md`, it goes in `docs/
 ## Git policy
 
 - Commit style: `feat(auth): ...`, `fix(users): ...`, `docs: ...`, `chore(infra): ...`.
-- Branch per phase from `docs/04-roadmap.md`, merged through a PR. Small PRs — the design docs
+- Branch per phase from `docs/04-roadmap.md`, using `feature/...`, merged through a PR. Small PRs — the design docs
   are worthless if a 4,000-line PR lands that quietly ignores them.
 - **Branches are never deleted after merging, locally or on the remote.** They stay as a record
   of what each phase touched. Do not pass `--delete-branch`, do not tick "delete branch" on the

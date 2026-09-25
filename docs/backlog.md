@@ -5,13 +5,14 @@ correct response to "while we're here, could we also…".
 
 ## Next verification tasks — checkpoint 2026-09-24
 
-- Retry production Angular build in a fresh environment/CI: local cache attempt failed, then the
-  cache-disabled retry hit a native memory-allocation error. Development build and lint passed.
+- Production Angular build rechecked on 2026-09-25 in the actual repository: passed with an
+  initial bundle of 554.96 kB, within the configured warning/error budgets. Previous working-copy
+  cache/memory failures did not reproduce; no source change was required.
 - Apply AccountInvitations migration to the intended local database; only the isolated verification
   database has been migrated so far.
 - Configure real SMTP and verify delivery to an inbox; console delivery and invitation behavior passed.
 - Finish the browser/viewport regression matrix described in docs/08-milestone-handover.md.
-- Wait for owner commit/push and green light before continuing.
+- Owner green light received on 2026-09-25; readiness work continues on `feature/prod-readiness`.
 
 ## Video (phases 5–6, see `docs/04-roadmap.md` and `docs/06-video-catalogue.md`)
 
