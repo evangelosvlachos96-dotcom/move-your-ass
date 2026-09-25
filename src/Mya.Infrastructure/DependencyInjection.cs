@@ -10,6 +10,7 @@ using Mya.Application.Abstractions.Persistence;
 using Mya.Infrastructure.Identity;
 using Mya.Infrastructure.Notifications;
 using Mya.Infrastructure.Persistence;
+using Mya.Infrastructure.Persistence.Interceptors;
 using Mya.Infrastructure.Persistence.Seed;
 
 namespace Mya.Infrastructure;
@@ -33,7 +34,12 @@ public static class DependencyInjection
 
         var connectionString = configuration.GetConnectionString(ConnectionStringName);
 
-        services.AddDbContext<AppDbContext>(options =>
+        services.AddSingleton<OutboxSignal>();
+        services.AddSingleton<OutboxSaveChangesInterceptor>();
+        services.AddSingleton<OutboxTransactionInterceptor>();
+        services.AddSingleton<SqlConnectionRetryInterceptor>();
+
+        services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         {
             if (string.IsNullOrWhiteSpace(connectionString))
             {
@@ -42,7 +48,11 @@ public static class DependencyInjection
                     "Locally: dotnet user-secrets set \"ConnectionStrings:Default\" \"<connection string>\" --project src/Mya.Api");
             }
 
-            options.UseSqlServer(connectionString);
+            options.UseSqlServer(connectionString)
+                .AddInterceptors(
+                    serviceProvider.GetRequiredService<SqlConnectionRetryInterceptor>(),
+                    serviceProvider.GetRequiredService<OutboxSaveChangesInterceptor>(),
+                    serviceProvider.GetRequiredService<OutboxTransactionInterceptor>());
         });
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());

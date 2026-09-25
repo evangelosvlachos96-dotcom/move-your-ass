@@ -22,6 +22,13 @@ correct response to "while we're here, could we also…".
 - Player component; publish/unpublish toggle for admin
 - `Idempotency-Key` on video creation (the `IdempotencyRecord` table is kept for this)
 
+## Production upgrades (ADR-016 triggers, no code changes)
+
+- App Service B1: Always On, custom domain + managed certificate
+- Authenticated sending domain in Brevo (SPF/DKIM/DMARC)
+- Key Vault references for secrets once a second environment exists
+- Bicep for the free-tier environment in docs/10
+
 ## Polish
 
 - Password reset by email (self-service; admin reset exists)
@@ -30,7 +37,6 @@ correct response to "while we're here, could we also…".
 - Admin dashboard: recent uploads (pending registrations count is implemented)
 - i18n extraction (currently hardcoded Greek)
 - Email templates with real branding
-- Custom domain + managed certificate
 
 ## Deferred / maybe never
 

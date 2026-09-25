@@ -222,3 +222,37 @@ the client to choose a password. Resending invalidates earlier unused links.
 
 Console delivery remains available in Development; configurable TLS SMTP sends real mail with
 metadata-only logging. Approval/invitations are not 2FA; password login remains in force.
+
+---
+
+### ADR-016 — Launch production on free tiers, one origin
+
+**Status:** accepted, with upgrade triggers. Supersedes the "free tiers are not the target" note
+in CLAUDE.md for launch; ADR-012's B1 trigger still applies.
+
+Production starts at €0/month: App Service **F1 (Linux)** for the API, the **Azure SQL Database
+free offer** (serverless GP, 100,000 vCore-seconds + 32 GB per month, auto-pause when exhausted)
+and **Brevo** free SMTP (300 emails/day). Runbook: `docs/10-free-tier-production.md`.
+
+Consequences in code:
+
+- **The API serves the Angular build from `wwwroot`.** F1 cannot bind a custom domain, and Static
+  Web Apps Free cannot link an App Service backend, so SPA and API would sit on two different
+  public-suffix hosts (`*.azurestaticapps.net`, `*.azurewebsites.net`). The refresh cookie is
+  `SameSite=Strict`, so it would never be sent. One origin fixes that and removes CORS in
+  production. Static Web Apps is dropped.
+- **The outbox dispatcher no longer polls.** It drains, then sleeps until a commit signals new rows
+  (`OutboxSignal`, EF interceptors) or the earliest retry is due. A 15-second poll would keep the
+  serverless database awake permanently and use the monthly free compute within days.
+- **Connection opens are retried** (`SqlConnectionRetryInterceptor`) to ride out the up-to-a-minute
+  resume after auto-pause. Commands are not retried; `EnableRetryOnFailure` is incompatible with
+  the handlers' explicit transactions.
+- **Production seeding is a one-shot command** (`--seed-admin`), never part of app startup.
+
+**Cost:** no SLA on either free service; a cold first request after idle can take tens of seconds
+(app wake + database resume); the URL is `*.azurewebsites.net` until a paid tier; if the free
+vCore-seconds run out the database pauses until the 1st of next month.
+
+**Upgrade triggers:** first request of the day regularly over ~15 s, or the F1 CPU quota is hit →
+App Service B1. Free vCore-seconds under 10% before the 20th of a month → allow paid overage on
+the database. Emails landing in spam → buy a domain and authenticate it in Brevo.

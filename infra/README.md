@@ -5,30 +5,31 @@ parameter files ending in `.parameters.local.json` are gitignored.
 
 ## Resources
 
-| Resource | Dev | Production |
+Production runs on free tiers (ADR-016); the step-by-step runbook is
+`docs/10-free-tier-production.md`.
+
+| Resource | Production (launch) | Upgrade when a trigger in ADR-016 fires |
 |---|---|---|
-| Resource group | `rg-mya-dev` | `rg-mya-prod` |
-| App Service plan | F1 | **B1 minimum** (S1 for a staging slot) |
-| App Service | `app-mya-api-dev` | `app-mya-api-prod` |
-| SQL server | `sql-mya-dev` | `sql-mya-prod` |
-| SQL database | free offer | serverless GP, min-vCore floor set, PITR on |
-| Static Web App | Free | Free (sufficient — includes SSL + custom domain) |
-| Video provider (phase 5) | Bunny Stream test library | Private Bunny Stream library with protected playback |
-| Key Vault | `kv-mya-dev` | `kv-mya-prod` |
-| Application Insights | `appi-mya-dev` | `appi-mya-prod` |
+| Resource group | `rg-mya-prod` | — |
+| App Service plan | **F1 Linux** (free) | B1 (Always On, custom domain) |
+| App Service (API + Angular in wwwroot) | `app-mya-prod` | — |
+| SQL server / database | `sql-mya-prod` / `sqldb-mya-prod`, **free offer**, auto-pause at limit | continue with charges |
+| Email | Brevo free SMTP (300/day) | authenticated domain / paid plan |
+| Static Web App | **not used** — the API serves the SPA (same origin) | — |
+| Key Vault | not used at launch; secrets in App Service settings | when a second environment exists |
+| Video provider (phase 5) | Private Bunny Stream library with protected playback | — |
 
 ## Before the first production deploy
 
 - [ ] Budget alert configured in Cost Management (Azure has no hard spend cap)
-- [ ] `AUTOMAPPER_LICENSE_KEY` set in App Service configuration
-- [ ] JWT signing key in Key Vault, referenced via managed identity
-- [ ] CORS set to the exact SWA origin — no wildcards
-- [ ] SQL firewall/network access restricted to required application and operator access
-- [ ] SMTP configured and invitation/approval email verified in a real inbox
-- [ ] Reviewed migrations applied, admin seeded, frontend origin verified
+- [ ] SQL free offer applied, *auto-pause until next month* selected, free-amount alert set
+- [ ] SQL firewall: operator IP + App Service outbound IPs only
+- [ ] App settings from docs/10 §2 set; HTTPS Only on; no health check, no pingers
+- [ ] Brevo sender verified; invitation/approval email verified in a real inbox
+- [ ] Migrations applied (docs/10 §4); Admin seeded with `--seed-admin` (docs/10 §5)
+- [ ] `production` environment, publish-profile secret and `AZURE_WEBAPP_NAME` variable in GitHub
+- [ ] Trainer completes onboarding and logs in from her phone on the real URL
 - [ ] Phase 5: protected video playback and provider webhook validation
-- [ ] Alerts on App Service failure rate and SQL DTU/vCore
-- [ ] Custom domain + managed certificate
 
 ## TODO
 

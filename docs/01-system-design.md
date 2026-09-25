@@ -13,7 +13,8 @@ authorizes access and issues short-lived provider credentials. Video bytes never
 ## Environments
 
 Local: Angular :4200, API launch profile :5077, SQL Server/LocalDB, user-secrets.
-Deployment target: Azure Static Web Apps (SPA), App Service (API), Azure SQL, Key Vault and monitoring.
+Deployment target: one App Service serving the API and the Angular build (same origin), Azure SQL
+and Brevo SMTP, all on free tiers at launch (ADR-016, docs/10-free-tier-production.md).
 These are targets, not evidence of provisioned resources. See infra/README.md for deployment work.
 
 The production origin is explicit in Cors:AllowedOrigin and is also used to construct email links.

@@ -10,23 +10,33 @@ using Mya.Infrastructure.Persistence;
 namespace Mya.Infrastructure.Notifications;
 
 /// <summary>
-/// Polls the outbox every 15 seconds (ADR-010). Rows are claimed with a single
-/// UPDATE ... OUTPUT that also counts the attempt and takes a lease, so a second instance or a
-/// restart cannot claim a row until its lease expires. Delivery is at least once: a crash after
-/// SMTP accepts a message but before marking it processed can result in a duplicate email. Failures back off 1m, 5m, 30m, 2h and
-/// then dead-letter (Attempts = 5, never picked again, LastError says why).
+/// Sends outbox rows (ADR-010) without polling an idle database (ADR-016). The dispatcher drains
+/// every claimable row, then sleeps until either <see cref="OutboxSignal"/> reports a newly
+/// committed row or the earliest scheduled retry is due. With nothing pending it sleeps
+/// indefinitely, so a serverless database can auto-pause. A sweep on startup picks up anything
+/// left behind while the app was unloaded or restarted.
+/// <para>
+/// Rows are claimed with a single UPDATE ... OUTPUT that also counts the attempt and takes a lease,
+/// so a second instance or a restart cannot claim a row until its lease expires. Delivery is at
+/// least once: a crash after SMTP accepts a message but before marking it processed can result in
+/// a duplicate email. Failures back off 1m, 5m, 30m, 2h and then dead-letter (Attempts = 5,
+/// never picked again, LastError says why).
+/// </para>
 /// </summary>
 public sealed class OutboxDispatcher(
     IServiceScopeFactory scopeFactory,
+    OutboxSignal signal,
     IClock clock,
     ILogger<OutboxDispatcher> logger) : BackgroundService
 {
     private const int BatchSize = 20;
     private const int MaxAttempts = 5;
     private const int LastErrorMaxLength = 4000;
+    private const int ClaimFailed = -1;
 
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan ErrorRetryDelay = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan DueTimeMargin = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan ClaimLease = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan[] Backoff =
     [
@@ -42,12 +52,11 @@ public sealed class OutboxDispatcher(
         {
             await Task.Delay(StartupDelay, stoppingToken);
 
-            using var timer = new PeriodicTimer(PollInterval);
-            do
+            while (!stoppingToken.IsCancellationRequested)
             {
-                await DispatchBatchAsync(stoppingToken);
+                var sleep = await DrainAsync(stoppingToken);
+                await signal.WaitAsync(sleep, stoppingToken);
             }
-            while (await timer.WaitForNextTickAsync(stoppingToken));
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
@@ -55,7 +64,25 @@ public sealed class OutboxDispatcher(
         }
     }
 
-    private async Task DispatchBatchAsync(CancellationToken cancellationToken)
+    /// <summary>Sends every claimable row, then returns how long the dispatcher may sleep.</summary>
+    private async Task<TimeSpan> DrainAsync(CancellationToken cancellationToken)
+    {
+        int claimedCount;
+        do
+        {
+            claimedCount = await DispatchBatchAsync(cancellationToken);
+            if (claimedCount == ClaimFailed)
+            {
+                return ErrorRetryDelay;
+            }
+        }
+        while (claimedCount == BatchSize);
+
+        return await UntilNextRetryAsync(cancellationToken);
+    }
+
+    /// <returns>The number of rows claimed, or <see cref="ClaimFailed"/> when the claim query failed.</returns>
+    private async Task<int> DispatchBatchAsync(CancellationToken cancellationToken)
     {
         List<OutboxMessage> claimed;
         try
@@ -65,8 +92,8 @@ public sealed class OutboxDispatcher(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Outbox: claiming pending messages failed; will retry next tick");
-            return;
+            logger.LogError(ex, "Outbox: claiming pending messages failed; retrying in {Delay}", ErrorRetryDelay);
+            return ClaimFailed;
         }
 
         foreach (var message in claimed)
@@ -86,6 +113,39 @@ public sealed class OutboxDispatcher(
             {
                 await MarkFailedAsync(db, message, ex, cancellationToken);
             }
+        }
+
+        return claimed.Count;
+    }
+
+    /// <summary>
+    /// Time until the earliest failed row becomes claimable again, or infinite when nothing is
+    /// waiting for a retry. Runs only after a drain, never on an idle timer.
+    /// </summary>
+    private async Task<TimeSpan> UntilNextRetryAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var nextDueUtc = await db.OutboxMessages
+                .AsNoTracking()
+                .Where(m => m.ProcessedAtUtc == null && m.Attempts < MaxAttempts && m.LockedUntilUtc != null)
+                .MinAsync(m => m.LockedUntilUtc, cancellationToken);
+
+            if (nextDueUtc is null)
+            {
+                return Timeout.InfiniteTimeSpan;
+            }
+
+            var delay = nextDueUtc.Value - clock.UtcNow;
+            return delay <= TimeSpan.Zero ? TimeSpan.Zero : delay + DueTimeMargin;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Outbox: reading the next retry time failed; retrying in {Delay}", ErrorRetryDelay);
+            return ErrorRetryDelay;
         }
     }
 

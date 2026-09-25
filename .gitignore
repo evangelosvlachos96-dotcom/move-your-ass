@@ -25,6 +25,9 @@ coverage*.info
 *.coveragexml
 .sonarqube/
 
+## SPA build copied into the API for same-origin hosting (docs/10) — produced by CI, never committed
+src/Mya.Api/wwwroot/
+
 ## Node / Angular
 node_modules/
 dist/

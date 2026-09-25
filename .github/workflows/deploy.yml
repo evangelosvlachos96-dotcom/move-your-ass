@@ -1,0 +1,81 @@
+name: deploy
+
+# Builds the Angular app and the API, puts the SPA into the API's wwwroot and deploys the single
+# package to App Service (ADR-016: same origin, free tier). Migrations are NOT applied here;
+# see docs/10-free-tier-production.md §4.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'web/**'
+      - '*.sln'
+      - 'Directory.Build.props'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Lint and build web
+        working-directory: web
+        run: |
+          npm ci
+          npm run lint
+          npm run build -- --configuration production
+
+      - name: Test API
+        run: dotnet test -c Release
+
+      - name: Publish API
+        run: dotnet publish src/Mya.Api -c Release -o ./publish
+
+      - name: Add SPA to wwwroot
+        run: |
+          test -f web/dist/mya-web/browser/index.html
+          mkdir -p ./publish/wwwroot
+          cp -r web/dist/mya-web/browser/. ./publish/wwwroot/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: ./publish
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: app
+          path: ./publish
+
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish

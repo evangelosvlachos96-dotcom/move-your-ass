@@ -9,9 +9,14 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
+// One-shot production seeding (docs/10 §5): `dotnet Mya.Api.dll --seed-admin` creates the roles and
+// the first Admin against the configured database, then exits without starting the web host.
+const string SeedAdminFlag = "--seed-admin";
+var seedAdminOnly = args.Contains(SeedAdminFlag, StringComparer.Ordinal);
+
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(args.Where(a => a != SeedAdminFlag).ToArray());
 
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
@@ -26,6 +31,14 @@ try
 
     var app = builder.Build();
 
+    if (seedAdminOnly)
+    {
+        await using var seedScope = app.Services.CreateAsyncScope();
+        await seedScope.ServiceProvider.GetRequiredService<DatabaseSeeder>().SeedAsync(CancellationToken.None);
+        Log.Information("Seeding finished; exiting without starting the web host");
+        return;
+    }
+
     // Roles and the first Admin are seeded on startup in Development only. Production seeding
     // and migrations are deliberate, gated steps (CLAUDE.md "Things that will bite you").
     if (app.Environment.IsDevelopment())
@@ -38,6 +51,7 @@ try
     }
 
     app.UseExceptionHandler();
+    app.UseSpaStaticFiles();
     app.UseSerilogRequestLogging();
 
     app.UseCors();
@@ -50,6 +64,7 @@ try
     app.UseMiddleware<MustChangePasswordMiddleware>();
 
     app.MapControllers();
+    app.MapSpaFallback();
 
     await app.RunAsync();
 }
