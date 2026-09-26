@@ -3,10 +3,10 @@ using Mya.Application.Abstractions.Notifications;
 
 namespace Mya.Infrastructure.Notifications;
 
-/// <summary>Development only: the rendered message goes to Serilog instead of an SMTP server.</summary>
+/// <summary>Development only: the rendered message goes to Serilog instead of the email provider.</summary>
 public sealed class ConsoleEmailSender(ILogger<ConsoleEmailSender> logger) : IEmailSender
 {
-    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
+    public Task SendAsync(Guid messageId, EmailMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
 

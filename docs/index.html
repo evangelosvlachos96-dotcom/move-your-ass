@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Training Platform — video library and 1:1 booking for one trainer</title>
-<meta name="description" content="A private platform for a personal trainer and their clients: admin-approved registration, email 2FA, a streamed video library and conflict-free 1:1 session booking. ASP.NET Core 10 + Angular on Azure.">
-<meta property="og:title" content="Training Platform — video library and 1:1 booking">
-<meta property="og:description" content="Clients register, the trainer approves, then they watch videos and book sessions. ASP.NET Core 10 + Angular on Azure.">
+<title>Move Your Ass — a private workout video library for one trainer</title>
+<meta name="description" content="A private workout video library for one personal trainer and their approved clients: admin-approved registration, email invitations and a streamed video library. ASP.NET Core 10 and Angular, one origin on Render.">
+<meta property="og:title" content="Move Your Ass — a private workout video library">
+<meta property="og:description" content="Clients register, the trainer approves by hand, then they log in and watch the library. ASP.NET Core 10 and Angular.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -62,7 +62,7 @@
 
 <header>
   <div class="wrap">
-    <b>Training Platform</b>
+    <b>Move Your Ass</b>
     <nav>
       <a href="#start">Start</a>
       <a href="#how">What it does</a>
@@ -74,33 +74,33 @@
 
 <div class="hero">
   <div class="wrap">
-    <h1>One trainer, their clients, a video library and a calendar.</h1>
-    <p>A private platform for a personal trainer with tens to low hundreds of clients. Clients register, the trainer approves them by hand, and from then on they log in to stream the video library and book 1:1 sessions. ASP.NET Core 10 API, Angular SPA, deployed on Azure. Not a marketplace, not multi-tenant.</p>
+    <h1>One trainer, their clients, and a private video library.</h1>
+    <p>A private platform for a personal trainer with tens to low hundreds of clients. Clients register, the trainer approves them by hand, and from then on they log in to stream the workout library. ASP.NET Core 10 API and an Angular SPA, served from a single origin. Not a marketplace, not multi-tenant, and no booking.</p>
     <div class="cta">
       <a class="btn btn--primary" href="https://github.com/evangelosvlachos96-dotcom/move-your-ass">View on GitHub</a>
       <a class="btn" href="https://github.com/evangelosvlachos96-dotcom/move-your-ass#readme">Read the README</a>
     </div>
   </div>
   <div class="wrap">
-<pre>Angular SPA ──────────────────────────────┐  video bytes, direct (SAS)
-  │                                        ▼
-  │ JSON + Bearer JWT            Azure Blob Storage
+<pre>Angular SPA ──────────────────────────────┐  video bytes, direct (signed URL)
+  │  served from the API&#39;s wwwroot         ▼
+  │  same origin, so no CORS       video provider (planned)
   ▼
-ASP.NET Core API ──▶ Azure SQL
+ASP.NET Core API ──▶ PostgreSQL
   │
-  └── outbox ──▶ email provider</pre>
+  └── outbox ──▶ email provider (HTTPS API)</pre>
   </div>
 </div>
 
 <section id="start">
   <div class="wrap">
     <h2>Start in four steps</h2>
-    <p class="lead">Prerequisites: .NET 10 SDK, Node 22+, Docker for the test database, Azure CLI. Configuration lives in user-secrets, never in the repo.</p>
+    <p class="lead">Prerequisites: .NET 10 SDK, Node 22+, and a PostgreSQL database. Configuration lives in user-secrets, never in the repo.</p>
     <div class="steps">
       <div class="step"><b>1 · Restore and configure</b><p><code>dotnet restore</code>, then <code>dotnet user-secrets set "ConnectionStrings:Default" "…" --project src/Mya.Api</code>.</p></div>
       <div class="step"><b>2 · Create the database</b><p><code>dotnet ef database update --project src/Mya.Infrastructure --startup-project src/Mya.Api</code>. The seeder creates the two roles and the first admin from configuration.</p></div>
-      <div class="step"><b>3 · Run the API</b><p><code>dotnet run --project src/Mya.Api</code> — listens on <code>https://localhost:7001</code>.</p></div>
-      <div class="step"><b>4 · Run the SPA</b><p><code>cd web &amp;&amp; npm ci &amp;&amp; npm start</code> — opens at <code>http://localhost:4200</code>. Tests: <code>dotnet test</code> and <code>npm run test</code>.</p></div>
+      <div class="step"><b>3 · Run the API</b><p><code>dotnet run --project src/Mya.Api</code> — listens on <code>http://localhost:5077</code>, with Swagger at <code>/swagger</code>.</p></div>
+      <div class="step"><b>4 · Run the SPA</b><p><code>cd web &amp;&amp; npm ci &amp;&amp; npm start</code> — opens at <code>http://localhost:4200</code>. Checks: <code>dotnet test</code>, <code>npm run lint</code>, <code>npm run build</code>.</p></div>
     </div>
   </div>
 </section>
@@ -108,14 +108,14 @@ ASP.NET Core API ──▶ Azure SQL
 <section id="how">
   <div class="wrap">
     <h2>What it does</h2>
-    <p class="lead">Two roles, one trainer. There is no public path to becoming an admin.</p>
+    <p class="lead">Two roles, one trainer. There is no public path to becoming an admin, and no booking or calendar: this is a video library.</p>
     <div class="steps">
       <div class="step"><b>Approved registration</b><p>A client registers with email and the account stays inactive until the trainer approves it. The trainer can also reject, suspend or reactivate any account.</p></div>
-      <div class="step"><b>Login with a one-time code</b><p>Email and password, confirmed by a code sent to the inbox. JWT access tokens with rotating refresh tokens.</p></div>
-      <div class="step"><b>Video library</b><p>The trainer uploads and publishes content. Clients stream it as HLS straight from Blob Storage — the bytes never pass through the API.</p></div>
-      <div class="step"><b>1:1 booking</b><p>A calendar showing only free slots, up to five active bookings per client. The trainer publishes weekly availability and can move or cancel any session.</p></div>
-      <div class="step"><b>Change requests</b><p>Clients ask to move or cancel a booking and can withdraw the request while it is pending. The trainer gets an email and approves or rejects.</p></div>
-      <div class="step"><b>Current status</b><p>Phase 1 is built and deployed: registration, approval, email 2FA, roles, session control. Booking, calendar, videos and change requests are designed but not yet built.</p></div>
+      <div class="step"><b>Password login, one session</b><p>Email and password. Short-lived JWT access tokens held in memory, with a rotating refresh token in an HttpOnly cookie. A new login replaces the previous session.</p></div>
+      <div class="step"><b>Email invitations</b><p>The trainer can create an account directly. The client receives a single-use, expiring link and chooses their own password; no temporary password is ever emailed. Resending invalidates the earlier link.</p></div>
+      <div class="step"><b>Video library</b><p>Designed, not yet built. The trainer uploads and publishes workouts; clients filter and stream them. Video bytes go straight between the browser and the provider, never through the API.</p></div>
+      <div class="step"><b>Transactional email</b><p>Every outbound email is written as a row in the same transaction as the change that caused it, then dispatched by a background service. A dead mail provider cannot roll back an approval.</p></div>
+      <div class="step"><b>Current status</b><p>Accounts are built: registration, approval, invitations, roles, session control and the admin UI. Deployment is in progress. The video library is designed and not yet built. Booking was dropped from the product.</p></div>
     </div>
   </div>
 </section>
@@ -126,24 +126,25 @@ ASP.NET Core API ──▶ Azure SQL
     <p class="lead">Both are enforced by the database or by a test, not by convention.</p>
     <div class="rules">
       <ol>
-        <li><b>Booking conflicts are resolved by the database, not the UI.</b> Claiming a slot is a single conditional <code>UPDATE</code> whose affected-row count decides the winner. Polling, tab sync and idempotency keys sit on top as UX; none of them is the guarantee.</li>
-        <li><b>Every user-initiated mutation carries an <code>Idempotency-Key</code> header.</b> The key is generated when the user forms the intent — the dialog opens — not when the button is clicked. Deduplicated per user for 24 hours, replaying the original response.</li>
+        <li><b>Single-use invitations are enforced by the database, not the UI.</b> Consuming a setup link is one conditional <code>UPDATE</code> whose affected-row count decides the winner, so two concurrent submissions of the same link produce exactly one activation. The same rule governs duplicate emails: a unique index decides, never a pre-check query.</li>
+        <li><b>The SPA and the API share one origin.</b> The API serves the Angular build from its own <code>wwwroot</code>. That is not tidiness: the refresh token lives in a <code>SameSite=Strict</code> cookie, which a browser will not send across hosts. One origin makes the cookie work and removes CORS from production entirely.</li>
       </ol>
-      <p class="note">Four layered backend projects — <code>Mya.Api</code>, <code>Mya.Application</code>, <code>Mya.Domain</code>, <code>Mya.Infrastructure</code> — with feature folders inside each. <code>Mya.Application</code> may not reference EF Core or ASP.NET; an architecture test fails the build if it does. API, SPA, infra and docs ship in one mono-repo, so an API contract change is one commit and one PR.</p>
+      <p class="note">Four layered backend projects — <code>Mya.Api</code>, <code>Mya.Application</code>, <code>Mya.Domain</code>, <code>Mya.Infrastructure</code> — with feature folders inside each. <code>Mya.Application</code> may use EF Core’s abstractions but never the database provider or ASP.NET, and <code>Mya.Domain</code> references nothing at all; an architecture test fails the build otherwise. API, SPA, infra and docs ship in one mono-repo, so an API contract change is one commit and one PR.</p>
     </div>
 <pre>src/Mya.Api/              controllers, middleware, DI composition
 src/Mya.Application/      use cases, DTOs, validators, abstractions
-src/Mya.Domain/           entities, enums, domain exceptions
-src/Mya.Infrastructure/   EF Core, Identity, blob, email
+src/Mya.Domain/           entities, enums, constants
+src/Mya.Infrastructure/   EF Core, Identity, email outbox
 tests/                    unit · integration · architecture
 web/                      Angular app
-infra/                    Bicep / az CLI deployment</pre>
+docs/                     design documents — source of truth
+infra/                    deployment notes</pre>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    ASP.NET Core 10 · EF Core 10 · Azure SQL · Angular · Azure Blob Storage · Azure App Service &amp; Static Web Apps &nbsp;·&nbsp;
+    ASP.NET Core 10 · EF Core 10 · PostgreSQL · Angular · Angular Material · Docker on Render &nbsp;·&nbsp;
     <a href="https://github.com/evangelosvlachos96-dotcom/move-your-ass">Source on GitHub</a>
   </div>
 </footer>

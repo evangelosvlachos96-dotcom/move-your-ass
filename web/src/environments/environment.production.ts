@@ -1,6 +1,6 @@
 // Swapped in by the production build (angular.json fileReplacements).
-// Phase 4 decides the real value: a relative /api works when Static Web Apps proxies to the
-// App Service (same origin, cookie-friendly); otherwise this becomes the API's absolute origin.
+// The API serves this build from its own wwwroot (ADR-016, docs/10), so a relative /api is the
+// same origin: no CORS, and the SameSite=Strict refresh cookie is sent on every auth call.
 export const environment = {
   production: true,
   apiUrl: '/api',

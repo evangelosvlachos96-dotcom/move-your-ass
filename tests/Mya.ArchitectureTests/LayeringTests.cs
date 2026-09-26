@@ -7,31 +7,34 @@ namespace Mya.ArchitectureTests;
 /// <summary>
 /// The dependency rules from docs/02 section 1. Dependencies point inward only.
 /// Mya.Application may reference Microsoft.EntityFrameworkCore (DbSet, async LINQ) but never
-/// the SqlServer provider or ASP.NET. Mya.Domain references nothing.
+/// the database provider or ASP.NET. Mya.Domain references nothing.
 /// </summary>
 public sealed class LayeringTests
 {
     private static readonly Assembly DomainAssembly = typeof(Domain.Constants.Roles).Assembly;
     private static readonly Assembly ApplicationAssembly = typeof(Application.DependencyInjection).Assembly;
 
-    private static readonly string[] SqlServerProviderPrefixes =
+    private static readonly string[] DatabaseProviderPrefixes =
     [
+        "Npgsql.EntityFrameworkCore.PostgreSQL",
+        "Npgsql",
         "Microsoft.EntityFrameworkCore.SqlServer",
         "Microsoft.Data.SqlClient",
     ];
 
     [Fact]
-    public void Application_does_not_reference_the_SqlServer_provider()
+    public void Application_does_not_reference_the_database_provider()
     {
         // The provider's extension methods live in the Microsoft.EntityFrameworkCore namespace
-        // (e.g. UseSqlServer), so a namespace scan alone is not enough: check assembly references too.
-        var referencedAssemblies = ReferencedAssembliesMatching(ApplicationAssembly, SqlServerProviderPrefixes);
+        // (UseNpgsql, EF.Functions.ILike), so a namespace scan alone is not enough: check assembly
+        // references too. The retired SQL Server prefixes stay listed so a partial revert is caught.
+        var referencedAssemblies = ReferencedAssembliesMatching(ApplicationAssembly, DatabaseProviderPrefixes);
         referencedAssemblies.ShouldBeEmpty(
-            "Mya.Application must not reference the SqlServer provider, but references: " + string.Join(", ", referencedAssemblies));
+            "Mya.Application must not reference a database provider, but references: " + string.Join(", ", referencedAssemblies));
 
         var result = Types.InAssembly(ApplicationAssembly)
             .ShouldNot()
-            .HaveDependencyOnAny(SqlServerProviderPrefixes)
+            .HaveDependencyOnAny(DatabaseProviderPrefixes)
             .GetResult();
 
         result.IsSuccessful.ShouldBeTrue(Describe(result));

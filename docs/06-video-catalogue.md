@@ -80,164 +80,90 @@ not all of them. With a catalogue this size, AND returns empty results too often
 
 ---
 
-## 3. Schema
+## 3. Implemented schema (PostgreSQL)
 
-```
-Video
-  Id                uniqueidentifier  PK
-  Title             nvarchar(200)     NOT NULL
-  Description       nvarchar(2000)    NULL
-  Audience          int               NOT NULL   -- 0 Male, 1 Female, 2 Both
-  BodyArea          int               NOT NULL   -- 0 FullBody, 1 UpperBody, 2 LowerBody
-  RequiresEquipment bit               NOT NULL
-  DurationSeconds   int               NULL       -- filled by the provider after processing
-  ThumbnailUrl      nvarchar(500)     NULL
-  StorageProvider   int               NOT NULL   -- 0 BunnyStream, 1 AzureBlob
-  ExternalId        nvarchar(200)     NOT NULL   -- provider's video id / blob prefix
-  Status            int               NOT NULL   -- 0 Uploading, 1 Processing, 2 Ready, 3 Failed
-  IsPublished       bit               NOT NULL   DEFAULT 0
-  SortOrder         int               NOT NULL   DEFAULT 0
-  CreatedAtUtc      datetime2(3)      NOT NULL
-  UpdatedAtUtc      datetime2(3)      NULL
-  CreatedByUserId   nvarchar(450)     NOT NULL
-  RowVersion        rowversion
+Video has UUID Id/Revision, required title (200), optional description (2000), integer audience,
+body area and status, boolean equipment/publication, integer ordering, optional duration,
+provider name, nullable external ID (64) and thumbnail URL (1000), UTC timestamptz creation/update,
+creator ID (450), creation key (100) and SHA-256 payload hash (64).
 
-Tag
-  Id            uniqueidentifier PK
-  Name          nvarchar(60)     NOT NULL    -- as typed, for display
-  NormalizedName nvarchar(60)    NOT NULL    -- upper-invariant, trimmed, for matching
-  CreatedAtUtc  datetime2(3)     NOT NULL
+Tag has UUID Id, display Name (60), unique NormalizedName (120), UTC creation time. Normalization
+trims, removes combining accents and uppercases invariantly, so Greek spelling variants collapse.
+VideoTag has a composite VideoId/TagId key, cascade deletion from Video and restricted Tag deletion.
+The creator ID is historical attribution rather than a cascading user foreign key.
 
-VideoTag
-  VideoId  uniqueidentifier  FK → Video   ON DELETE CASCADE
-  TagId    uniqueidentifier  FK → Tag
-  PRIMARY KEY (VideoId, TagId)
-```
+Indexes cover unique creator/key, unique non-null external ID, publication/status/order and TagId.
+Revision is an application-managed UUID concurrency token. The additive VideoCatalogue migration
+preserves the applied PostgreSQL InitialCreate. Never regenerate an applied baseline.
 
-```sql
-CREATE UNIQUE INDEX UX_Tag_Normalized ON Tag(NormalizedName);
-CREATE INDEX IX_Video_Browse ON Video(Audience, BodyArea, RequiresEquipment, SortOrder)
-  WHERE IsPublished = 1 AND Status = 2;
-CREATE INDEX IX_VideoTag_Tag ON VideoTag(TagId);
-```
+Statuses: Uploading, Processing, Ready, Failed, Deleting. Only Ready + IsPublished is visible to
+clients. The provider never publishes a workout automatically.
 
-`Status` exists because transcoding is asynchronous. A video is not playable the moment the
-upload finishes, and the admin UI must show that rather than serving a broken player.
+## 4. Provider and state transitions
 
-`StorageProvider` and `ExternalId` keep the entity host-agnostic — a Bunny video id and an Azure
-blob prefix both fit, so switching providers is a data migration, not a schema change.
+Bunny Stream is implemented behind IVideoStorage (ADR-018). No video bytes are proxied through
+Render. The admin creates metadata with an Idempotency-Key, receives { id, upload }, and uploads
+directly using TUS temporary credentials. A provider webhook or explicit admin Refresh fetches
+authoritative provider status, duration and thumbnail. The admin previews and publishes separately.
 
-Deleting a video removes the row and the remote asset. Tags are never auto-deleted; an orphaned
-tag simply stops appearing in filters (the filter list is built from tags that have at least one
-published video).
+Uploads authorize six hours; playback links authorize fifteen minutes. Raw provider keys never
+reach the browser. The webhook requires version v1, algorithm hmac-sha256 and a valid signature
+over exact request bytes using the library read-only API key. Invalid signatures return 401;
+malformed signed payloads return 400. Unknown/deleted assets are acknowledged without recreation.
+The request body limit is 16 KiB. Replay reads current provider state and cannot publish a draft.
 
----
+Database reservation prevents duplicate provider creation for a racing creator/key. Replaying a
+matching payload returns the existing ID; changed payload returns 409. The guarantee lasts while
+the row exists; deletion removes its key reservation. If remote creation succeeds but its response
+is lost, reconcile the Bunny library before removing the failed draft and starting anew. The API
+does not retry non-idempotent creation blindly. This distributed-transaction limit is documented,
+not hidden behind a retry policy.
 
-## 4. Hosting decision
-
-**Bunny Stream.** Recommended, and a change from ADR-008.
-
-The original plan — encode an HLS ladder with ffmpeg, upload segments to Azure Blob, serve with
-a directory-scoped SAS — assumed a technical person preparing each video. With the trainer
-uploading from a phone, that assumption is dead. An unencoded 1080p phone recording served as a
-single MP4 will buffer on mobile data, and nobody is going to run a shell command before each
-upload.
-
-Bunny Stream transcodes on upload, produces the adaptive ladder automatically, hosts a player,
-and supports token-authenticated playback URLs so videos are not publicly guessable. At roughly
-€0.01/GB stored and €0.005/GB delivered, a hundred videos and fifteen clients costs well under
-a euro a month.
-
-What this costs you: a second vendor outside Azure, and playback URLs signed with a Bunny token
-rather than an Azure SAS. The `IVideoStorage` abstraction from `docs/02` absorbs the difference.
-
-**If you insist on Azure-only:** Blob with plain MP4, no ladder, accepting that mobile playback
-will be rough. Do not build a server-side transcoder on App Service — an ffmpeg process will
-exhaust a B1 instance and block the request thread.
-
-### Upload flow
-
-```
-Admin fills the form (title, audience, body area, tags)
-  → POST /api/admin/videos          creates the row, Status = Uploading,
-                                     returns { videoId, uploadUrl, uploadSignature }
-  → browser uploads the file DIRECTLY to the provider using that URL
-                                     (never through the API — a 1 GB POST kills a B1 instance)
-  → provider webhook → POST /api/webhooks/video-ready
-                                     sets Status = Ready, DurationSeconds, ThumbnailUrl
-  → admin toggles IsPublished when happy
-```
-
-The webhook endpoint is anonymous but must verify the provider's signature header. Treat an
-unsigned or badly-signed call as hostile and return 401.
-
----
+Delete first marks Deleting and unpublishes, then removes the remote asset, then the database row.
+Provider failure leaves a retryable row. Already-missing remote assets count as deleted. Tags are
+retained; only unused tags can be deleted. Update/publish/reorder require current Revision values.
+Ordering is a stable SortOrder/creation-time/ID sort; the UI offers adjacent moves on the visible
+page. It does not offer a cross-page drag interface.
 
 ## 5. API surface
 
-```
-# Admin
-POST   /api/admin/videos                 create + get upload credentials  (Idempotency-Key)
-PUT    /api/admin/videos/{id}            edit title, description, audience, body area, tags
-POST   /api/admin/videos/{id}/publish    IsPublished = true
-POST   /api/admin/videos/{id}/unpublish  IsPublished = false
-DELETE /api/admin/videos/{id}            delete row + remote asset
-GET    /api/admin/videos                 all videos, any status, paged
-POST   /api/admin/videos/reorder         [{ id, sortOrder }]
-GET    /api/admin/tags                   all tags with usage counts
-DELETE /api/admin/tags/{id}              only if unused
+| Method | Path | Purpose |
+|---|---|---|
+| GET/POST | /api/admin/videos | Paged management list / create with Idempotency-Key |
+| GET | /api/admin/videos/summary | Actual counts and provider availability |
+| GET/PUT/DELETE | /api/admin/videos/{id} | Detail / metadata with revision / retryable deletion |
+| POST | /api/admin/videos/{id}/upload | New credentials for Uploading/Failed asset |
+| POST | /api/admin/videos/{id}/refresh | Read current provider state |
+| POST | /api/admin/videos/{id}/publish or /unpublish | Publication with revision |
+| GET | /api/admin/videos/{id}/playback | Ready draft preview |
+| POST | /api/admin/videos/reorder | Array of id, sortOrder, revision |
+| GET/POST | /api/admin/tags | Usage counts / normalized creation |
+| DELETE | /api/admin/tags/{id} | Delete only if unused |
+| GET | /api/videos | Published Ready catalogue; filters and paging |
+| GET | /api/videos/{id} | Client-visible detail |
+| GET | /api/videos/{id}/playback | Short-lived signed embed link |
+| GET | /api/videos/filters | Tags used by published Ready videos |
+| POST | /api/webhooks/video-ready | Anonymous but signature-verified provider event |
 
-# Client
-GET    /api/videos                       ?audience=&bodyArea=&equipment=&tags=a,b&search=&page=
-                                         equipment omitted = both; true/false to narrow
-                                         published + Ready only
-GET    /api/videos/{id}                  detail
-GET    /api/videos/{id}/playback         short-lived signed playback URL
-GET    /api/videos/filters               available tags, for building the filter UI
+List parameters: audience, bodyArea, equipment, search, page, pageSize and repeated tags or indexed
+tags[0], tags[1]. Defaults: page 1, pageSize 12; max pageSize 100. Equipment omitted means both.
+Title/description search is literal and case-insensitive; accent-insensitive free-text search is
+not promised. All video handlers recheck current active-account status; admin handlers recheck role.
+Signed URL responses are not cached. A previously issued link can work until expiry after withdrawal
+or account suspension; this is not DRM or instantaneous revocation of an already playing stream.
 
-# Webhook
-POST   /api/webhooks/video-ready         anonymous, signature-verified
-```
+## 6. UI and acceptance
 
-`GET /api/videos` must never return unpublished or non-Ready videos, regardless of query
-parameters. Enforce it in the handler, not by trusting the caller.
+Admin dashboard links pending registrations, users, videos and published library with real counts.
+The upload form has explicit audience/body/equipment choices, controlled tag checkboxes and inline
+tag creation, a file picker, progress, pause/resume and navigation warning. Files are limited to
+5 GiB by the UI. Resume works in the open page; after navigation select the file again using the
+draft's upload action. Metadata remains editable without a configured provider.
 
----
+Client dashboard contains the library: URL-backed search/filters, responsive cards, pagination and
+the signed embedded player. It provides empty/error/loading states and retry without changing the
+route. Shared brand tokens keep the existing dark theme. Native selects are used instead of the
+original radio/chip proposal; taxonomy and filter semantics are unchanged.
 
-## 6. UI
-
-**Admin — video list**
-
-Table: thumbnail, title, audience, body area, equipment, tags, status pill, published toggle. Actions per
-row: edit, delete. A prominent "Νέο βίντεο" button.
-
-**Admin — add/edit form**
-
-Title, description, audience (three radio buttons), body area (three radio buttons),
-equipment (two radio buttons — no default, so it cannot be saved unset by accident), tags
-(`mat-chip-grid` with autocomplete over existing tags, Enter creates a new one), file drop zone
-with a real progress bar. Save is disabled until title, audience, body area, and equipment are all set.
-
-The progress bar matters. A 500 MB upload over Greek mobile takes minutes, and without feedback
-the trainer will assume it froze and refresh the page.
-
-**Client — library**
-
-Filter bar at the top: audience chips, body area chips, equipment chips, tag chips, search box. Responsive card
-grid below — one column on phones, two on tablets, three or four on desktop. Each card shows
-thumbnail, title, duration, its body-area badge, and an equipment icon.
-
-Filter state lives in the URL query string so a filtered view can be bookmarked and shared, and
-the back button behaves.
-
-**Client — player**
-
-Provider's embedded player, title, description, tags. Nothing else.
-
----
-
-## 7. Delivery order
-
-The single phase sequence is maintained in `docs/04-roadmap.md`: finish account onboarding
-and admin user management, deploy with real email, then implement the video backend and UI.
-Session booking is outside the product scope.
+Provider setup and live acceptance: docs/11-video-operations.md. Trainer guide: docs/12-trainer-guide.md.
+Local automated and browser evidence: docs/08-milestone-handover.md. Booking remains out of scope.

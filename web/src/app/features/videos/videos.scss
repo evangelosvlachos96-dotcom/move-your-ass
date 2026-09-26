@@ -1,0 +1,254 @@
+:host {
+  display: block;
+}
+.video-page {
+  max-width: 1200px;
+  margin: auto;
+  padding-bottom: 40px;
+}
+.video-heading,
+.admin-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  margin: 20px 0;
+}
+h1 {
+  font-size: clamp(1.6rem, 3vw, 2.5rem);
+  line-height: 1.2;
+}
+.video-heading p,
+.result-count,
+.card-copy p,
+.admin-row p {
+  color: var(--brand-muted);
+}
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+.filters,
+.editor,
+.empty {
+  padding: 20px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  margin: 20px 0;
+}
+.filters,
+.chips,
+.tags,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.chips,
+.tags,
+.actions {
+  margin: 14px 0;
+}
+.filters {
+  align-items: end;
+}
+label {
+  display: grid;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.search {
+  flex: 1;
+  min-width: 160px;
+}
+input,
+select,
+textarea,
+button,
+.button {
+  font: inherit;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--brand-surface-2);
+  color: var(--brand-text);
+  box-sizing: border-box;
+  min-width: 0;
+}
+button,
+.button {
+  cursor: pointer;
+  text-decoration: none;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.primary,
+button.selected {
+  background: var(--brand-accent);
+  color: var(--brand-on-accent);
+}
+.chips button,
+.tags span,
+.status {
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+.tags span,
+.status {
+  background: var(--brand-surface-2);
+  padding: 5px 9px;
+}
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.video-card {
+  color: var(--brand-text);
+  text-decoration: none;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--brand-surface);
+}
+.video-card:hover {
+  border-color: var(--brand-muted);
+}
+.thumbnail {
+  aspect-ratio: 16/10;
+  position: relative;
+  background: var(--brand-surface-2);
+}
+.thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.video-placeholder {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.duration,
+.play-mark {
+  position: absolute;
+  background: var(--brand-bg);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.duration {
+  right: 12px;
+  bottom: 12px;
+}
+.play-mark {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.card-copy {
+  padding: 18px;
+}
+.card-copy h2,
+.admin-row h2 {
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+.empty {
+  text-align: center;
+  padding: 40px 20px;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+}
+.player {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border: 0;
+  border-radius: 12px;
+  background: var(--brand-bg);
+}
+.description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.editor {
+  display: grid;
+  gap: 18px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+.upload-box {
+  padding: 18px;
+  border: 1px dashed var(--brand-muted);
+  border-radius: 10px;
+}
+progress {
+  width: 100%;
+  height: 20px;
+  accent-color: var(--brand-accent);
+}
+.row-copy {
+  flex: 1;
+  min-width: min(240px, 100%);
+}
+.danger {
+  color: var(--brand-danger);
+}
+.tag-check {
+  display: flex !important;
+  align-items: center;
+}
+@media (max-width: 1000px) {
+  .video-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-row {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 600px) {
+  .video-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .video-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .filters label {
+    flex: 1;
+    min-width: 130px;
+  }
+  .editor,
+  .filters {
+    padding: 14px;
+  }
+  .actions {
+    width: 100%;
+  }
+  input[type='file'] {
+    width: 100%;
+  }
+  .pagination {
+    gap: 8px;
+  }
+}

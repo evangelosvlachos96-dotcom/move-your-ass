@@ -29,6 +29,7 @@ public static class ErrorCodes
     // --- transport (emitted by the host, not by handlers) ---
     public const string Unauthenticated = "UNAUTHENTICATED";
     public const string Forbidden = "FORBIDDEN";
+    public const string NotFound = "NOT_FOUND";
     public const string ValidationFailed = "VALIDATION_FAILED";
     public const string RateLimited = "RATE_LIMITED";
     public const string InternalError = "INTERNAL_ERROR";

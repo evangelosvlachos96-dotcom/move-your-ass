@@ -1,0 +1,16 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+.git
+.github
+.codex
+.agents
+docs
+tests
+**/.env*
+**/secrets.json
+**/*.pfx
+**/*.pem
+**/*.log

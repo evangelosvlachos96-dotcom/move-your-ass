@@ -25,7 +25,7 @@ seeded admin first and paste the token into the **Authorize** button.
 | `active@test.gr` | register, then approve | normal client |
 | `declined@test.gr` | register, then decline | ACCOUNT_DECLINED path |
 | `suspended@test.gr` | register, approve, then suspend | ACCOUNT_SUSPENDED path |
-| `temp@test.gr` | `POST /api/admin/users` | MUST_CHANGE_PASSWORD path — save the temp password |
+| `temp@test.gr` | invite, accept, then admin reset-password | MUST_CHANGE_PASSWORD path — save the reset response |
 
 Use the same password everywhere, e.g. `TestPass2026x`.
 
@@ -139,7 +139,15 @@ A checklist with permanently unticked boxes stops being read.
 - [ ] Edit names/role; duplicate email creation is reported without closing the dialog.
 - [ ] Destructive dialogs name the user; cancel changes nothing; double-submit is disabled.
 - [ ] Suspend/reactivate an active client; delete a test client; self/last-admin rules still hold.
-- [ ] Console mode prints local emails; SMTP mode delivers to a real inbox and logs no body/token.
-- [ ] Failed SMTP delivery retries; successful outbox messages have their payload cleared.
+- [ ] Console mode prints local emails; Resend mode delivers to a real inbox and logs no body/token.
+- [ ] Failed Resend delivery retries; successful outbox messages have their payload cleared.
 
-Real provider delivery requires operator-supplied SMTP configuration (docs/09-email-setup.md).
+Real provider delivery requires operator-supplied Resend configuration (docs/09-email-setup.md).
+
+## Video regression
+
+Run docs/11-video-operations.md live acceptance before production sign-off. Local tests cover
+filters, privacy, role/status checks, creation replay, revision conflicts, signatures and deletion
+recovery. Browser checks must include admin metadata save, client URL filters, empty/error retry,
+mobile layout, file progress/pause/resume and protected playback. Mark live provider tests separately
+from synthetic fixtures; never treat mocks as evidence that provider security is configured.

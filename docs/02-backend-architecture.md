@@ -3,8 +3,8 @@
 ## Layers
 
 - Domain contains entities/enums and references only the BCL.
-- Application references Domain and EF Core abstractions, never the SQL Server provider or ASP.NET.
-- Infrastructure implements Identity, SQL Server persistence and email delivery.
+- Application references Domain and EF Core abstractions, never the database provider or ASP.NET.
+- Infrastructure implements Identity, PostgreSQL persistence and email delivery.
 - API composes dependencies and maps HTTP requests to handlers.
 
 Architecture tests enforce these dependencies. Handlers are injected directly; there is no mediator.
@@ -20,15 +20,19 @@ Controllers bind input, call one handler, and translate Result into a response.
 - Identity and the application share one scoped DbContext, so account changes and email outbox
   entries commit in one transaction.
 - SQL unique constraints settle duplicate identities. Never rely on a pre-check as the guarantee.
-- EF configurations live in Infrastructure. UTC datetimes use the UTC converter and datetime2(3).
+- EF configurations live in Infrastructure. UTC datetimes use the UTC converter and map to
+  `timestamp with time zone`. The converter is load-bearing: Npgsql refuses to write a DateTime
+  whose Kind is not Utc to that column type.
 - Preserve historical migrations; schema changes require a new migration.
 
 ## Accounts and email
 
 See docs/03-auth-and-concurrency.md for account states, sessions and single-use invitations.
 EmailOutbox stores typed payloads. EmailTemplates renders them. The dispatcher leases rows and
-retries delivery before dead-lettering; it provides at-least-once delivery, not exactly-once SMTP.
-SMTP uses TLS and logs metadata only. Console delivery is limited to Development.
+retries delivery before dead-lettering; it provides at-least-once delivery, not exactly-once
+sending. Each send carries the outbox message Id as the provider's idempotency key, so a retry
+after a crash cannot produce a second copy. The Resend sender logs metadata only, never the body,
+the API key or a setup token. Console delivery is limited to Development.
 
 ## Testing policy
 

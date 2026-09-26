@@ -16,8 +16,9 @@ namespace Mya.Api.IntegrationTests.Persistence;
 
 /// <summary>
 /// Runs the real seeder against the real model and Identity stores on an in-memory SQLite
-/// database, so it needs no Docker. SQL Server specific behaviour (rowversion, concurrency) is
-/// covered by the Testcontainers tests that arrive in step 8, not here.
+/// database, so it needs no Docker. The seeder depends on no PostgreSQL-specific behaviour.
+/// Anything that does — the outbox claim query's FOR UPDATE SKIP LOCKED, timestamptz rounding,
+/// SQLSTATE 23505 — needs a Testcontainers PostgreSQL fixture instead of this one.
 /// </summary>
 public sealed class DatabaseSeederTests : IAsyncLifetime
 {

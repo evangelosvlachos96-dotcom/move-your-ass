@@ -13,7 +13,7 @@ public sealed class PasswordInvitationConfiguration : IEntityTypeConfiguration<P
         builder.ToTable("PasswordInvitation");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.UserId).HasMaxLength(450).IsRequired();
-        builder.Property(x => x.TokenHash).HasColumnType("binary(32)").IsRequired();
+        builder.Property(x => x.TokenHash).HasColumnType("bytea").IsRequired();
         builder.HasIndex(x => x.TokenHash).IsUnique();
         builder.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
     }

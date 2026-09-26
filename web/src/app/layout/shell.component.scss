@@ -86,6 +86,13 @@
     display: none;
   }
 
+  // Name is hidden on phones, so the icon alone carries the menu: make it an easy thumb target.
+  .shell__user .mat-icon:first-child {
+    font-size: 36px;
+    width: 36px;
+    height: 36px;
+  }
+
   .shell__content {
     padding: 16px;
   }

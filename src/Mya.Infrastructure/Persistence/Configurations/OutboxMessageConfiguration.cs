@@ -14,11 +14,11 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.HasKey(m => m.Id);
 
         builder.Property(m => m.Type).IsRequired();
-        builder.Property(m => m.PayloadJson).HasMaxLength(-1).IsRequired();
-        builder.Property(m => m.LastError).HasMaxLength(-1);
+        builder.Property(m => m.PayloadJson).HasColumnType("text").IsRequired();
+        builder.Property(m => m.LastError).HasColumnType("text");
 
         builder.HasIndex(m => m.CreatedAtUtc)
             .HasDatabaseName("IX_Outbox_Pending")
-            .HasFilter("[ProcessedAtUtc] IS NULL");
+            .HasFilter("\"ProcessedAtUtc\" IS NULL");
     }
 }
