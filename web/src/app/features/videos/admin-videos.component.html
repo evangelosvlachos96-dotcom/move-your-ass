@@ -178,15 +178,17 @@
           <button
             [disabled]="busy() || index === 0"
             (click)="move(video, -1)"
-            [attr.aria-label]="'Πάνω: ' + video.title"
+            [attr.aria-label]="'Μετακίνηση πιο πάνω στη σειρά: ' + video.title"
+            title="Μετακίνηση πιο πάνω στη σειρά εμφάνισης"
           >
-            ↑</button
+            ↑ Πάνω</button
           ><button
             [disabled]="busy() || index === result.items.length - 1"
             (click)="move(video, 1)"
-            [attr.aria-label]="'Κάτω: ' + video.title"
+            [attr.aria-label]="'Μετακίνηση πιο κάτω στη σειρά: ' + video.title"
+            title="Μετακίνηση πιο κάτω στη σειρά εμφάνισης"
           >
-            ↓
+            ↓ Κάτω
           </button>
           <button class="danger" [disabled]="busy()" (click)="action(video, 'delete')">
             Διαγραφή

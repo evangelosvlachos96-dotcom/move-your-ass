@@ -2,20 +2,47 @@
 
 # Current state
 
-Updated 2026-09-26. Branch: **feature/prod-readiness**. Last owner commit: **a5a181b**.
-Checkpoint 4 and video backend/UI changes are uncommitted. The owner authorized continuing
-through phases 5–6 without intermediate review, on this branch, including automated tests.
-Do not stage, commit, push, merge, delete branches, or provision paid services.
+Updated 2026-09-27. Branch: **feature/prod-readiness**. Last owner commit: **4fde1c5**
+("container for Render, video catalogue backend and dashboards"). Everything below is committed
+and pushed except the small UI patch described under "Since 4fde1c5".
 
 | Work | Status |
 |---|---|
 | Phase 4 checkpoint 1 | Documentation committed |
 | Checkpoint 2 | PostgreSQL committed; earlier 18 API checks passed on Neon dev |
 | Checkpoint 3 | Resend committed; owner confirmed receipt of admin notification |
-| Checkpoint 4 | Container/PORT/proxy/SPA/CI implemented and locally verified |
-| Phase 5 | Video model, additive migration, APIs, Bunny adapter implemented; final review in progress |
-| Phase 6 | Admin dashboard/upload/catalogue and client library/player implemented; browser verification in progress |
-| Phase 7 | Guides being completed; real trainer content and operational handover still require owner |
+| Checkpoint 4 | Container/PORT/proxy/SPA/CI committed and locally verified |
+| Phase 5 | Video model, VideoCatalogue migration, APIs, Bunny adapter committed; no live Bunny test |
+| Phase 6 | Admin video dashboard and client library/player committed; browser-checked with fixtures |
+| Phase 7 | Guides in docs/11 and docs/12; real content and trainer handover require the owner |
+| Deployment | **Not started.** Next step, see below |
+
+Final regression on the owner's machine at 4fde1c5: `dotnet build` clean, `dotnet test` 29/29,
+`npm run lint` clean, production `npm run build` succeeds. (An earlier build failure was only a
+still-running local Mya.Api process locking DLLs, not a code fault.)
+
+### Since 4fde1c5
+
+- Admin video list: the reorder buttons now read "↑ Πάνω" / "↓ Κάτω" with a descriptive tooltip
+  and aria-label, instead of bare arrows.
+- Toolbar: on phones (≤599px) the profile icon is 36px, since the name is hidden there.
+- Verified: Angular lint, production build and the 3 frontend tests pass.
+
+### Owner decisions pending
+
+- **Video provider account.** Bunny Stream (about $1/month minimum) is implemented but not
+  configured. The app deploys and runs with `Video__Bunny__Enabled=false`; the admin upload area
+  shows a disabled state until Bunny is configured per docs/11.
+- **Rotate the Resend API key** before deployment: a key was exposed in a terminal transcript
+  on 2026-09-26. Create a new key and use only the new one locally and on Render.
+
+## Exact next step
+
+Owner: merge `feature/prod-readiness` into `main`, then follow docs/10-production.md sections
+4–8 in this order: create the Render service (it builds from `main`), apply migrations to the Neon
+production branch (direct string), run `--seed-admin`, add the custom domain on Render, add the
+Cloudflare records, create the UptimeRobot monitor, verify end to end. Video goes live later via
+docs/11 once a Bunny library exists.
 
 ## Verified
 
