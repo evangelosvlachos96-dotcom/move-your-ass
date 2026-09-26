@@ -30,7 +30,7 @@ internal static class OutboxCommitTracker
 /// <summary>
 /// Signals the dispatcher once new outbox rows are durable. Without an explicit transaction that
 /// is right after SaveChanges; inside one it is deferred to <see cref="OutboxTransactionInterceptor"/>,
-/// because the dispatcher's claim query skips uncommitted rows (READPAST) and would miss them.
+/// because the dispatcher's claim query cannot see uncommitted rows and would miss them.
 /// </summary>
 public sealed class OutboxSaveChangesInterceptor(OutboxSignal signal) : SaveChangesInterceptor
 {

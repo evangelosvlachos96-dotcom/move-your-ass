@@ -15,7 +15,7 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.UserId).HasMaxLength(450).IsRequired();
-        builder.Property(t => t.TokenHash).HasColumnType("binary(32)").IsRequired();
+        builder.Property(t => t.TokenHash).HasColumnType("bytea").IsRequired();
         builder.Property(t => t.CreatedByIp).HasMaxLength(45);
 
         builder.HasOne<AppUser>()
@@ -25,7 +25,7 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
 
         builder.HasIndex(t => t.UserId)
             .HasDatabaseName("IX_RefreshToken_UserActive")
-            .HasFilter("[RevokedAtUtc] IS NULL");
+            .HasFilter("\"RevokedAtUtc\" IS NULL");
 
         builder.HasIndex(t => t.FamilyId).HasDatabaseName("IX_RefreshToken_Family");
     }

@@ -21,7 +21,7 @@ than the thing it describes. The runbook is the reproducibility mechanism, so ke
 | Keep-alive and alerting | **UptimeRobot** free, 5-minute HTTP check on `/health` | dropped once on Render Starter |
 | Video provider (phase 5) | Bunny Stream, private library, protected playback | — |
 
-Nothing above is provisioned yet.
+The owner has created the Neon project in Frankfurt with dev and production branches (screenshot verified), and reports the domain and Cloudflare setup. App connectivity, DNS records, Render deployment and monitoring are not yet verified. See docs/08 for current evidence.
 
 ## Settings the owner enters
 

@@ -82,7 +82,7 @@ production, not a demo.
   Mya.ArchitectureTests/
 /web                    Angular app
 /docs                   design documents — source of truth
-/infra                  Bicep / az CLI deployment
+/infra                  provider dashboard deployment notes
 /.github/workflows      path-filtered CI: api.yml, web.yml
 ```
 
@@ -96,7 +96,7 @@ production, not a demo.
 **Phase 4 — production readiness (started 2026-09-25)**, on `feature/prod-readiness`. The stack
 moved off Azure to Render + Neon + Resend (ADR-017). The work is sequenced as four checkpoints:
 documentation, SQL Server to PostgreSQL, the Resend email sender, and the container for Render.
-The runbook is `docs/10-production.md`. No cloud resources have been provisioned.
+The runbook is `docs/10-production.md`. The owner has created the Neon project and branches and reports domain/Cloudflare setup; see docs/08 for verified status.
 
 **Documentation-first handover is a standing rule.** Update `docs/08` at the end of every
 checkpoint and after every meaningful step inside one. A new agent must be able to continue from
@@ -117,7 +117,7 @@ Decisions still in force:
   under "Out of scope".
 
 Admin creation now uses an Invited account and a single-use email password setup link (ADR-015).
-Console delivery is Development-only; Email:Mode=Smtp enables real email with metadata logs.
+Console delivery is Development-only; Email:Mode=Resend enables real email with metadata logs.
 
 If a task is not in the current phase of `docs/04-roadmap.md`, it goes in `docs/backlog.md`.
 

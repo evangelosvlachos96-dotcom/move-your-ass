@@ -16,7 +16,7 @@ public sealed class IdempotencyRecordConfiguration : IEntityTypeConfiguration<Id
         // No FK to AspNetUsers: POST /auth/register is anonymous and also takes an Idempotency-Key.
         builder.Property(r => r.UserId).HasMaxLength(450).IsRequired();
         builder.Property(r => r.Key).HasMaxLength(100).IsRequired();
-        builder.Property(r => r.ResponseJson).HasMaxLength(-1).IsRequired();
+        builder.Property(r => r.ResponseJson).HasColumnType("text").IsRequired();
 
         builder.HasIndex(r => new { r.UserId, r.Key })
             .IsUnique()

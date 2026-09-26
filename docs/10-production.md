@@ -125,7 +125,8 @@ last one.
 Delivery is one HTTPS POST from the outbox dispatcher. **SMTP is not used and cannot be**: Render
 blocks outbound ports 25, 465 and 587 on free web services. Each send carries the outbox message
 Id as Resend's `Idempotency-Key`, so an outbox retry after a crash cannot send the same email
-twice. Resend keeps a key for 24 hours; the outbox gives up after about two and a half.
+twice. Resend keeps a key for 24 hours; scheduled outbox backoff totals about two and a half hours.
+Downtime can extend this past 24 hours, so deduplication is not guaranteed for delayed replays.
 
 **Check:** the domain reads *Verified* in Resend. Actual delivery is verified in section 8.
 

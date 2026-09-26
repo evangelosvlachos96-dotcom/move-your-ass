@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Mya.Application.Abstractions.Identity;
 using Mya.Application.Abstractions.System;
 using Mya.Application.Common.Paging;
@@ -18,8 +18,12 @@ namespace Mya.Infrastructure.Identity;
 public sealed class UserService(UserManager<AppUser> userManager, AppDbContext db, IClock clock) : IUserService
 {
     private const int UserAgentMaxLength = 256;
-    private const int SqlServerDuplicateKey = 2601;
-    private const int SqlServerUniqueConstraint = 2627;
+
+    /// <summary>PostgreSQL <c>unique_violation</c>. The unique index is the duplicate-email guarantee.</summary>
+    private const string UniqueViolation = "23505";
+
+    /// <summary>Escape character for the admin search's LIKE patterns.</summary>
+    private const string LikeEscape = "\\";
 
     public async Task<UserAccount?> FindByIdAsync(string userId, CancellationToken cancellationToken)
     {
@@ -46,11 +50,14 @@ public sealed class UserService(UserManager<AppUser> userManager, AppDbContext d
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            var term = filter.Search.Trim();
+            // PostgreSQL LIKE is case-sensitive; SQL Server's default collation was not. ILIKE
+            // restores the behaviour the admin UI has always had. The term is escaped so a user
+            // searching for "%" or "_" does not get a wildcard.
+            var pattern = $"%{EscapeLikePattern(filter.Search.Trim())}%";
             query = query.Where(x =>
-                x.User.Email!.Contains(term)
-                || x.User.FirstName.Contains(term)
-                || x.User.LastName.Contains(term));
+                EF.Functions.ILike(x.User.Email!, pattern, LikeEscape)
+                || EF.Functions.ILike(x.User.FirstName, pattern, LikeEscape)
+                || EF.Functions.ILike(x.User.LastName, pattern, LikeEscape));
         }
 
         var total = await query.CountAsync(cancellationToken);
@@ -342,8 +349,18 @@ public sealed class UserService(UserManager<AppUser> userManager, AppDbContext d
         user.SuspendedAtUtc,
         user.SuspensionReason);
 
+    /// <summary>
+    /// Makes a user-supplied search term literal inside a LIKE pattern. The backslash must be
+    /// escaped first, or it would double-escape the wildcards replaced after it.
+    /// </summary>
+    private static string EscapeLikePattern(string term) => term
+        .Replace(LikeEscape, LikeEscape + LikeEscape, StringComparison.Ordinal)
+        .Replace("%", LikeEscape + "%", StringComparison.Ordinal)
+        .Replace("_", LikeEscape + "_", StringComparison.Ordinal);
+
     private static bool IsUniqueIndexViolation(DbUpdateException exception) =>
-        exception.InnerException is SqlException { Number: SqlServerDuplicateKey or SqlServerUniqueConstraint }
+        exception.InnerException is PostgresException { SqlState: UniqueViolation }
+        // SQLite, used by the seeder test, reports the same condition as message text.
         || (exception.InnerException?.Message.Contains("UNIQUE constraint failed", StringComparison.Ordinal) ?? false);
 
     private static bool IsDuplicate(IdentityResult result) =>

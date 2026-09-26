@@ -15,7 +15,7 @@ public sealed class TwoFactorTicketConfiguration : IEntityTypeConfiguration<TwoF
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.UserId).HasMaxLength(450).IsRequired();
-        builder.Property(t => t.CodeHash).HasColumnType("binary(32)").IsRequired();
+        builder.Property(t => t.CodeHash).HasColumnType("bytea").IsRequired();
         builder.Property(t => t.Attempts).HasDefaultValue(0);
 
         builder.HasOne<AppUser>()

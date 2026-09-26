@@ -20,11 +20,11 @@ Render dashboard. Names only; values are never written into the repo, into docs,
 | `Email:Mode` | `Resend` | no |
 | `Email:ApiKey` | API key created in Resend, with send permission | **yes** |
 | `Email:From` | verified sender, e.g. `Move Your Ass <noreply@moveyourass.gr>` | no |
-| `App:PublicOrigin` | exact frontend origin used in email links | no |
+| `Cors:AllowedOrigin` | current frontend origin used in email links; renamed to `App:PublicOrigin` in checkpoint 4 | no |
 | `Platform:InvitationHours` | 24 by default | no |
 
 On Render the same keys use environment-variable spelling: `Email__Mode`, `Email__ApiKey`,
-`Email__From`, `App__PublicOrigin`.
+`Email__From`; checkpoint 4 introduces `App__PublicOrigin`.
 
 Delivery is a single HTTPS POST to Resend's send endpoint with a bearer token. The sender logs
 delivery metadata only: never the body, the API key or a setup token. Production rejects console
@@ -57,10 +57,10 @@ mailbox through a third-party relay fails that domain's DMARC alignment.
 Create a test client from the admin UI. The success notice means queued, not delivered. Watch
 outbox processing — the dispatcher wakes on commit, there is no polling interval — then verify the
 email arrives, its link opens the configured frontend, and password setup enables login. Reusing
-the link must fail. Resend must invalidate the earlier link.
+the link must fail. Resending an invitation must invalidate the earlier link.
 
 A provider failure leaves the account invited and retries through the outbox, then dead-letters
-after five attempts with the reason in `LastError`. Resend after fixing configuration if the
+after five attempts with the reason in `LastError`. Resend the invitation after fixing configuration if the
 message has expired or dead-lettered.
 
 Resend send endpoint and idempotency: https://resend.com/docs/api-reference/emails/send-email and

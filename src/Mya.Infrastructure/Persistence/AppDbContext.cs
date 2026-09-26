@@ -11,7 +11,7 @@ namespace Mya.Infrastructure.Persistence;
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<AppUser>(options), IAppDbContext
 {
-    /// <summary>Identity's default key length; every UserId column in docs/04 section 4 is nvarchar(450).</summary>
+    /// <summary>Identity's default string-key length; every UserId column matches it.</summary>
     private const int StringKeyLength = 450;
 
     public DbSet<PasswordInvitation> PasswordInvitations => Set<PasswordInvitation>();
@@ -38,9 +38,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     /// <summary>
     /// The 256 default string length in <see cref="ConfigureConventions"/> would also shrink
-    /// Identity's string keys, and SQL Server refuses a foreign key whose columns differ in length
-    /// from the key they reference. Keep every string key at Identity's default 450 and make every
-    /// foreign key column identical to its principal.
+    /// Identity's string keys. Keep every string key at Identity's default 450 and make every
+    /// foreign key column identical to its principal, so the two never drift apart.
     /// </summary>
     private static void RestoreStringKeyLengths(ModelBuilder builder)
     {
@@ -71,9 +70,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     {
         ArgumentNullException.ThrowIfNull(configurationBuilder);
 
+        // timestamptz is the only correct choice on PostgreSQL: Npgsql throws when a DateTime
+        // whose Kind is not Utc is written to it, and reads it back as Kind = Utc. The converter
+        // is what guarantees that Kind, so it is load-bearing rather than belt-and-braces.
         configurationBuilder.Properties<DateTime>()
             .HaveConversion<UtcDateTimeConverter>()
-            .HaveColumnType("datetime2(3)");
+            .HaveColumnType("timestamp with time zone");
 
         configurationBuilder.Properties<string>().HaveMaxLength(256);
     }

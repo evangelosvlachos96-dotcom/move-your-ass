@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using MimeKit;
+using System.Net.Mail;
+using Npgsql;
 using Mya.Application.Abstractions.Identity;
 using Mya.Application.Abstractions.Notifications;
 using Mya.Application.Abstractions.Persistence;
@@ -37,7 +38,6 @@ public static class DependencyInjection
         services.AddSingleton<OutboxSignal>();
         services.AddSingleton<OutboxSaveChangesInterceptor>();
         services.AddSingleton<OutboxTransactionInterceptor>();
-        services.AddSingleton<SqlConnectionRetryInterceptor>();
 
         services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         {
@@ -48,9 +48,19 @@ public static class DependencyInjection
                     "Locally: dotnet user-secrets set \"ConnectionStrings:Default\" \"<connection string>\" --project src/Mya.Api");
             }
 
-            options.UseSqlServer(connectionString)
+            // No EnableRetryOnFailure: it rejects the user-initiated transactions the handlers
+            // open, and a retried command could run twice. Nothing replaces the old SQL Server
+            // connection retry either — Neon resumes from scale-to-zero in a few hundred
+            // milliseconds, well inside Npgsql's default 15-second connect timeout (ADR-017).
+            // Close idle pooled sockets before Neon's five-minute suspend window.
+            var database = new NpgsqlConnectionStringBuilder(connectionString);
+            if (!database.ShouldSerialize("Connection Idle Lifetime"))
+            {
+                database.ConnectionIdleLifetime = 240;
+            }
+
+            options.UseNpgsql(database.ConnectionString)
                 .AddInterceptors(
-                    serviceProvider.GetRequiredService<SqlConnectionRetryInterceptor>(),
                     serviceProvider.GetRequiredService<OutboxSaveChangesInterceptor>(),
                     serviceProvider.GetRequiredService<OutboxTransactionInterceptor>());
         });
@@ -72,18 +82,19 @@ public static class DependencyInjection
 
         services.AddOptions<EmailSettings>()
             .Bind(configuration.GetSection(EmailSettings.SectionName))
-            .Validate(s => s.Mode is "Console" or "Smtp", "Email:Mode must be Console or Smtp.")
-            .Validate(s => environment.IsDevelopment() || s.Mode == "Smtp", "Console email is only allowed in Development.")
-            .Validate(s => s.Mode != "Smtp" ||
-                (!string.IsNullOrWhiteSpace(s.Host) && s.Port is > 0 and <= 65535 &&
-                 !string.IsNullOrWhiteSpace(s.User) && !string.IsNullOrWhiteSpace(s.Password) &&
-                 MailboxAddress.TryParse(s.From, out _) && s.Security is "StartTls" or "SslOnConnect"),
-                "SMTP requires Host, Port, User, Password, From and StartTls or SslOnConnect security.")
+            .Validate(s => s.Mode is "Console" or "Resend", "Email:Mode must be Console or Resend.")
+            .Validate(s => environment.IsDevelopment() || s.Mode == "Resend", "Console email is only allowed in Development.")
+            .Validate(s => s.Mode != "Resend" ||
+                (!string.IsNullOrWhiteSpace(s.ApiKey) && !s.ApiKey.Any(char.IsWhiteSpace) &&
+                 MailAddress.TryCreate(s.From, out _)),
+                "Resend requires Email:ApiKey and a valid Email:From address.")
             .ValidateOnStart();
         services.AddSingleton<EmailTemplates>();
-        if (configuration["Email:Mode"] == "Smtp")
+        if (configuration["Email:Mode"] == "Resend")
         {
-            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+            services.AddHttpClient<IEmailSender, ResendEmailSender>(client =>
+                client.Timeout = TimeSpan.FromSeconds(30))
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         }
         else
         {

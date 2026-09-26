@@ -3,8 +3,8 @@ namespace Mya.Infrastructure.Notifications;
 /// <summary>
 /// Wakes the <see cref="OutboxDispatcher"/> when a new outbox row has been committed, so the
 /// dispatcher does not poll the database while idle. A fixed 15-second poll keeps a serverless
-/// Azure SQL database awake around the clock, which prevents auto-pause and exhausts the free
-/// offer's monthly vCore seconds within days (ADR-016).
+/// database awake around the clock, preventing Neon scale-to-zero and consuming its compute
+/// allowance (ADR-017).
 /// </summary>
 public sealed class OutboxSignal : IDisposable
 {
