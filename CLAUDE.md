@@ -29,7 +29,7 @@ production, not a demo.
 | Video | Bunny Stream behind `IVideoStorage` | — |
 | Hosting | One Render web service (Docker) serving API + SPA | Frankfurt, free tier |
 | DNS | Cloudflare, `moveyourass.gr` | — |
-| Tests | xUnit / NSubstitute / Shouldly, Vitest / Testing Library | deferred beyond architecture tests (ADR-014) |
+| Tests | xUnit / NSubstitute / Shouldly, Vitest / Testing Library | account, video, provider and architecture coverage |
 
 ## Licensing notes
 
@@ -53,7 +53,7 @@ production, not a demo.
    except `/auth/me`, `/auth/change-password` and `/auth/logout` returns 403 `MUST_CHANGE_PASSWORD`
    (`MustChangePasswordMiddleware`). A guard in Angular is a convenience, not the control.
 5. **Every mutating endpoint a user can double-submit takes an `Idempotency-Key` header.**
-   Video creation when it lands; `IdempotencyRecord` is kept for it. The key is generated when
+   Video creation reserves a unique creator/key on the Video row. The key is generated when
    the dialog opens, not when the button is clicked.
 6. **`Mya.Application` may reference `Microsoft.EntityFrameworkCore` (the abstractions: `DbSet<T>`,
    async LINQ) but must not reference the database provider (`Npgsql.*`) or
@@ -109,8 +109,7 @@ Decisions still in force:
 
 - **ADR-013 — email 2FA deferred.** Password-only login. `TwoFactorTicket` stays in the schema,
   unused, so enabling 2FA later is code only.
-- **ADR-014 — automated tests deferred beyond the architecture tests.** Do not add unit or
-  integration tests until the catalogue has real content; `Mya.ArchitectureTests` must stay green.
+- **ADR-014 — test deferral superseded for this work.** The owner authorized automated backend and frontend tests on 2026-09-26. Keep the entire test suite green.
 - **`AppUser.FullName` is gone.** Users have `FirstName` and `LastName` (80 each, required) and a
   `MustChangePassword` bit. The seeded Admin's names come from `Seed:AdminFirstName/AdminLastName`.
 - **Booking is dropped.** Nothing in `docs/03` §5 applies. Booking items sit in `docs/backlog.md`
@@ -119,7 +118,7 @@ Decisions still in force:
 Admin creation now uses an Invited account and a single-use email password setup link (ADR-015).
 Console delivery is Development-only; Email:Mode=Resend enables real email with metadata logs.
 
-If a task is not in the current phase of `docs/04-roadmap.md`, it goes in `docs/backlog.md`.
+The owner authorized completing video phases 5–6 alongside checkpoint 4 on this branch. New unrelated work goes in docs/backlog.md.
 
 ## Conventions
 

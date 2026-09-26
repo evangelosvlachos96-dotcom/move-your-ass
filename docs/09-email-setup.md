@@ -20,11 +20,11 @@ Render dashboard. Names only; values are never written into the repo, into docs,
 | `Email:Mode` | `Resend` | no |
 | `Email:ApiKey` | API key created in Resend, with send permission | **yes** |
 | `Email:From` | verified sender, e.g. `Move Your Ass <noreply@moveyourass.gr>` | no |
-| `Cors:AllowedOrigin` | current frontend origin used in email links; renamed to `App:PublicOrigin` in checkpoint 4 | no |
+| `App:PublicOrigin` | frontend origin used in email links | no |
 | `Platform:InvitationHours` | 24 by default | no |
 
 On Render the same keys use environment-variable spelling: `Email__Mode`, `Email__ApiKey`,
-`Email__From`; checkpoint 4 introduces `App__PublicOrigin`.
+`Email__From`; use `App__PublicOrigin`.
 
 Delivery is a single HTTPS POST to Resend's send endpoint with a bearer token. The sender logs
 delivery metadata only: never the body, the API key or a setup token. Production rejects console

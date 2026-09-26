@@ -344,3 +344,35 @@ manual check of its usage page replaces the Azure budget alert.
 decision. R2 is plain object storage with no transcoding and no HLS packaging, which is exactly
 why `docs/06` chose Bunny Stream; Cloudflare's transcoding product is Stream, which is paid and
 priced per minute. See `docs/06-video-catalogue.md` §4.
+
+## ADR-018 — Video implementation and verification (2026-09-26)
+
+Status: implemented locally, live provider setup pending. The owner authorized finishing video
+backend/UI and tests while away, without another branch or intermediate commit. This supersedes
+ADR-014's test deferral for this work and the roadmap's deployment-before-video sequencing.
+
+Choose Bunny Stream, following docs/06: browser-to-provider resumable TUS uploads, automatic
+transcoding, signed embedded playback and signed webhooks. R2 plain storage does not meet the
+phone-upload/transcoding requirement without additional infrastructure. This decision provisions
+no account, creates no charge, and does not establish a live service. Configuration defaults off.
+
+Provider boundaries live behind IVideoStorage. Webhook HMAC-SHA256 uses the library read-only API
+key over exact request bytes, with explicit signature version and algorithm. Replayed events
+fetch authoritative status instead of trusting an old payload. Clients only see Ready + published
+rows and must still be active; signed playback expires after 15 minutes. Provider-side access
+settings remain required, with live negative tests before release. This is access control, not DRM.
+
+Creation idempotency uses a unique (CreatedByUserId, CreationKey) reservation and payload hash
+on Video rather than the legacy IdempotencyRecord table. Replay returns the existing row while
+it exists; different payload conflicts. Hard deletion removes that reservation. Provider creation
+cannot be atomically committed with PostgreSQL: an uncertain result requires reconciliation, not
+unbounded retry. Deletion is retryable via an unpublished Deleting state. Revision UUIDs provide
+optimistic concurrency. Tags normalize accents/case in application code with a unique DB index.
+
+UI uses native selects, tag checkboxes and file picker, preserving taxonomy and accessibility
+without a new component dependency. Pause/resume works while the page remains open; reopening
+requires selecting the source file and restarting upload. No video bytes pass through Render.
+
+Sources: [TUS uploads](https://bunny.net/docs/stream/tus-resumable-uploads),
+[token authentication](https://bunny.net/docs/stream/token-authentication),
+[signed webhooks](https://bunny.net/docs/stream/webhooks).

@@ -1,0 +1,110 @@
+<section class="video-page">
+  <header class="video-heading">
+    <div>
+      <span class="eyebrow">MOVE YOUR ASS / ΠΡΟΠΟΝΗΣΗ</span>
+      <h1>Βρες την επόμενη προπόνησή σου</h1>
+      <p>Διάλεξε αυτό που ταιριάζει στη σημερινή σου ενέργεια.</p>
+    </div>
+  </header>
+  <form class="filters" (ngSubmit)="apply()">
+    <label class="search"
+      >Αναζήτηση<input
+        name="search"
+        [(ngModel)]="search"
+        maxlength="200"
+        placeholder="Τίτλος ή περιγραφή"
+    /></label>
+    <label
+      >Για ποιον<select name="audience" [(ngModel)]="audience" (change)="apply()">
+        <option value="">Όλοι</option>
+        <option value="Male">Άντρες</option>
+        <option value="Female">Γυναίκες</option>
+      </select></label
+    >
+    <label
+      >Περιοχή σώματος<select name="bodyArea" [(ngModel)]="bodyArea" (change)="apply()">
+        <option value="">Όλο το πρόγραμμα</option>
+        <option value="FullBody">Όλο το σώμα</option>
+        <option value="UpperBody">Πάνω μέρος</option>
+        <option value="LowerBody">Κάτω μέρος</option>
+      </select></label
+    >
+    <label
+      >Εξοπλισμός<select name="equipment" [(ngModel)]="equipment" (change)="apply()">
+        <option value="">Όλες οι επιλογές</option>
+        <option value="false">Χωρίς εξοπλισμό</option>
+        <option value="true">Με εξοπλισμό</option>
+      </select></label
+    >
+    <button class="primary" type="submit">Αναζήτηση</button
+    ><button type="button" (click)="clear()">Καθαρισμός</button>
+  </form>
+  @if (tags().length) {
+    <div class="chips" aria-label="Ετικέτες">
+      @for (tag of tags(); track tag.id) {
+        <button
+          type="button"
+          [class.selected]="selectedTags.includes(tag.id)"
+          [attr.aria-pressed]="selectedTags.includes(tag.id)"
+          (click)="toggleTag(tag.id)"
+        >
+          {{ tag.name }}
+        </button>
+      }
+    </div>
+  }
+  @if (busy()) {
+    <p class="empty" role="status">Φόρτωση προπονήσεων…</p>
+  } @else if (failed()) {
+    <div class="empty" role="alert">
+      <h2>Δεν μπορέσαμε να φορτώσουμε τα βίντεο.</h2>
+      <p>Δοκίμασε ξανά σε λίγο.</p>
+      <button (click)="retry()">Επανάληψη</button>
+    </div>
+  } @else if (page(); as result) {
+    <p class="result-count">{{ result.totalCount }} προπονήσεις</p>
+    @if (!result.items.length) {
+      <div class="empty">
+        <h2>Δεν υπάρχουν προπονήσεις εδώ ακόμη.</h2>
+        <p>Δοκίμασε διαφορετικά φίλτρα ή επέστρεψε όταν δημοσιευτούν νέα βίντεο.</p>
+      </div>
+    }
+    <div class="video-grid">
+      @for (video of result.items; track video.id) {
+        <a class="video-card" [routerLink]="['/videos', video.id]">
+          <div class="thumbnail">
+            @if (video.thumbnailUrl) {
+              <img [src]="video.thumbnailUrl" alt="" loading="lazy" />
+            } @else {
+              <span class="video-placeholder">MOVE<br />YOUR ASS</span>
+            }
+            <span class="duration">{{ duration(video.durationSeconds) }}</span
+            ><span class="play-mark" aria-hidden="true">▶</span>
+          </div>
+          <div class="card-copy">
+            <span class="eyebrow">{{ areas[video.bodyArea] }}</span>
+            <h2>{{ video.title }}</h2>
+            <p>
+              {{ video.requiresEquipment ? 'Με εξοπλισμό' : 'Χωρίς εξοπλισμό' }} ·
+              {{ audiences[video.audience] }}
+            </p>
+            <div class="tags">
+              @for (tag of video.tags; track tag.id) {
+                <span>{{ tag.name }}</span>
+              }
+            </div>
+          </div>
+        </a>
+      }
+    </div>
+    @if (result.totalPages > 1) {
+      <nav class="pagination" aria-label="Σελίδες βίντεο">
+        <button [disabled]="result.page <= 1" (click)="apply(result.page - 1)">Προηγούμενη</button
+        ><span>{{ result.page }} / {{ result.totalPages }}</span
+        ><button [disabled]="result.page >= result.totalPages" (click)="apply(result.page + 1)">
+          Επόμενη
+        </button>
+      </nav>
+    }
+  }
+</section>

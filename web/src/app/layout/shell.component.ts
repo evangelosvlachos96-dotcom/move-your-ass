@@ -63,7 +63,8 @@ export class ShellComponent {
 
   protected readonly navItems = computed<readonly NavItem[]>(() => [
     { label: 'Πίνακας', icon: 'dashboard', link: '/dashboard' },
-    ...(this.store.user()?.role === 'Admin' ? [{ label: 'Χρήστες', icon: 'group', link: '/admin/users' }] : []),
+    { label: 'Προπονήσεις', icon: 'play_circle', link: '/videos' },
+    ...(this.store.user()?.role === 'Admin' ? [{ label: 'Βίντεο', icon: 'video_library', link: '/admin/videos' }, { label: 'Χρήστες', icon: 'group', link: '/admin/users' }] : []),
   ]);
 
   constructor() {

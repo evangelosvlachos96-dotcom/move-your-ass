@@ -6,7 +6,7 @@ using Mya.Application.Common.Results;
 namespace Mya.Api.Extensions;
 
 /// <summary>
-/// Serves the Angular build from wwwroot so the SPA and the API share one origin (ADR-016).
+/// Serves the Angular build from wwwroot so the SPA and the API share one origin (ADR-017).
 /// Same origin keeps the SameSite=Strict refresh cookie working without a custom domain and
 /// removes CORS from production. In Development wwwroot is empty and the Angular dev server is
 /// used instead; nothing here changes that.

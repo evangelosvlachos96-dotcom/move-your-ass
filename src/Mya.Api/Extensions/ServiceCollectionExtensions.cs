@@ -38,6 +38,7 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(environment);
 
+        services.AddScoped<Mya.Api.Features.Videos.VideoWebhookRequest>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUserAccessor>();
 
@@ -69,10 +70,11 @@ public static class ServiceCollectionExtensions
             options.AddPolicy(Policies.AdminOnly, policy => policy.RequireRole(Roles.Admin)));
 
         services.AddAuthRateLimiting();
-        services.AddSpaCors(configuration);
+
 
         if (environment.IsDevelopment())
         {
+            services.AddSpaCors(configuration);
             services.AddSwaggerWithBearer();
         }
 
@@ -164,7 +166,7 @@ public static class ServiceCollectionExtensions
     /// <summary>Exact SPA origin with credentials (docs/03 section 7). Never a wildcard.</summary>
     private static void AddSpaCors(this IServiceCollection services, IConfiguration configuration)
     {
-        var origin = configuration["Cors:AllowedOrigin"];
+        var origin = configuration["App:PublicOrigin"];
 
         services.AddCors(options => options.AddDefaultPolicy(policy =>
         {

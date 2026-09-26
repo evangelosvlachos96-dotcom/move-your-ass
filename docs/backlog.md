@@ -8,23 +8,19 @@ correct response to "while we're here, could we also…".
 Current position is `docs/08-milestone-handover.md` §"Current state"; this list is only the tail
 of work that outlives any one checkpoint.
 
-- Configure Resend and verify delivery to a real inbox, including spam placement. Console delivery
-  and the invitation flow already pass locally.
+- Verify a real client invitation inbox/browser flow and spam placement. Admin notification receipt is confirmed; console invitation acceptance passes.
 - Finish the browser and viewport regression matrix in `docs/07-manual-test-checklist.md`,
   especially password setup in the browser and the full mobile/desktop matrix.
 - Re-run the whole checklist against the deployed URL once the environment exists.
 - Measure the first request after an idle period on the real environment, and record it against
   the ADR-017 upgrade trigger.
 
-## Video (phases 5–6, see `docs/04-roadmap.md` and `docs/06-video-catalogue.md`)
+## Video live acceptance
 
-- `Video`, `Tag`, `VideoTag` entities and migrations
-- Bunny Stream adapter behind `IVideoStorage`, upload credentials endpoint, transcode webhook
-- Compare Cloudflare Stream against Bunny Stream on price and signed playback before building the
-  adapter. Not R2: R2 is plain storage with no transcoding, see `docs/06` §4
-- Filtered, paged client query; admin CRUD with confirmation modals
-- Player component; publish/unpublish toggle for admin
-- `Idempotency-Key` on video creation (the `IdempotencyRecord` table is kept for this)
+Backend and UI are implemented. Configure the Bunny library and run docs/11 live acceptance;
+then load trainer content and complete docs/12 handover. No real uploads or paid provisioning
+have been performed. Future improvements: automatic orphan reconciliation after uncertain remote
+creation, durable cross-browser upload resumption, and server-side global drag ordering.
 
 ## Production upgrades (ADR-017 triggers, no code changes)
 
@@ -39,10 +35,10 @@ of work that outlives any one checkpoint.
 
 - Password reset by email (self-service; admin reset exists)
 - Email 2FA (ADR-013 — `TwoFactorTicket` is in the schema, unused)
-- Automated tests beyond the architecture tests (ADR-014)
+- Extend regression coverage as new behavior is introduced; initial video suites now exist
 - Admin dashboard: recent uploads (pending registrations count is implemented)
 - i18n extraction (currently hardcoded Greek)
-- Email templates with real branding
+- Branded, structured HTML email templates (owner request 2026-09-26): evaluate MJML or hand-authored email-safe HTML; use Move Your Ass logo/brand imagery, clear headings and CTA buttons, responsive layout, accessible alt text and a plain-text fallback. Verify Outlook/Hotmail and mobile rendering; keep setup credentials out of logs.
 
 ## Deferred / maybe never
 

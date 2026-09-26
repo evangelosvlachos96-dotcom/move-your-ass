@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 export interface RequestOptions {
   params?: HttpParams | Record<string, string | number | boolean>;
   context?: HttpContext;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -39,6 +40,7 @@ export class ApiClient {
 
   private options(options?: RequestOptions) {
     return {
+      headers: options?.headers,
       params: options?.params,
       context: options?.context,
       withCredentials: true,

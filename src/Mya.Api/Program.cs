@@ -9,7 +9,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
-// One-shot production seeding (docs/10 §5): `dotnet Mya.Api.dll --seed-admin` creates the roles and
+// One-shot production seeding (docs/10 §6): `dotnet Mya.Api.dll --seed-admin` creates the roles and
 // the first Admin against the configured database, then exits without starting the web host.
 const string SeedAdminFlag = "--seed-admin";
 var seedAdminOnly = args.Contains(SeedAdminFlag, StringComparer.Ordinal);
@@ -17,6 +17,8 @@ var seedAdminOnly = args.Contains(SeedAdminFlag, StringComparer.Ordinal);
 try
 {
     var builder = WebApplication.CreateBuilder(args.Where(a => a != SeedAdminFlag).ToArray());
+
+    builder.AddProductionHosting();
 
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
@@ -50,11 +52,15 @@ try
         app.UseSwaggerUI();
     }
 
+    app.UseForwardedHeaders();
     app.UseExceptionHandler();
     app.UseSpaStaticFiles();
     app.UseSerilogRequestLogging();
 
-    app.UseCors();
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseCors();
+    }
 
     app.UseMiddleware<AuthRateLimitKeyMiddleware>();
     app.UseRateLimiter();

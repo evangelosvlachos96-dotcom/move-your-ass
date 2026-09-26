@@ -335,6 +335,33 @@ namespace Mya.Infrastructure.Persistence.Migrations
                     b.ToTable("RefreshToken", (string)null);
                 });
 
+            modelBuilder.Entity("Mya.Domain.Entities.Tag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("Tag", (string)null);
+                });
+
             modelBuilder.Entity("Mya.Domain.Entities.TwoFactorTicket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -366,6 +393,108 @@ namespace Mya.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("TwoFactorTicket", (string)null);
+                });
+
+            modelBuilder.Entity("Mya.Domain.Entities.Video", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Audience")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("BodyArea")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<string>("CreationHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("CreationKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresEquipment")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StorageProvider")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedByUserId", "CreationKey")
+                        .IsUnique();
+
+                    b.HasIndex("IsPublished", "Status", "SortOrder");
+
+                    b.ToTable("Video", (string)null);
+                });
+
+            modelBuilder.Entity("Mya.Domain.Entities.VideoTag", b =>
+                {
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("VideoId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("VideoTag", (string)null);
                 });
 
             modelBuilder.Entity("Mya.Infrastructure.Identity.AppUser", b =>
@@ -564,6 +693,35 @@ namespace Mya.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Mya.Domain.Entities.VideoTag", b =>
+                {
+                    b.HasOne("Mya.Domain.Entities.Tag", "Tag")
+                        .WithMany("VideoTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Mya.Domain.Entities.Video", "Video")
+                        .WithMany("VideoTags")
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tag");
+
+                    b.Navigation("Video");
+                });
+
+            modelBuilder.Entity("Mya.Domain.Entities.Tag", b =>
+                {
+                    b.Navigation("VideoTags");
+                });
+
+            modelBuilder.Entity("Mya.Domain.Entities.Video", b =>
+                {
+                    b.Navigation("VideoTags");
                 });
 #pragma warning restore 612, 618
         }

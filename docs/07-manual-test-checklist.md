@@ -143,3 +143,11 @@ A checklist with permanently unticked boxes stops being read.
 - [ ] Failed Resend delivery retries; successful outbox messages have their payload cleared.
 
 Real provider delivery requires operator-supplied Resend configuration (docs/09-email-setup.md).
+
+## Video regression
+
+Run docs/11-video-operations.md live acceptance before production sign-off. Local tests cover
+filters, privacy, role/status checks, creation replay, revision conflicts, signatures and deletion
+recovery. Browser checks must include admin metadata save, client URL filters, empty/error retry,
+mobile layout, file progress/pause/resume and protected playback. Mark live provider tests separately
+from synthetic fixtures; never treat mocks as evidence that provider security is configured.

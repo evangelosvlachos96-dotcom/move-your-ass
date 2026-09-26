@@ -28,6 +28,10 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./layout/shell.component').then((m) => m.ShellComponent),
     children: [
+      { path: 'videos', canActivate: [mustChangePasswordGuard], loadComponent: () => import('./features/videos/library.component').then(m => m.VideoLibraryComponent) },
+      { path: 'videos/:id', canActivate: [mustChangePasswordGuard], loadComponent: () => import('./features/videos/player.component').then(m => m.VideoPlayerComponent) },
+      { path: 'admin/videos', canActivate: [mustChangePasswordGuard, roleGuard('Admin')], canDeactivate: [(component: { canLeave(): boolean }) => component.canLeave()], loadComponent: () => import('./features/videos/admin-videos.component').then(m => m.AdminVideosComponent) },
+      { path: 'admin/videos/:id', data: { admin: true }, canActivate: [mustChangePasswordGuard, roleGuard('Admin')], loadComponent: () => import('./features/videos/player.component').then(m => m.VideoPlayerComponent) },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {
         path: 'admin/users',

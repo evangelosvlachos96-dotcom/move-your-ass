@@ -7,11 +7,11 @@ namespace Mya.Infrastructure.Notifications;
 
 /// <summary>
 /// Renders an outbox row into a plain-text email. Greek copy, hardcoded for now like the UI.
-/// Links point at the SPA origin, which is the same value CORS allows.
+/// Links use the configured public origin, never an incoming request header.
 /// </summary>
 public sealed class EmailTemplates(IConfiguration configuration)
 {
-    private readonly string? _spaOrigin = configuration["Cors:AllowedOrigin"] is { Length: > 0 } origin
+    private readonly string? _spaOrigin = configuration["App:PublicOrigin"] is { Length: > 0 } origin
         ? origin.TrimEnd('/')
         : null;
 
@@ -37,7 +37,7 @@ public sealed class EmailTemplates(IConfiguration configuration)
     {
         if (_spaOrigin is null)
         {
-            throw new InvalidOperationException("Cors:AllowedOrigin is required for invitation links.");
+            throw new InvalidOperationException("App:PublicOrigin is required for invitation links.");
         }
 
         // Fragment keeps the credential out of web-server request URLs and referrer headers.

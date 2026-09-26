@@ -13,10 +13,10 @@ deleted. Record the names you choose in `infra/README.md` so the environment is 
 
 ## Status of this runbook
 
-Sections 1–3 and 7 are provider setup and can be done now. Sections 4–6 and 8 depend on code that
-lands in later checkpoints: PostgreSQL migrations (checkpoint 2), the Resend sender (checkpoint 3)
-and the Dockerfile (checkpoint 4). **Nothing here has been executed yet.** No cloud resources are
-provisioned, no domain is configured, and no real email has been sent.
+The four code checkpoints are implemented. Neon dev migrations and account flows were verified;
+the owner received a real Resend admin notification. Docker works locally. Render deployment,
+production database setup, DNS cutover and phone acceptance have not been performed by this agent.
+Use docs/08 for precise evidence, and docs/11-video-operations.md for Bunny configuration.
 
 ## Free limits and what breaks first
 
@@ -249,3 +249,15 @@ separation is the whole reason the free tier works; see ADR-017.
 - **Four code properties keep this working** and must survive future changes: `/health` does no
   database work, no background service polls the database, Npgsql `Keepalive` stays disabled, and
   EF connection resiliency stays off. ADR-017 explains why each one matters.
+
+## Container and proxy verification
+
+The image listens on PORT when supplied, otherwise 8080, as the non-root app user. No migrations
+or admin seeding run automatically in Production. Static Angular routes share the API origin;
+unknown /api paths return JSON 404, not index.html. App:PublicOrigin controls email links and
+Development CORS only; Production does not enable cross-origin access.
+
+RENDER=true enables one-hop X-Forwarded-For/Proto processing with platform ingress as the trust
+boundary. Do not set it on an internet-facing container that can bypass Render ingress. Verify
+the real client IP, HTTPS scheme and rate-limit behavior after deployment before onboarding users.
+Local simulated headers cannot establish the actual Render header contract.

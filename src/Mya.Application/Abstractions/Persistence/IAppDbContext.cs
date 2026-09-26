@@ -12,6 +12,10 @@ namespace Mya.Application.Abstractions.Persistence;
 /// </summary>
 public interface IAppDbContext
 {
+    public DbSet<Video> Videos { get; }
+    public DbSet<Tag> Tags { get; }
+    public DbSet<VideoTag> VideoTags { get; }
+
     public DbSet<PasswordInvitation> PasswordInvitations { get; }
 
     public DbSet<RefreshToken> RefreshTokens { get; }

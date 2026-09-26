@@ -1,141 +1,87 @@
 # 08 — Milestone handover
 
-**This is the resume-here document.** If you are an agent or a person picking this work up, read
-the "Current state" section below before anything else. It is kept accurate at the end of every
-checkpoint and after every meaningful step inside one. History follows it, oldest concerns last.
-
----
-
 # Current state
 
-**Updated:** 2026-09-25, checkpoints 2 and 3 local implementation; cloud verification pending.
+Updated 2026-09-26. Branch: **feature/prod-readiness**. Last owner commit: **a5a181b**.
+Checkpoint 4 and video backend/UI changes are uncommitted. The owner authorized continuing
+through phases 5–6 without intermediate review, on this branch, including automated tests.
+Do not stage, commit, push, merge, delete branches, or provision paid services.
 
-| Item | State |
+| Work | Status |
 |---|---|
-| Branch | feature/prod-readiness |
-| Last commit | 847bc10 — documentation checkpoint 1 |
-| Working tree | uncommitted checkpoints 2 and 3; owner performs all git operations |
-| Phase | 4 — deployment and real delivery verification |
+| Phase 4 checkpoint 1 | Documentation committed |
+| Checkpoint 2 | PostgreSQL committed; earlier 18 API checks passed on Neon dev |
+| Checkpoint 3 | Resend committed; owner confirmed receipt of admin notification |
+| Checkpoint 4 | Container/PORT/proxy/SPA/CI implemented and locally verified |
+| Phase 5 | Video model, additive migration, APIs, Bunny adapter implemented; final review in progress |
+| Phase 6 | Admin dashboard/upload/catalogue and client library/player implemented; browser verification in progress |
+| Phase 7 | Guides being completed; real trainer content and operational handover still require owner |
 
-## Checkpoint status
+## Verified
 
-| # | Checkpoint | State |
-|---|---|---|
-| 1 | Documentation / ADR-017 | reviewed and committed |
-| 2 | PostgreSQL | implemented; 18 live API checks passed against configured Neon dev; suspend/resume observation pending |
-| 3 | Resend HTTPS sender | implemented; local HTTP/configuration probes pass; real admin registration notification accepted by Resend; owner confirmed notification receipt; client invitation inbox delivery pending |
-| 4 | Render container | not started; stop before this checkpoint |
-
-The owner explicitly authorized 2 and 3 back to back with one combined review. Do not wait for
-an intermediate commit, but keep this file current. Do not start checkpoint 4 without a new green light.
-
-## Verified so far
-
-- Replaced the three SQL Server migrations and snapshot with a generated PostgreSQL InitialCreate,
-  as explicitly approved because no production data exists. This is a fresh database baseline,
-  not a SQL Server data-conversion script.
-- Release build succeeded with zero warnings/errors; all 15 existing tests passed after provider
-  and initial email changes. Re-run after final code edits before the combined handover.
-- Applied the migration to an isolated local PostgreSQL 17 container. Eighteen API checks passed:
-  registration, pending login refusal, approval/login, client/admin separation, duplicate email
-  rejection, case-insensitive search and literal percent/underscore/backslash matching,
-  invitation creation, console dispatch, activation and concurrent single-use acceptance.
-- Three delivered outbox rows had cleared payloads. Commit signalling works with PostgreSQL.
-- EF reports no pending model changes and generates an idempotent PostgreSQL migration script.
-- External mock-HTTP probe verified Resend request shape, stable outbox idempotency key and payload,
-  sanitized HTTP failures, cancellation, and development/production email configuration validation.
-  These probes are temporary workspace tools, not new repo test suites (ADR-014).
-- Npgsql idle lifetime defaults to 240 seconds, minimum pool size zero and keepalive disabled.
-- Docker engine 29.4.3 runs successfully after the owner's WSL update. The previous Docker blocker
-  is resolved. Container used for local smoke checks: mya-phase4-check, localhost port 55432.
-- No web files changed, so the prior successful Angular production build was not repeated.
+- Original container checks: non-root UID 1654, custom PORT, database-free health against an
+  unreachable database, SPA deep links, API 404, immutable bundles, uncached index, no production
+  CORS, and separate forwarded-IP rate-limit buckets. Image builds with Angular and API together.
+- Release build and 29 backend tests pass. New tests exercise draft privacy, active-user checks,
+  stale revisions, idempotent creation, normalized Greek tags, webhook signatures, malformed/replayed
+  events, provider failures and retryable deletion. SQLite handler tests do not prove PostgreSQL semantics.
+- VideoCatalogue migration applied to isolated PostgreSQL 17 database mya_video_check; EF reports
+  no pending model changes. Existing InitialCreate was preserved. No video migration applied to Neon.
+- 17 live API checks pass against that local PostgreSQL database (validation, filtering, tag
+  uniqueness, account approval, client/admin boundaries, disabled provider, unsigned webhook).
+- Angular lint, production build and three frontend tests pass. The TUS library's url-parse
+  CommonJS dependency is explicitly allowlisted; no general suppression of compiler warnings.
+- Browser: admin dashboard counts, video status list and metadata edit/save verified using
+  synthetic local records. Final browser and container pass remains the immediate next step.
+- Docker Desktop works; the old WSL/daemon blocker is resolved.
 
 ## Not verified / owner setup
 
-- Owner configured Neon dev locally and applied the migration using the direct endpoint. The API
-  now runs on the saved pooled connection, seeds the admin, and passes 18 live account-flow checks.
-- Owner reports domain/Cloudflare setup. DNS records and deployment are not verified.
-- Owner confirmed the Resend domain is verified and received the real admin registration notification.
-  Real client-invitation inbox delivery remains unverified; invitation acceptance passes with console delivery.
-- Neon suspend/resume, real inbox/spam placement, Render deployment, forwarded headers, phone
-  access and UptimeRobot remain unverified. Local PostgreSQL checks cannot prove Neon sleep.
+- No Render deployment, production migration/seed, DNS cutover, UptimeRobot or phone verification.
+- Neon suspend/resume and client invitation inbox/browser completion remain unverified. The owner
+  confirmed Resend domain verification and actual receipt of an admin registration notification.
+- No Bunny account/library/credentials have been configured by this agent. Real phone upload,
+  transcoding, signed webhooks, protected playback and provider billing remain live acceptance tasks.
+  The adapter uses official Bunny contracts; mocks and local fixtures are not live provider evidence.
+- Video:Bunny:Enabled defaults false. Account features remain usable; uploads show a clear disabled state.
+- Local test video rows are synthetic UI fixtures, not real workouts or playable videos.
 
-## Exact next steps
+## Exact next step
 
-1. API is running locally at http://localhost:5077 against the owner-configured Neon dev database.
-   Console email is explicitly selected for synthetic account checks; real Resend delivery was
-   separately verified for the admin notification and receipt confirmed by the owner.
-2. Remaining verification: observe Neon suspend/resume and deliver a real client invitation to
-   an owner-controlled second inbox/alias, then verify the emailed browser setup flow.
-3. Owner reviews and commits checkpoints 2–3. Do not start checkpoint 4 without a new green light.
-   No git add, commit or push has been performed by the agent.
-## Gotchas and boundaries
+Finish browser checks and final build/container regression, then update this section with final
+evidence. Give the owner one combined report and suggested commit message. Owner reviews/commits
+before deployment. Follow docs/10-production.md and docs/11-video-operations.md for live setup.
 
-- Production only accepts Email:Mode=Resend with ApiKey and valid From; Console is Development-only.
-  MailKit/SMTP were removed. Resend failure logs contain status only, never provider response bodies.
-- Each send receives the outbox Id as its Idempotency-Key. Resend retention is 24 hours;
-  scheduled retry backoff totals about 2.5 hours, but downtime/manual replay can exceed retention.
-- HttpClient timeout must become an ordinary delivery failure so the dispatcher retries; genuine
-  host cancellation must propagate. Do not add transport retries alongside outbox retries.
-- Keep /health database-free, the outbox event-driven, keepalive off and EF retry strategies off.
-- App connection uses Neon pooled endpoint; migration/seed commands use direct endpoint.
-- Cors:AllowedOrigin remains the email-link setting until checkpoint 4 renames it App:PublicOrigin.
-  Production runbook describes the final checkpoint-4 settings, not today's complete runnable setup.
-- The Azure deploy workflow is intentionally untouched until checkpoint 4 removes it.
-- Render forwarded headers still require empirical confirmation during checkpoint 4.
+## Settings and boundaries
 
-## Settings: names only
-
-| Setting | Location |
+| Setting | Where |
 |---|---|
-| ConnectionStrings:Default | local user-secrets, Neon dev pooled connection |
-| ConnectionStrings__Default | per-command dev direct override for migration; Render production pooled later |
-| Jwt:SigningKey, Seed:AdminEmail, Seed:AdminPassword, Seed:AdminFirstName, Seed:AdminLastName | local user-secrets |
-| Email:ApiKey, Email:From, Email:Mode | local user-secrets; corresponding double-underscore keys on Render |
-| Email:TestRecipient | optional local-only verification setting; app does not consume it |
-| Cors:AllowedOrigin | local current frontend/email-link origin |
-| App__PublicOrigin | Render, introduced in checkpoint 4 |
-| Jwt__SigningKey, AUTOMAPPER_LICENSE_KEY | Render secrets |
-| ASPNETCORE_ENVIRONMENT | Render non-secret setting |
+| ConnectionStrings:Default | local user-secrets: Neon dev pooled; direct override for migration/seed |
+| ConnectionStrings__Default | Render: production pooled; direct override for deliberate migrations |
+| Jwt:SigningKey, Jwt:Issuer, Jwt:Audience | user-secrets / Render environment |
+| Seed:AdminEmail, Seed:AdminPassword, Seed:AdminFirstName, Seed:AdminLastName | user-secrets / one-shot seed environment |
+| Email:Mode, Email:ApiKey, Email:From | user-secrets / Render environment |
+| App:PublicOrigin | user-secrets / App__PublicOrigin on Render; replaces Cors:AllowedOrigin |
+| Video:Bunny:Enabled, LibraryId, ApiKey, ReadOnlyApiKey, TokenKey, CdnHost | user-secrets / Video__Bunny__* on Render |
+| PORT, RENDER | Render-provided platform environment |
 
----
+Keep /health database-free, outbox event-driven, keepalive and EF retry strategies off. Console
+email is Development-only; real delivery logs metadata, never message credentials. Render proxy
+handling trusts only one forwarded hop when RENDER=true, assuming the service is reachable only
+through Render ingress. Actual Render headers still need empirical verification.
+
+Creation reserves a unique creator/key before a provider call. An uncertain create response can
+leave an orphan provider asset; do not blindly retry remote creation. Reconcile in Bunny first.
+Deleting leaves an unpublished Deleting row on provider failure so an admin can retry safely.
+See docs/06 for concurrency, ordering, token expiry and idempotency boundaries.
 
 # How to resume
 
-**Read in this order:**
-
-1. This section and "Current state" above.
-2. `CLAUDE.md` — the non-negotiable rules, the layout, and the commands.
-3. `docs/04-roadmap.md` Phase 4 — the four checkpoints and what "done" means.
-4. ADR-017 in `docs/05-decisions.md` — why the stack is Render, Neon, Resend and Cloudflare, and
-   the four code properties the free tier depends on.
-5. `docs/10-production.md` — the runbook for the environment.
-6. Only then the code.
-
-**Verify where things actually stand** before trusting anything above:
-
-```powershell
-git log --oneline -1
-git status --short
-dotnet build -c Release          # must be 0 warnings, 0 errors
-dotnet test -c Release --no-build
-cd web ; npm run build -- --configuration production
-```
-
-**Do not redo these:**
-
-- Do not re-research the provider limits, ports, headers and idempotency semantics. They are
-  recorded in "Gotchas" above with the date they were checked. Re-check only if a provider is
-  behaving differently from what is written there.
-- Do not add unit or integration tests. ADR-014 defers them; `Mya.ArchitectureTests` must stay
-  green.
-- Do not re-verify the Angular production build unless `web/` changed.
-- Do not run `git add`, `git commit` or `git push`. The owner does all git operations, and
-  branches are never deleted after merging.
-- Do not write a secret value anywhere, and never ask the owner to paste one into a conversation.
-
-**If your context is running low,** stop the current work and update "Current state" first. An
-accurate handover is worth more than one more half-finished step.
+Read this file, CLAUDE.md, docs/04-roadmap.md, ADR-017/018 in docs/05-decisions.md,
+docs/10-production.md and docs/11-video-operations.md. Check git status before editing.
+Run dotnet test -c Release, then web npm run lint, npm test -- --watch=false and npm run build.
+Build Docker only after source changes that affect the shipped image. No git mutations by agents.
+All secret values stay outside repo/docs/chat. New tests are authorized, superseding ADR-014's deferral.
 
 ---
 
@@ -234,3 +180,12 @@ duplicate rejection, invitation dispatch, concurrent single-use acceptance, and 
 All 15 existing backend tests passed again. API remains running at http://localhost:5077.
 Synthetic test users remain in the dev database only. Test emails were console-only. No production
 migration or deployment was performed. Do not infer verified Neon scale-to-zero from these checks.
+## Extended owner authorization — 2026-09-26
+
+Finish checkpoint 4, then implement phases 5 and 6 and code-level handover work on feature/prod-readiness. Use Bunny Stream as the documented provider default. Add meaningful automated and manual verification. Record unavailable live provider/deployment verification separately; never claim real streaming without credentials and a live test. Branded HTML/MJML email layout remains requested technical debt. Owner retains git operations.
+
+## Checkpoint 4 local verification — 2026-09-26
+
+Docker image mya:checkpoint4 builds successfully including Angular lint and production build. Backend builds without warnings; 15 existing tests pass. Runtime UID 1654, custom PORT=10077 verified. Root and deep SPA links load; unknown API routes return JSON ProblemDetails 404; hashed JavaScript has immutable caching; index revalidates; no production CORS. Health returns 200 with the database deliberately unreachable. Forwarded IP simulation separates rate-limit buckets. No cloud deployment performed. RENDER=true trusts only the last forwarded hop and assumes traffic reaches the service through Render ingress; this must be confirmed on the real service. Live proxy headers are not proven by this local test.
+
+Next: video backend and UI under owner's extended authorization. App:PublicOrigin replaces Cors:AllowedOrigin; local user-secrets must be migrated without printing values. Branded HTML/MJML email improvements recorded in backlog.

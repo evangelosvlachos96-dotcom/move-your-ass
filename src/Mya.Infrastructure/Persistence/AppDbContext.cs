@@ -14,6 +14,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// <summary>Identity's default string-key length; every UserId column matches it.</summary>
     private const int StringKeyLength = 450;
 
+    public DbSet<Video> Videos => Set<Video>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<VideoTag> VideoTags => Set<VideoTag>();
+
     public DbSet<PasswordInvitation> PasswordInvitations => Set<PasswordInvitation>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

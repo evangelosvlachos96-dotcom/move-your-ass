@@ -13,7 +13,7 @@ were exercised. See docs/08-milestone-handover.md for the exact evidence and rem
 The owner committed this checkpoint and gave the green light on 2026-09-25. Current work is
 Phase 4 on `feature/prod-readiness`; see `docs/08-milestone-handover.md` for the current position
 and `docs/10-production.md` for the runbook.
-Real email delivery still needs provider setup and inbox verification. Video implementation has not started.
+Resend admin notification receipt is confirmed. Video implementation is present; live Bunny verification and deployment remain.
 
 ## Phase 1 — Foundation
 
@@ -35,7 +35,7 @@ Implementation checkpoint complete. Remaining browser regression checks are reco
 
 Login/register/pending/profile screens and protected shell; invitation password setup; admin dashboard
 with pending registrations; searchable, paged user list with approve/decline, invite/resend, edit,
-suspend/reactivate and confirmed deletion. The client dashboard remains a video-library placeholder.
+suspend/reactivate and confirmed deletion. The client dashboard now embeds the filtered video library.
 
 Done when the manual checklist passes for both account creation paths, invalid/expired invitation
 links, admin/client access boundaries and responsive screens. Build/lint are not a substitute for
@@ -47,7 +47,7 @@ Move the stack from Azure to Render + Neon + Resend (ADR-017) and get it live on
 `https://moveyourass.gr`. Runbook: `docs/10-production.md`. Current position, always:
 `docs/08-milestone-handover.md` §"Current state".
 
-Four checkpoints, each reviewed and committed by the owner before the next starts:
+Four checkpoints. On 2026-09-26 the owner authorized checkpoint 4 and video phases 5–6 together on the same branch, with one final review:
 
 1. **Documentation and decision.** ADR-017, the merged runbook, and every doc that named Azure.
 2. **SQL Server to PostgreSQL.** Npgsql provider, one fresh `InitialCreate`, and every
@@ -60,9 +60,11 @@ Four checkpoints, each reviewed and committed by the owner before the next start
 
 Then provision the environment by the runbook, apply migrations, seed the Admin and verify real
 delivery to an actual inbox. Done when the trainer completes onboarding and logs in from her phone
-on the real URL. Complete this before video implementation.
+on the real URL. The owner authorized video code work before live deployment; production acceptance still remains mandatory.
 
 ## Phase 5 — Video backend
+
+Implemented; local automated/API verification passes. Live Bunny acceptance remains in docs/11.
 
 Video/Tag/VideoTag and migrations, admin CRUD, Bunny Stream adapter behind IVideoStorage,
 upload credentials, authenticated provider webhook, published/ready-only client query and playback.
@@ -70,12 +72,14 @@ Idempotency for video creation. See docs/06-video-catalogue.md.
 
 ## Phase 6 — Video UI
 
+Implemented; automated tests and local browser checks are recorded in docs/08.
+
 Admin uploads with progress, classifiers/tags and publishing; client filters/search, responsive
 cards, pagination and player. No fictional usage/progress metrics.
 
 ## Phase 7 — Content and handover
 
-Trainer uploads real workouts; onboard initial clients; transfer admin ownership and verify operations.
+Trainer uploads real workouts; onboard initial clients; transfer admin ownership and verify operations. The operator guide is docs/12-trainer-guide.md. Real content and operational sign-off remain owner/trainer work.
 
 ## Account API
 

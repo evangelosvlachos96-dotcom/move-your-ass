@@ -28,6 +28,7 @@ public static class DependencyInjection
                 "Platform:TimeZone must be a valid IANA time zone id, e.g. Europe/Athens.")
             .ValidateOnStart();
 
+        services.AddScoped<Mya.Application.Features.Videos.VideoAccess>();
         services.AddSingleton<IClock, UtcClock>();
         services.AddScoped<Mya.Application.Common.Security.PasswordInvitations>();
 

@@ -89,6 +89,14 @@ public static class DependencyInjection
                  MailAddress.TryCreate(s.From, out _)),
                 "Resend requires Email:ApiKey and a valid Email:From address.")
             .ValidateOnStart();
+        services.AddOptions<PublicAppSettings>()
+            .Bind(configuration.GetSection("App"))
+            .Validate(s => Uri.TryCreate(s.PublicOrigin, UriKind.Absolute, out var uri)
+                && (uri.Scheme == "https" || (environment.IsDevelopment() && uri.Scheme == "http"))
+                && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query)
+                && string.IsNullOrEmpty(uri.Fragment) && uri.AbsolutePath == "/",
+                "App:PublicOrigin must be an absolute HTTPS origin (HTTP allowed in Development), without a path, query or credentials.")
+            .ValidateOnStart();
         services.AddSingleton<EmailTemplates>();
         if (configuration["Email:Mode"] == "Resend")
         {
@@ -100,6 +108,17 @@ public static class DependencyInjection
         {
             services.AddSingleton<IEmailSender, ConsoleEmailSender>();
         }
+
+        services.AddOptions<Mya.Infrastructure.Streaming.BunnySettings>()
+            .Bind(configuration.GetSection("Video:Bunny"))
+            .Validate(s => !s.Enabled || (s.LibraryId > 0 && !string.IsNullOrWhiteSpace(s.ApiKey)
+                && !string.IsNullOrWhiteSpace(s.ReadOnlyApiKey) && !string.IsNullOrWhiteSpace(s.TokenKey)
+                && Uri.CheckHostName(s.CdnHost) == UriHostNameType.Dns && s.CdnHost.EndsWith(".b-cdn.net", StringComparison.OrdinalIgnoreCase)),
+                "Enabled Bunny Stream requires LibraryId, ApiKey, ReadOnlyApiKey, TokenKey and a b-cdn.net CdnHost.")
+            .ValidateOnStart();
+        services.AddHttpClient<Mya.Application.Abstractions.Media.IVideoStorage, Mya.Infrastructure.Streaming.BunnyVideoStorage>(client =>
+            client.Timeout = TimeSpan.FromSeconds(30))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
         services.AddHostedService<OutboxDispatcher>();
 

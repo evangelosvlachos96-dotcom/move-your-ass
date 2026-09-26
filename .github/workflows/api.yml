@@ -43,7 +43,7 @@ jobs:
         env:
           AUTOMAPPER_LICENSE_KEY: ${{ secrets.AUTOMAPPER_LICENSE_KEY }}
 
-  # Deployment lives in deploy.yml: the API and the Angular build ship together (ADR-016).
+  # Render deploys the Dockerfile from main; CI never deploys or applies migrations.
 
   # Migrations are applied deliberately, never automatically on app startup.
   # Trigger this job manually after reviewing the generated script.
