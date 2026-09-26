@@ -1,6 +1,6 @@
 ## What
 
-<!-- One or two sentences. Link the step from docs/04-phase-1-scope.md §7 if applicable. -->
+<!-- One or two sentences. Link the phase or checkpoint from docs/04-roadmap.md if applicable. -->
 
 ## Why
 
@@ -8,10 +8,10 @@
 
 ## Checklist
 
-- [ ] Stays within the current phase scope (`docs/04` §1) — anything else went to `docs/backlog.md`
+- [ ] Stays within the current phase scope (`docs/04-roadmap.md`) — anything else went to `docs/backlog.md`
 - [ ] No business logic in controllers
 - [ ] No `HttpClient` imported outside `web/src/app/core/http`
 - [ ] All datetimes UTC at the boundary
-- [ ] Tests added or updated; `dotnet test` and `npm run test` green
+- [ ] `dotnet test` and `npm run lint` green (ADR-014 defers new automated tests)
 - [ ] No secrets, keys, or connection strings in the diff
-- [ ] Docs updated if a decision changed
+- [ ] Docs updated if a decision changed, and `docs/08-milestone-handover.md` "Current state" is accurate

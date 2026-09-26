@@ -227,12 +227,20 @@ metadata-only logging. Approval/invitations are not 2FA; password login remains 
 
 ### ADR-016 — Launch production on free tiers, one origin
 
-**Status:** accepted, with upgrade triggers. Supersedes the "free tiers are not the target" note
-in CLAUDE.md for launch; ADR-012's B1 trigger still applies.
+**Status:** **superseded by ADR-017** for the choice of providers. The *shape* of the decision —
+free tiers, one origin, SPA from `wwwroot`, signal-driven outbox, one-shot seeding — survives
+intact and is restated in ADR-017. Only the vendors changed: App Service → Render, Azure SQL →
+Neon, Brevo SMTP → the Resend HTTPS API. ADR-012's "upgrade when cold starts hurt" trigger still
+applies in spirit; its B1 threshold is replaced by ADR-017's Render Starter trigger.
+
+The original text is kept below as the decision record.
+
+Superseded by ADR-017. Supersedes the "free tiers are not the target" note in CLAUDE.md for launch.
 
 Production starts at €0/month: App Service **F1 (Linux)** for the API, the **Azure SQL Database
 free offer** (serverless GP, 100,000 vCore-seconds + 32 GB per month, auto-pause when exhausted)
-and **Brevo** free SMTP (300 emails/day). Runbook: `docs/10-free-tier-production.md`.
+and **Brevo** free SMTP (300 emails/day). Its runbook, `docs/10-free-tier-production.md`, was
+merged into `docs/10-production.md` by ADR-017 and no longer exists.
 
 Consequences in code:
 
@@ -256,3 +264,83 @@ vCore-seconds run out the database pauses until the 1st of next month.
 **Upgrade triggers:** first request of the day regularly over ~15 s, or the F1 CPU quota is hit →
 App Service B1. Free vCore-seconds under 10% before the 20th of a month → allow paid overage on
 the database. Emails landing in spam → buy a domain and authenticate it in Brevo.
+
+---
+
+### ADR-017 — Render + Neon + Resend, one origin on moveyourass.gr
+
+**Status:** accepted, with upgrade triggers. Supersedes ADR-016's choice of providers.
+
+Production runs as **one Render free web service** built from a Dockerfile in the Frankfurt
+region, serving both the API and the Angular build on `https://moveyourass.gr`. The database is
+**Neon PostgreSQL** (AWS `aws-eu-central-1`, Frankfurt), branch `production` for production and
+branch `dev` for local work. Email goes through the **Resend HTTPS API**. DNS is **Cloudflare**.
+Runbook: `docs/10-production.md`.
+
+**Why the providers changed.** Koyeb closed its free tier to new signups, which removed the
+obvious Azure alternative. Render's free web service builds from a Dockerfile, supports custom
+domains with managed TLS certificates, and offers a Frankfurt region, which is what this app
+needs. It does not offer outbound SMTP: Render blocks ports 25, 465 and 587 on free web services,
+and port 25 stays blocked even on paid plans. That single fact decides the email design. A
+provider reached over HTTPS is the only option, so MailKit and SMTP delivery are removed and
+Resend's send endpoint replaces them.
+
+**What carries over from ADR-016, unchanged:**
+
+- **The API serves the Angular build from `wwwroot`.** One origin keeps the `SameSite=Strict`
+  refresh cookie working and removes CORS from production entirely. `SpaHostingExtensions` stays.
+- **The outbox dispatcher does not poll.** It drains, then sleeps until a commit signals new rows
+  or the earliest retry is due. This mattered for Azure SQL's free vCore-seconds; it matters just
+  as much for Neon, whose free compute allowance is consumed by query activity.
+- **Production seeding is a one-shot command** (`--seed-admin`), never part of app startup.
+- **Migrations never run on startup.** They are applied deliberately against the production branch.
+
+**What ADR-016 got wrong, and the correction.** ADR-016 said "no pingers, ever", because on Azure
+any request woke both the app and the database and burned the database's free compute. That rule
+is now too strong and would break the deployment. Render spins a free service down after 15
+minutes without inbound traffic, so the service needs an external monitor to stay up. The rule
+becomes:
+
+> **Pingers may only call `/health`, and `/health` must never touch the database.**
+
+This is safe because the two free allowances are consumed differently. Render bills wall-clock
+time the instance is running. Neon bills compute time, and its scale-to-zero timer is driven by
+*active queries*, not by open connections: a connection sitting idle in the pool does not hold the
+compute awake, and Npgsql sends no keep-alive queries of its own. So a monitor that only touches
+`/health` keeps Render awake and lets Neon sleep. `SqlConnectionRetryInterceptor` is removed with
+the SQL Server provider; Neon resumes in a few hundred milliseconds, well inside Npgsql's default
+15-second connect timeout, so nothing replaces it.
+
+Four properties of the code now carry the free tier, and none of them may be broken casually:
+
+1. `/health` performs no database work.
+2. No background service polls the database on a timer.
+3. Npgsql's `Keepalive` stays at its default of disabled.
+4. EF Core connection resiliency stays off, which the handlers' explicit transactions require anyway.
+
+**Cost.** No SLA on Render free or Neon free. Without the keep-alive the first request after 15
+idle minutes waits about a minute for the instance to restart. The keep-alive itself is an
+unofficial arrangement: Render documents the spin-down and the instance-hour budget factually and
+its own uptime guidance recommends external probes, but it does not bless pinging as a way to
+avoid spin-down, and nothing stops Render from changing that. Keeping one service awake costs
+roughly 730 of the 750 free instance hours in a month, so the free budget supports exactly one
+always-on service and no second environment. Exceeding Neon's compute allowance is a hard stop
+rather than a slowdown: the project's compute is suspended until the next billing period, existing
+connections drop, and new ones cannot open. Neon documents no threshold alerting, so a weekly
+manual check of its usage page replaces the Azure budget alert.
+
+**Upgrade triggers:**
+
+- Real clients depending on the site daily → **Render Starter**, which is always on and removes
+  both the spin-down and the dependency on an external pinger. This is the trigger that matters;
+  the keep-alive is a launch expedient, not the destination.
+- Neon compute consistently above half the monthly allowance, or a suspension actually occurring
+  → a paid Neon plan.
+- Emails landing in spam, or more than 100 a day → a paid Resend plan.
+- A second environment (staging) is wanted → paid Render, because the free instance-hour budget
+  covers one service.
+
+**Video is not affected.** Cloudflare R2 is Phase 5 at the earliest and is not part of this
+decision. R2 is plain object storage with no transcoding and no HLS packaging, which is exactly
+why `docs/06` chose Bunny Stream; Cloudflare's transcoding product is Stream, which is paid and
+priced per minute. See `docs/06-video-catalogue.md` §4.

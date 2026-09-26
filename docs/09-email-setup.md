@@ -1,44 +1,67 @@
 # Email setup
 
+Two delivery modes: `Console` for Development, `Resend` for production. There is no SMTP mode.
+Render blocks outbound ports 25, 465 and 587 on free web services, so an HTTPS provider API is
+the only option (ADR-017); MailKit and the SMTP sender were removed in phase 4.
+
 ## Local log delivery
 
-Email:Mode=Console is the default. It is allowed only in Development and logs the rendered email
-so the invitation link can be opened locally. Never publish these logs; they contain setup credentials.
+`Email:Mode=Console` is the default. It is allowed only in Development and logs the rendered email
+so the invitation link can be opened locally. Never publish these logs; they contain setup
+credentials.
 
-## Real SMTP delivery
+## Real delivery — the Resend API
 
-Set these keys using dotnet user-secrets for src/Mya.Api, or deployment configuration:
+Set these keys with `dotnet user-secrets` for `src/Mya.Api`, or as environment variables in the
+Render dashboard. Names only; values are never written into the repo, into docs, or into chat.
 
-| Key | Value |
-|---|---|
-| Email:Mode | Smtp |
-| Email:Host | Provider SMTP host |
-| Email:Port | 587 for STARTTLS, or provider's TLS port |
-| Email:Security | StartTls or SslOnConnect |
-| Email:User | Provider username |
-| Email:Password | SMTP password/API credential |
-| Email:From | Verified sender address |
-| Cors:AllowedOrigin | Exact frontend origin used in email links |
-| Platform:InvitationHours | 24 by default |
+| Key | Value | Secret |
+|---|---|---|
+| `Email:Mode` | `Resend` | no |
+| `Email:ApiKey` | API key created in Resend, with send permission | **yes** |
+| `Email:From` | verified sender, e.g. `Move Your Ass <noreply@moveyourass.gr>` | no |
+| `App:PublicOrigin` | exact frontend origin used in email links | no |
+| `Platform:InvitationHours` | 24 by default | no |
 
-No credentials belong in appsettings files or git. SMTP mode logs delivery metadata, retaining
-application logs while avoiding disclosure of the email body. It does not send a second console copy.
-The provider must allow the From identity. Production rejects console mode and incomplete SMTP settings.
+On Render the same keys use environment-variable spelling: `Email__Mode`, `Email__ApiKey`,
+`Email__From`, `App__PublicOrigin`.
 
-## Production provider
+Delivery is a single HTTPS POST to Resend's send endpoint with a bearer token. The sender logs
+delivery metadata only: never the body, the API key or a setup token. Production rejects console
+mode and refuses to start without an API key and a parseable `From` address.
 
-Production uses Brevo's free SMTP relay (ADR-016). `appsettings.Production.json` already sets
-Mode=Smtp, Host=smtp-relay.brevo.com, Port=587 and StartTls; App Service supplies User, Password
-and From. Account, sender verification, deliverability and the Gmail fallback are covered in
-docs/10-free-tier-production.md §3.
+## Idempotency
+
+Each send carries the outbox message Id in Resend's `Idempotency-Key` header. Outbox delivery is
+at-least-once by design: a crash between the provider accepting a message and the row being marked
+processed will retry the send. With the key, Resend replays the original response instead of
+sending a second copy.
+
+Resend retains a key for 24 hours. The outbox backs off 1m, 5m, 30m then 2h and dead-letters after
+five attempts, so the longest possible retry span is about two and a half hours, comfortably
+inside that window.
+
+## Sending domain
+
+The domain is added and verified in Resend, which generates per-domain SPF and DKIM records to
+publish in Cloudflare. **Leave those records DNS-only (grey cloud)** — Resend's documentation says
+a proxied CNAME prevents verification from completing. Setup steps are in
+`docs/10-production.md` §3.
+
+Free plan allowance is 100 emails per day and 3,000 per month, far beyond one trainer and tens of
+clients. Sending from a verified domain is what keeps messages out of spam; sending as a free
+mailbox through a third-party relay fails that domain's DMARC alignment.
 
 ## Verification
 
 Create a test client from the admin UI. The success notice means queued, not delivered. Watch
-outbox processing (the dispatcher wakes on commit; there is no polling interval), then verify the email arrives, its link opens the configured frontend, and
-password setup enables login. Reusing the link must fail. Resend must invalidate the earlier link.
-An SMTP failure leaves the account invited and retries through the outbox, then dead-letters after
-five attempts. Resend after fixing configuration if the message has expired or dead-lettered.
+outbox processing — the dispatcher wakes on commit, there is no polling interval — then verify the
+email arrives, its link opens the configured frontend, and password setup enables login. Reusing
+the link must fail. Resend must invalidate the earlier link.
 
-MailKit TLS/async SMTP API: https://mimekit.net/docs/html/T_MailKit_Net_Smtp_SmtpClient.htm
-Dependency: MailKit 4.18.0. No SMTP provider account or credentials are provisioned by this change.
+A provider failure leaves the account invited and retries through the outbox, then dead-letters
+after five attempts with the reason in `LastError`. Resend after fixing configuration if the
+message has expired or dead-lettered.
+
+Resend send endpoint and idempotency: https://resend.com/docs/api-reference/emails/send-email and
+https://resend.com/docs/dashboard/emails/idempotency-keys

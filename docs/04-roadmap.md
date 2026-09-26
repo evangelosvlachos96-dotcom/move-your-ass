@@ -11,8 +11,9 @@ feat/web-admin. Backend build, existing tests, Angular development build and lin
 were exercised. See docs/08-milestone-handover.md for the exact evidence and remaining checks.
 
 The owner committed this checkpoint and gave the green light on 2026-09-25. Current work is
-Phase 4 on `feature/prod-readiness`; see `docs/10-production-readiness.md`.
-Real SMTP delivery still needs credentials and inbox verification. Video implementation has not started.
+Phase 4 on `feature/prod-readiness`; see `docs/08-milestone-handover.md` for the current position
+and `docs/10-production.md` for the runbook.
+Real email delivery still needs provider setup and inbox verification. Video implementation has not started.
 
 ## Phase 1 — Foundation
 
@@ -20,12 +21,13 @@ Layered .NET projects, EF Core/Identity, migrations, seeder, Angular scaffold. I
 
 ## Phase 2 — Accounts and email backend
 
-Implementation complete at this checkpoint; live SMTP provider configuration remains Phase 4 work.
+Implementation complete at this checkpoint; live email provider configuration remains Phase 4 work.
 
 Registration with admin approval; password login, JWT/refresh/logout; profile and password changes;
 admin user management. Admin-created users are invited by email and cannot log in until they set
 their password using a single-use, expiring link. Resending invalidates previous links.
-Console and SMTP delivery share the transactional outbox. No login 2FA in this scope.
+Console and provider delivery share the transactional outbox. No login 2FA in this scope.
+The provider was SMTP at this checkpoint and became the Resend API in phase 4 (ADR-017).
 
 ## Phase 3 — Browser onboarding and administration
 
@@ -41,10 +43,24 @@ these checks. The owner reviews, commits and pushes this milestone before the ne
 
 ## Phase 4 — Deployment and real delivery verification (current)
 
-Provision/configure App Service, Azure SQL and Static Web Apps; migrations, HTTPS, CORS, production
-seeding, real SMTP credentials, domain and monitoring. Verify delivery to an actual inbox.
-Done when the trainer completes onboarding and logs in from her phone on the real URL.
-Complete this before video implementation.
+Move the stack from Azure to Render + Neon + Resend (ADR-017) and get it live on
+`https://moveyourass.gr`. Runbook: `docs/10-production.md`. Current position, always:
+`docs/08-milestone-handover.md` §"Current state".
+
+Four checkpoints, each reviewed and committed by the owner before the next starts:
+
+1. **Documentation and decision.** ADR-017, the merged runbook, and every doc that named Azure.
+2. **SQL Server to PostgreSQL.** Npgsql provider, one fresh `InitialCreate`, and every
+   provider-specific spot: the outbox claim query, UTC column types, duplicate-email detection,
+   case-insensitive search, filtered indexes and check constraints.
+3. **Resend email sender.** A typed `HttpClient` against Resend's send endpoint, with the outbox
+   message Id as the idempotency key. SMTP and MailKit are removed; Render free blocks the ports.
+4. **Container for Render.** Multi-stage Dockerfile, non-root, listening on Render's `PORT`,
+   forwarded headers, `App:PublicOrigin`, and CI that builds the image without pushing it.
+
+Then provision the environment by the runbook, apply migrations, seed the Admin and verify real
+delivery to an actual inbox. Done when the trainer completes onboarding and logs in from her phone
+on the real URL. Complete this before video implementation.
 
 ## Phase 5 — Video backend
 
@@ -92,5 +108,6 @@ Invited is enum value 4; existing persisted status values remain unchanged.
 ## Email events
 
 Self-registration → admin; approval/decline → client; admin create/resend → client password setup link.
-Default expiry is 24 hours. Development logs and configurable SMTP are supported; real delivery
-still requires provider credentials. See docs/09-email-setup.md.
+Default expiry is 24 hours. Development logs to the console and production sends through the
+Resend API; real delivery still requires a verified sending domain and an API key.
+See docs/09-email-setup.md.

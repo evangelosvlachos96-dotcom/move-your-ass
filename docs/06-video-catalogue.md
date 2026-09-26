@@ -152,8 +152,19 @@ What this costs you: a second vendor outside Azure, and playback URLs signed wit
 rather than an Azure SAS. The `IVideoStorage` abstraction from `docs/02` absorbs the difference.
 
 **If you insist on Azure-only:** Blob with plain MP4, no ladder, accepting that mobile playback
-will be rough. Do not build a server-side transcoder on App Service — an ffmpeg process will
-exhaust a B1 instance and block the request thread.
+will be rough. Do not build a server-side transcoder on the web host — an ffmpeg process will
+exhaust a small instance and block the request thread. This applies with more force on the current
+free Render instance, which has 512 MB of RAM and a tenth of a CPU.
+
+**On Cloudflare R2, deferred to phase 5.** Now that DNS is on Cloudflare, R2 looks tempting: 10 GB
+free, and egress is free at any volume. It does not replace Bunny Stream, because **R2 is plain
+object storage with no transcoding and no HLS packaging**. Choosing it would put the encoding
+problem straight back on the trainer, which is the exact assumption §4 above discarded. The
+Cloudflare product that transcodes is **Stream**, which is paid and priced per minute stored and
+per minute delivered. Revisit as a Bunny alternative in phase 5, comparing Stream against Bunny
+Stream on price and on signed-playback support — not R2 against Bunny. Serving video from R2
+through a custom domain is permitted; the old terms-of-service restriction on non-HTML content
+was removed and explicitly does not cover content hosted in R2, Images or Stream.
 
 ### Upload flow
 

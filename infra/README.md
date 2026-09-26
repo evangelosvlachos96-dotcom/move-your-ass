@@ -1,37 +1,64 @@
 # infra
 
-Deployment scripts for the Azure environment. Nothing here is committed with secrets — all
-parameter files ending in `.parameters.local.json` are gitignored.
+Deployment notes for the production environment. Nothing here is committed with secrets. The
+step-by-step runbook is `docs/10-production.md`; the decision behind it is ADR-017 in
+`docs/05-decisions.md`.
+
+There is no infrastructure-as-code. All four providers are configured through their dashboards,
+and Render deploys from its own Git integration rather than from a workflow. That is a deliberate
+trade for a one-service environment: a Bicep or Terraform equivalent would be more moving parts
+than the thing it describes. The runbook is the reproducibility mechanism, so keep it accurate.
 
 ## Resources
 
-Production runs on free tiers (ADR-016); the step-by-step runbook is
-`docs/10-free-tier-production.md`.
-
-| Resource | Production (launch) | Upgrade when a trigger in ADR-016 fires |
+| Resource | Production (launch) | Upgrade when an ADR-017 trigger fires |
 |---|---|---|
-| Resource group | `rg-mya-prod` | — |
-| App Service plan | **F1 Linux** (free) | B1 (Always On, custom domain) |
-| App Service (API + Angular in wwwroot) | `app-mya-prod` | — |
-| SQL server / database | `sql-mya-prod` / `sqldb-mya-prod`, **free offer**, auto-pause at limit | continue with charges |
-| Email | Brevo free SMTP (300/day) | authenticated domain / paid plan |
-| Static Web App | **not used** — the API serves the SPA (same origin) | — |
-| Key Vault | not used at launch; secrets in App Service settings | when a second environment exists |
-| Video provider (phase 5) | Private Bunny Stream library with protected playback | — |
+| Web service (API + Angular in wwwroot) | **Render free**, Docker, Frankfurt | Render Starter (always on, no pinger) |
+| Database | **Neon PostgreSQL** free, `aws-eu-central-1`, branch `production` | paid Neon plan |
+| Local database | Neon branch `dev` | — |
+| Email | **Resend** free, sender `noreply@moveyourass.gr` | paid Resend plan |
+| DNS | **Cloudflare**, `moveyourass.gr` | — |
+| Keep-alive and alerting | **UptimeRobot** free, 5-minute HTTP check on `/health` | dropped once on Render Starter |
+| Video provider (phase 5) | Bunny Stream, private library, protected playback | — |
+
+Nothing above is provisioned yet.
+
+## Settings the owner enters
+
+Names only. Values go into the Render dashboard or local user-secrets, never into this repo.
+
+| Setting | Where | Secret |
+|---|---|---|
+| `ASPNETCORE_ENVIRONMENT` | Render | no |
+| `ConnectionStrings__Default` | Render (Neon production **pooled** string) | **yes** |
+| `Jwt__SigningKey` | Render | **yes** |
+| `App__PublicOrigin` | Render | no |
+| `Email__Mode`, `Email__From` | Render | no |
+| `Email__ApiKey` | Render | **yes** |
+| `AUTOMAPPER_LICENSE_KEY` | Render | **yes** |
+| `ConnectionStrings:Default`, `Jwt:SigningKey`, `Seed:Admin*` | local user-secrets | **yes** |
+
+`Seed:*` is never set on Render. The first Admin is created by the one-shot `--seed-admin` command
+from the owner's machine, so that password never lives in a dashboard.
 
 ## Before the first production deploy
 
-- [ ] Budget alert configured in Cost Management (Azure has no hard spend cap)
-- [ ] SQL free offer applied, *auto-pause until next month* selected, free-amount alert set
-- [ ] SQL firewall: operator IP + App Service outbound IPs only
-- [ ] App settings from docs/10 §2 set; HTTPS Only on; no health check, no pingers
-- [ ] Brevo sender verified; invitation/approval email verified in a real inbox
-- [ ] Migrations applied (docs/10 §4); Admin seeded with `--seed-admin` (docs/10 §5)
-- [ ] `production` environment, publish-profile secret and `AZURE_WEBAPP_NAME` variable in GitHub
+- [ ] Cloudflare: apex CNAME to Render **DNS-only**, `www` CNAME **proxied**, no `AAAA` records
+- [ ] Cloudflare: redirect rule sending `www` to the apex with a 301
+- [ ] Neon: project in Frankfurt, branches `production` and `dev`, both connection strings noted
+- [ ] Resend: domain verified, records left unproxied, API key created
+- [ ] Render: Docker service, Frankfurt, free, health check path `/health`, env vars set
+- [ ] Render: custom domain `moveyourass.gr` added and its certificate issued
+- [ ] Migrations applied to the `production` branch using the **direct** string (docs/10 §5)
+- [ ] Admin seeded with `--seed-admin` against the **direct** string (docs/10 §6)
+- [ ] UptimeRobot monitor on `/health` every 5 minutes, alerting to an address the owner reads
+- [ ] Invitation and approval email verified in a real inbox, including spam placement
 - [ ] Trainer completes onboarding and logs in from her phone on the real URL
 - [ ] Phase 5: protected video playback and provider webhook validation
 
-## TODO
+## Recurring checks
 
-Bicep templates. Until then, provision via `az` CLI and record the commands here so the
-environment is reproducible.
+Weekly, because neither free tier warns before it stops:
+
+- [ ] Neon usage page: compute hours against the monthly allowance
+- [ ] Render metrics: instance hours, and no unexpected spin-downs

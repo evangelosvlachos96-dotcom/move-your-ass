@@ -3,31 +3,37 @@
 Anything that is a good idea but not in the current phase scope. Adding to this file is the
 correct response to "while we're here, could we also…".
 
-## Next verification tasks — checkpoint 2026-09-24
+## Next verification tasks — phase 4
 
-- Production Angular build rechecked on 2026-09-25 in the actual repository: passed with an
-  initial bundle of 554.96 kB, within the configured warning/error budgets. Previous working-copy
-  cache/memory failures did not reproduce; no source change was required.
-- Apply AccountInvitations migration to the intended local database; only the isolated verification
-  database has been migrated so far.
-- Configure real SMTP and verify delivery to an inbox; console delivery and invitation behavior passed.
-- Finish the browser/viewport regression matrix described in docs/08-milestone-handover.md.
-- Owner green light received on 2026-09-25; readiness work continues on `feature/prod-readiness`.
+Current position is `docs/08-milestone-handover.md` §"Current state"; this list is only the tail
+of work that outlives any one checkpoint.
+
+- Configure Resend and verify delivery to a real inbox, including spam placement. Console delivery
+  and the invitation flow already pass locally.
+- Finish the browser and viewport regression matrix in `docs/07-manual-test-checklist.md`,
+  especially password setup in the browser and the full mobile/desktop matrix.
+- Re-run the whole checklist against the deployed URL once the environment exists.
+- Measure the first request after an idle period on the real environment, and record it against
+  the ADR-017 upgrade trigger.
 
 ## Video (phases 5–6, see `docs/04-roadmap.md` and `docs/06-video-catalogue.md`)
 
 - `Video`, `Tag`, `VideoTag` entities and migrations
 - Bunny Stream adapter behind `IVideoStorage`, upload credentials endpoint, transcode webhook
+- Compare Cloudflare Stream against Bunny Stream on price and signed playback before building the
+  adapter. Not R2: R2 is plain storage with no transcoding, see `docs/06` §4
 - Filtered, paged client query; admin CRUD with confirmation modals
 - Player component; publish/unpublish toggle for admin
 - `Idempotency-Key` on video creation (the `IdempotencyRecord` table is kept for this)
 
-## Production upgrades (ADR-016 triggers, no code changes)
+## Production upgrades (ADR-017 triggers, no code changes)
 
-- App Service B1: Always On, custom domain + managed certificate
-- Authenticated sending domain in Brevo (SPF/DKIM/DMARC)
-- Key Vault references for secrets once a second environment exists
-- Bicep for the free-tier environment in docs/10
+- Render Starter: always on, which removes the spin-down and the UptimeRobot keep-alive
+- Paid Neon plan if compute hours approach the free allowance, which stops hard rather than throttling
+- Paid Resend plan beyond 100 emails/day
+- A staging environment, which needs paid Render: the free instance-hour budget covers one service
+- Automated usage alerting against Neon's consumption API, replacing the weekly manual check
+- Infrastructure-as-code for the environment, if the provider set ever grows past four dashboards
 
 ## Polish
 
