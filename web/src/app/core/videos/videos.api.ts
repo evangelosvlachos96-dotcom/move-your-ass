@@ -4,7 +4,8 @@ import {
   CreatedVideo,
   Playback,
   Tag,
-  UploadCredentials,
+  UploadRequest,
+  UploadTicket,
   Video,
   VideoInput,
   VideoPage,
@@ -22,16 +23,27 @@ export class VideosApi {
   tags(admin = false) {
     return this.api.get<Tag[]>(admin ? '/admin/tags' : '/videos/filters');
   }
-  create(input: VideoInput, key: string) {
-    return this.api.post<CreatedVideo>('/admin/videos', input, {
-      headers: { 'Idempotency-Key': key },
-    });
+  create(video: VideoInput, file: UploadRequest, key: string) {
+    return this.api.post<CreatedVideo>(
+      '/admin/videos',
+      { video, file },
+      { headers: { 'Idempotency-Key': key } },
+    );
   }
   update(id: string, input: VideoInput) {
     return this.api.put<void>('/admin/videos/' + id, input);
   }
-  upload(id: string) {
-    return this.api.post<UploadCredentials>('/admin/videos/' + id + '/upload');
+  upload(id: string, file: UploadRequest) {
+    return this.api.post<UploadTicket>('/admin/videos/' + id + '/upload', file);
+  }
+  completeUpload(id: string, thumbnailUploaded: boolean, durationSeconds: number | null) {
+    return this.api.post<void>('/admin/videos/' + id + '/upload/complete', {
+      thumbnailUploaded,
+      durationSeconds,
+    });
+  }
+  abortUpload(id: string) {
+    return this.api.post<void>('/admin/videos/' + id + '/upload/abort');
   }
   publish(video: Video) {
     return this.api.post<void>(

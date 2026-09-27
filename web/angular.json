@@ -61,8 +61,7 @@
                 "output": "assets"
               }
             ],
-            "styles": ["src/styles.scss"],
-            "allowedCommonJsDependencies": ["url-parse"]
+            "styles": ["src/styles.scss"]
           },
           "configurations": {
             "production": {

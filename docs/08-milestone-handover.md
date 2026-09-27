@@ -2,105 +2,202 @@
 
 # Current state
 
-Updated 2026-09-27. Branch: **feature/prod-readiness**. Last owner commit: **4fde1c5**
-("container for Render, video catalogue backend and dashboards"). Everything below is committed
-and pushed except the small UI patch described under "Since 4fde1c5".
+Updated 2026-09-27. Branch: **feature/b2-video-and-polish**, cut from `main` at **0100606**.
+Nothing on this branch is committed yet; the owner reviews and commits at each PART boundary.
 
-| Work | Status |
+**The app is live at https://moveyourass.gr.** An earlier version of this section said deployment
+had not started; that was stale. See "Production, as deployed" below.
+
+| Part | Status |
 |---|---|
-| Phase 4 checkpoint 1 | Documentation committed |
-| Checkpoint 2 | PostgreSQL committed; earlier 18 API checks passed on Neon dev |
-| Checkpoint 3 | Resend committed; owner confirmed receipt of admin notification |
-| Checkpoint 4 | Container/PORT/proxy/SPA/CI committed and locally verified |
-| Phase 5 | Video model, VideoCatalogue migration, APIs, Bunny adapter committed; no live Bunny test |
-| Phase 6 | Admin video dashboard and client library/player committed; browser-checked with fixtures |
-| Phase 7 | Guides in docs/11 and docs/12; real content and trainer handover require the owner |
-| Deployment | **Not started.** Next step, see below |
+| A — Backblaze B2 video | **Code and docs complete; awaiting owner review, commit, and live acceptance** |
+| B — cleanup (emails, Npgsql, AutoMapper, dead code) | Not started |
+| D — auth and robustness | Not started |
+| C — logo, navigation, responsive check | Not started |
 
-Final regression on the owner's machine at 4fde1c5: `dotnet build` clean, `dotnet test` 29/29,
-`npm run lint` clean, production `npm run build` succeeds. (An earlier build failure was only a
-still-running local Mya.Api process locking DLLs, not a code fault.)
+## Production, as deployed (owner-verified)
 
-### Since 4fde1c5
+- **Render**: Docker web service, Frankfurt, free plan, auto-deploy from `main`, health check `/health`.
+- **Domain**: `moveyourass.gr` and `www.moveyourass.gr` both verified on Render, certificate issued.
+  Cloudflare has `CNAME @` and `CNAME www`, both to the service's `onrender.com` hostname, both
+  **DNS only**. **Render performs the www redirect, so there is no Cloudflare redirect rule.**
+  docs/10 §1 used to describe one; it has been corrected to match what is deployed.
+- **Database**: production migrations applied to the Neon `production` branch with the direct string.
+- **Admin**: `--seed-admin` has been run; the trainer's Admin account exists and logs in on the
+  live site. Dashboard, users and videos pages load.
+- **Email**: `Email__From` on Render is currently the bare address `noreply@moveyourass.gr`
+  with no display name. Changing it to the display-name form is an owner step in FINAL.
+- **Keep-alive**: UptimeRobot is **not** used. The owner will create a cron-job.org job:
+  every 10 minutes, 06:00–23:00 Europe/Athens, `/health` only.
 
-- Admin video list: the reorder buttons now read "↑ Πάνω" / "↓ Κάτω" with a descriptive tooltip
-  and aria-label, instead of bare arrows.
-- Toolbar: on phones (≤599px) the profile icon is 36px, since the name is hidden there.
-- Verified: Angular lint, production build and the 3 frontend tests pass.
+### Two production gotchas, both already paid for once
 
-### Owner decisions pending
+- **`ASPNETCORE_ENVIRONMENT` is deliberately NOT set on Render.** A value in the dashboard
+  overrode the Dockerfile's and stopped `appsettings.Production.json` from loading. Leave it unset.
+- **`ConnectionStrings__Default` must be Npgsql `key=value` format, never a `postgres://` URL.**
+  The URL form produced HTTP 500 on login.
 
-- **Video provider account.** Bunny Stream (about $1/month minimum) is implemented but not
-  configured. The app deploys and runs with `Video__Bunny__Enabled=false`; the admin upload area
-  shows a disabled state until Bunny is configured per docs/11.
-- **Rotate the Resend API key** before deployment: a key was exposed in a terminal transcript
-  on 2026-09-26. Create a new key and use only the new one locally and on Render.
+### Security state
 
-## Exact next step
+- The production database password was reset after an exposure.
+- **The Resend API key has NOT been rotated and is still pending.** A key was exposed in a
+  terminal transcript on 2026-09-26.
 
-Owner: merge `feature/prod-readiness` into `main`, then follow docs/10-production.md sections
-4–8 in this order: create the Render service (it builds from `main`), apply migrations to the Neon
-production branch (direct string), run `--seed-admin`, add the custom domain on Render, add the
-Cloudflare records, create the UptimeRobot monitor, verify end to end. Video goes live later via
-docs/11 once a Bunny library exists.
+### Not verified in production
 
-## Verified
+A real invitation email end to end, public registration and approval on the live site, and any
+phone testing. No video has ever been uploaded in production.
 
-- Original container checks: non-root UID 1654, custom PORT, database-free health against an
-  unreachable database, SPA deep links, API 404, immutable bundles, uncached index, no production
-  CORS, and separate forwarded-IP rate-limit buckets. Image builds with Angular and API together.
-- Release build and 29 backend tests pass. New tests exercise draft privacy, active-user checks,
-  stale revisions, idempotent creation, normalized Greek tags, webhook signatures, malformed/replayed
-  events, provider failures and retryable deletion. SQLite handler tests do not prove PostgreSQL semantics.
-- VideoCatalogue migration applied to isolated PostgreSQL 17 database mya_video_check; EF reports
-  no pending model changes. Existing InitialCreate was preserved. No video migration applied to Neon.
-- 17 live API checks pass against that local PostgreSQL database (validation, filtering, tag
-  uniqueness, account approval, client/admin boundaries, disabled provider, unsigned webhook).
-- Angular lint, production build and three frontend tests pass. The TUS library's url-parse
-  CommonJS dependency is explicitly allowlisted; no general suppression of compiler warnings.
-- Browser: admin dashboard counts, video status list and metadata edit/save verified using
-  synthetic local records. Final browser and container pass remains the immediate next step.
-- Docker Desktop works; the old WSL/daemon blocker is resolved.
+## PART A progress
 
-## Not verified / owner setup
+**Decision: Bunny Stream is removed** (ADR-019, written in this part). Video is Backblaze B2
+through a provider-neutral S3-compatible adapter; Cloudflare R2 or MinIO would need only
+different configuration values. `Video:Provider` remains as an explicit seam and accepts only
+`S3`; any other value fails startup.
 
-- No Render deployment, production migration/seed, DNS cutover, UptimeRobot or phone verification.
-- Neon suspend/resume and client invitation inbox/browser completion remain unverified. The owner
-  confirmed Resend domain verification and actual receipt of an admin registration notification.
-- No Bunny account/library/credentials have been configured by this agent. Real phone upload,
-  transcoding, signed webhooks, protected playback and provider billing remain live acceptance tasks.
-  The adapter uses official Bunny contracts; mocks and local fixtures are not live provider evidence.
-- Video:Bunny:Enabled defaults false. Account features remain usable; uploads show a clear disabled state.
-- Local test video rows are synthetic UI fixtures, not real workouts or playable videos.
+### Done and verified locally
 
-## Exact next step
+- `IVideoStorage` replaced with an S3-shaped, provider-neutral contract
+  (`src/Mya.Application/Abstractions/Video/`). `VideoStorageException` is the single failure type
+  handlers catch, so no AWS type leaks out of Infrastructure.
+- `S3VideoStorage` (`src/Mya.Infrastructure/Video/`) on `AWSSDK.S3` 4.0.103.4, with
+  `ForcePathStyle`, `AuthenticationRegion`, and `RequestChecksumCalculation` /
+  `ResponseChecksumValidation` set to `WHEN_REQUIRED`.
+- **The multipart lifecycle is server-side.** The browser only PUTs parts to presigned URLs. The
+  API creates the upload, and on completion calls `ListParts` itself to collect the part ETags.
+  **The bucket therefore never has to expose `ETag` to script over CORS** — which matters,
+  because Backblaze does not document `ETag` as an allowed `exposeHeaders` value.
+- Presigned URLs follow the endpoint's scheme (`Protocol = Scheme`). Without this the SDK
+  presigns `https://` even for an `http://` endpoint, which breaks every local container test.
+- Upload flow: create (with declared content type and size) → presigned part URLs → browser
+  PUTs → `complete` → server completes the upload, **HEADs the object**, compares size and
+  content type against what was declared, and only then marks it `Ready`. A mismatch deletes the
+  object and marks the row `Failed`.
+- Resume is real, not session-only: the `UploadId` is persisted, so `POST {id}/upload` with the
+  same file returns the parts the provider already holds and re-presigns the rest. A different
+  file aborts the old upload first.
+- Storage cap enforced **before** any URL is issued, counting drafts, because a draft's parts
+  already occupy provider storage. Aborting or deleting a draft aborts its multipart upload.
+- Accepts `video/mp4` and `video/quicktime` only. New codes: `VIDEO_FILE_TYPE`,
+  `VIDEO_FILE_TOO_LARGE`, `VIDEO_STORAGE_FULL`, `VIDEO_UPLOAD_MISMATCH`.
+- Playback is a presigned GET with the configured lifetime, default 2 hours. **A presigned link
+  works for anyone holding it until it expires.** Accepted trade-off, recorded in ADR-019.
+- Thumbnail: one presigned PUT is handed out with the upload ticket; the browser may store a
+  captured frame there, and completion records it only if a HEAD confirms a plausible object
+  (larger than 0 and at most 2 MB). No frame means the branded placeholder.
+- Webhook removed: `VideoWebhookController`, the route `/api/webhooks/video-ready`, HMAC
+  verification and `OwnsLibrary` are gone. `Refresh` now re-derives state from a HEAD.
+- **Migration `20260926235417_VideoObjectStorage`** — purely additive, four nullable columns on
+  `Video`: `UploadId`, `SizeBytes`, `ContentType`, `ThumbnailObjectKey`. Not applied anywhere yet.
 
-Finish browser checks and final build/container regression, then update this section with final
-evidence. Give the owner one combined report and suggested commit message. Owner reviews/commits
-before deployment. Follow docs/10-production.md and docs/11-video-operations.md for live setup.
+### Angular
+
+- `tus-js-client` removed, and with it the `url-parse` CommonJS allowlist entry in `angular.json`.
+- `VideoUploadService` uploads one presigned part at a time with `XMLHttpRequest`: byte progress,
+  five attempts per part with backoff, pause, resume and cancel. **A dropped connection costs the
+  part in flight, not the recording.** Parts the server reports as already stored are skipped.
+- `captureFrame` reads a poster frame and the duration from the selected file with a `<video>`
+  and a canvas, capped at 640px and 8 seconds, returning nulls rather than throwing when the
+  browser cannot decode the recording.
+- `player.component.ts` plays a native `<video controls playsinline>` with `controlsList="nodownload"`.
+  The iframe and the `DomSanitizer.bypassSecurityTrustResourceUrl` call are gone.
+- Admin video screen: a **storage-used bar** against the cap with a warning band from 80%, the
+  file limit read from the API rather than hardcoded, and MP4/MOV-only file selection with Greek
+  messages that name the iPhone "Most Compatible" setting.
+- New Greek messages for every video error code in the error interceptor, keyed by `code`.
+- Cards get a presigned poster URL inline in the list response — presigning is a local signature,
+  so a page of twelve cards costs no extra request and no provider round trip.
+
+### Docs
+
+ADR-019 written; ADR-018 marked superseded with its surviving requirements listed; ADR-017 given
+a note that plain object storage is now the video choice. Rewritten or corrected: `docs/06` §3–6,
+`docs/11` (entirely — B2 account, bucket, scoped key, three ways to apply CORS, settings, free
+limits, the acceptance list, recovery), `docs/12` (iPhone "Most Compatible", 720p/1080p guidance
+with per-minute sizes, upload and resume behaviour, link-expiry wording), `docs/10` (**the
+Cloudflare redirect rule that does not exist**, the cron-job.org keep-alive with its night-gap
+trade-off, `Video__S3__*` env vars, the two production gotchas, the migration command as the
+ongoing upgrade path), plus `CLAUDE.md`, `README.md`, `docs/01`, `docs/04`, `infra/README.md`
+and `docs/backlog.md`.
+
+### Evidence
+
+`dotnet build -c Release`: **0 warnings, 0 errors**. `dotnet test -c Release`: **55 passed**
+(16 unit, 3 architecture, 36 integration), up from 29 on `main`. Angular: **lint clean**,
+**8 tests passed**, production build succeeds.
+
+Frontend tests cover the uploader directly against a stubbed `XMLHttpRequest`: one PUT per part
+with correct slice sizes, skipping parts the provider already holds, **retrying only the part
+that failed**, giving up after five attempts with the expired-link message, and stopping on
+pause. Timers are faked, so the retry schedule costs no wall-clock time (the suite went from 47s
+to under 4s).
+
+The adapter is covered against a **real S3 implementation** via Testcontainers
+(`S3VideoStorageMinioTests`, 7 tests): a two-part multipart round trip through presigned PUTs,
+`ListParts`, complete, HEAD, presigned GET including a **206 range request** (the native player
+needs it to seek), presigned PUT for the poster frame, abort, idempotent delete, and completing
+with no parts failing rather than creating an empty object. They run with the same checksum
+settings production uses.
+
+**MinIO's own `minio/minio` Docker Hub repository now requires authentication** and cannot be
+pulled anonymously, so the test uses `chainguard/minio:latest`, which is public and equivalent.
+
+### Not verified
+
+No Backblaze account, bucket, key or CORS rule has been touched by this agent. Nothing has been
+uploaded to B2. MinIO passing is evidence about the adapter, not about B2: B2's own handling of
+SDK checksum headers, path-style addressing and presigned part URLs is **unverified**, and that
+is exactly what the live acceptance run in docs/11 exists to prove.
+
+Also unverified: **no browser has run this code**. The upload flow, the poster-frame capture and
+the native player are covered by unit tests and by the adapter's container tests, not by a real
+page. The full browser pass happens in PART C, and the real-device pass is docs/11 §6.
+
+### Exact next step
+
+**Owner:** review and commit PART A. Then, when you want to run live acceptance:
+
+1. Create the Backblaze bucket, the bucket-scoped key and the CORS rule — docs/11 §1–3.
+2. Set the `Video:S3:*` user-secrets — the exact commands with placeholders are in docs/11 §4.
+3. Start the API against the Neon **dev** branch and upload a real phone recording, following
+   the docs/11 §6 list. Report anything B2 does differently from MinIO, especially a 400
+   mentioning `x-amz-checksum-…`, which would mean the checksum setting needs revisiting.
+
+**Agent, after that commit:** PART B — branded HTML and plain-text emails with a PNG logo
+generated from `web/src/assets/brand/logo-horizontal.svg`, the Npgsql GSSAPI log noise, the
+AutoMapper Community licence documentation, and removing the `MEDIATR_LICENSE_KEY` references
+(MediatR is not referenced anywhere; ADR-002 rejected it).
 
 ## Settings and boundaries
 
 | Setting | Where |
 |---|---|
 | ConnectionStrings:Default | local user-secrets: Neon dev pooled; direct override for migration/seed |
-| ConnectionStrings__Default | Render: production pooled; direct override for deliberate migrations |
+| ConnectionStrings__Default | Render: production pooled, **Npgsql key=value format, not a URL** |
 | Jwt:SigningKey, Jwt:Issuer, Jwt:Audience | user-secrets / Render environment |
 | Seed:AdminEmail, Seed:AdminPassword, Seed:AdminFirstName, Seed:AdminLastName | user-secrets / one-shot seed environment |
 | Email:Mode, Email:ApiKey, Email:From | user-secrets / Render environment |
-| App:PublicOrigin | user-secrets / App__PublicOrigin on Render; replaces Cors:AllowedOrigin |
-| Video:Bunny:Enabled, LibraryId, ApiKey, ReadOnlyApiKey, TokenKey, CdnHost | user-secrets / Video__Bunny__* on Render |
+| App:PublicOrigin | user-secrets / App__PublicOrigin on Render |
+| Video:Provider | `S3`; anything else fails startup |
+| Video:S3:Enabled | user-secrets / Video__S3__Enabled |
+| Video:S3:ServiceUrl | the bucket's B2 S3 endpoint; absolute HTTPS, no path |
+| Video:S3:Region | the region inside that endpoint hostname |
+| Video:S3:AccessKeyId, Video:S3:SecretAccessKey | **secret** — user-secrets / Render |
+| Video:S3:BucketName | user-secrets / Video__S3__BucketName |
+| Video:S3:MaxFileBytes | optional, default 2 GiB |
+| Video:S3:StorageCapBytes | optional, default 9 GiB, under B2's 10 GB free tier |
+| Video:S3:PartSizeBytes | optional, default 16 MiB |
+| Video:S3:PlaybackMinutes | optional, default 120 |
+| Video:S3:UploadMinutes | optional, default 360 |
 | PORT, RENDER | Render-provided platform environment |
+| ASPNETCORE_ENVIRONMENT | **do not set on Render** — see the gotcha above |
 
-Keep /health database-free, outbox event-driven, keepalive and EF retry strategies off. Console
-email is Development-only; real delivery logs metadata, never message credentials. Render proxy
-handling trusts only one forwarded hop when RENDER=true, assuming the service is reachable only
-through Render ingress. Actual Render headers still need empirical verification.
+No secret value appears in this repository, in these documents, or in any conversation.
 
-Creation reserves a unique creator/key before a provider call. An uncertain create response can
-leave an orphan provider asset; do not blindly retry remote creation. Reconcile in Bunny first.
-Deleting leaves an unpublished Deleting row on provider failure so an admin can retry safely.
-See docs/06 for concurrency, ordering, token expiry and idempotency boundaries.
+Keep `/health` database-free, the outbox event-driven, keepalive and EF retry strategies off.
+Console email is Development-only. Creation still reserves a unique creator/key before any
+provider call. Deleting leaves an unpublished `Deleting` row on provider failure so an admin can
+retry safely. See docs/06 for concurrency, ordering, link expiry and idempotency boundaries.
 
 # How to resume
 

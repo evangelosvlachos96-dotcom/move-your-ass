@@ -26,7 +26,7 @@ production, not a demo.
 | UI kit | Angular Material | matching Angular major |
 | Auth | ASP.NET Core Identity + JWT | — |
 | Email | Resend HTTPS API behind `IEmailSender` | — |
-| Video | Bunny Stream behind `IVideoStorage` | — |
+| Video | Backblaze B2 (S3-compatible) behind `IVideoStorage` | AWSSDK.S3 4.x |
 | Hosting | One Render web service (Docker) serving API + SPA | Frankfurt, free tier |
 | DNS | Cloudflare, `moveyourass.gr` | — |
 | Tests | xUnit / NSubstitute / Shouldly, Vitest / Testing Library | account, video, provider and architecture coverage |
@@ -93,10 +93,13 @@ production, not a demo.
 > how, the exact next step, and every open question. This section gives the shape; that file
 > gives the position.
 
-**Phase 4 — production readiness (started 2026-09-25)**, on `feature/prod-readiness`. The stack
-moved off Azure to Render + Neon + Resend (ADR-017). The work is sequenced as four checkpoints:
-documentation, SQL Server to PostgreSQL, the Resend email sender, and the container for Render.
-The runbook is `docs/10-production.md`. The owner has created the Neon project and branches and reports domain/Cloudflare setup; see docs/08 for verified status.
+**The app is live at `https://moveyourass.gr`** — Render (Docker, Frankfurt, free) serving the
+API and the Angular build, Neon PostgreSQL, Resend, Cloudflare DNS (ADR-017). Phase 4 is done;
+the runbook is `docs/10-production.md`.
+
+Current work is `feature/b2-video-and-polish`, in four parts: **A** Backblaze B2 video, **B**
+cleanup (branded emails, log noise, dead code), **D** authentication and robustness, **C** logo,
+navigation and a responsive pass. `docs/08` §"Current state" says which part is where.
 
 **Documentation-first handover is a standing rule.** Update `docs/08` at the end of every
 checkpoint and after every meaningful step inside one. A new agent must be able to continue from
@@ -110,6 +113,11 @@ Decisions still in force:
 - **ADR-013 — email 2FA deferred.** Password-only login. `TwoFactorTicket` stays in the schema,
   unused, so enabling 2FA later is code only.
 - **ADR-014 — test deferral superseded for this work.** The owner authorized automated backend and frontend tests on 2026-09-26. Keep the entire test suite green.
+- **ADR-019 — video is Backblaze B2 via a provider-neutral S3 adapter; Bunny Stream is removed.**
+  Plain object storage: no transcoding, no HLS, no provider player, **no webhook**. The browser
+  PUTs parts to presigned URLs; the multipart lifecycle is server-side, so the bucket never has
+  to expose `ETag` over CORS. Playback is a presigned GET that **works for anyone holding it
+  until it expires** — an accepted trade-off, not a bug. Only MP4 and MOV are accepted.
 - **`AppUser.FullName` is gone.** Users have `FirstName` and `LastName` (80 each, required) and a
   `MustChangePassword` bit. The seeded Admin's names come from `Seed:AdminFirstName/AdminLastName`.
 - **Booking is dropped.** Nothing in `docs/03` §5 applies. Booking items sit in `docs/backlog.md`
@@ -118,7 +126,7 @@ Decisions still in force:
 Admin creation now uses an Invited account and a single-use email password setup link (ADR-015).
 Console delivery is Development-only; Email:Mode=Resend enables real email with metadata logs.
 
-The owner authorized completing video phases 5–6 alongside checkpoint 4 on this branch. New unrelated work goes in docs/backlog.md.
+New unrelated work goes in `docs/backlog.md`.
 
 ## Conventions
 
@@ -176,7 +184,9 @@ Launch runs on free tiers (ADR-017), with named triggers for leaving them. Full 
 - **One Render free web service** serves the API and the Angular build on `https://moveyourass.gr`.
   Same origin, so the `SameSite=Strict` refresh cookie works and production needs no CORS.
 - **Neither Render free nor Neon free has an SLA.** Render spins a free service down after 15
-  minutes without traffic, so an UptimeRobot monitor calls `/health` every 5 minutes.
+  minutes without traffic, so a cron-job.org job calls `/health` every 10 minutes between 06:00
+  and 23:00 Europe/Athens. Nights are allowed to spin down, which saves instance-hours and costs
+  a slow first request each morning.
 - **Four code properties keep the free tier viable.** `/health` never touches the database, no
   background service polls the database, Npgsql `Keepalive` stays disabled, and EF connection
   resiliency stays off. Break any of them and Neon's compute allowance is gone in under a day.

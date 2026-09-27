@@ -7,8 +7,8 @@ video library. There is no booking or calendar feature.
 
 Angular SPA → ASP.NET Core JSON API → PostgreSQL (Neon).
 The transactional outbox dispatches email through the Resend HTTPS API, or to the local console.
-Future video uploads and playback go directly between the browser and Bunny Stream; the API
-authorizes access and issues short-lived provider credentials. Video bytes never cross the API.
+Video uploads and playback go directly between the browser and Backblaze B2; the API authorizes
+access and issues short-lived presigned URLs. Video bytes never cross the API.
 
 ## Environments
 
@@ -27,9 +27,15 @@ source control, in user-secrets locally and in the Render dashboard in productio
 
 ## Video decision
 
-Bunny Stream is planned for upload, managed transcoding and protected playback, behind IVideoStorage.
-The trainer can upload from a phone without manual encoding. See docs/06-video-catalogue.md for
-the taxonomy, filters, statuses and API design. Verify provider contracts during implementation.
+**Backblaze B2, through its S3-compatible API, behind `IVideoStorage` (ADR-019).** Plain object
+storage on a free tier that needs no card: no transcoding, no HLS, no provider player, no
+webhook. The browser uploads parts to presigned URLs and plays the original back from a
+presigned GET in a native `<video>` element. The adapter is provider-neutral — Cloudflare R2 or
+MinIO need only different configuration values.
+
+The cost of dropping transcoding is that the trainer's recording settings decide compatibility
+and file size, which docs/12 covers. See docs/06-video-catalogue.md for the taxonomy, filters,
+statuses and API design, and docs/11-video-operations.md for bucket setup and live acceptance.
 
 ## Operations
 

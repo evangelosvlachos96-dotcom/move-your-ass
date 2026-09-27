@@ -345,11 +345,24 @@ decision. R2 is plain object storage with no transcoding and no HLS packaging, w
 why `docs/06` chose Bunny Stream; Cloudflare's transcoding product is Stream, which is paid and
 priced per minute. See `docs/06-video-catalogue.md` §4.
 
+> **Overtaken by ADR-019.** Plain object storage is what video now uses, on Backblaze B2, and
+> the loss of transcoding and HLS is accepted rather than avoided. Nothing else in ADR-017
+> changes: video bytes still never pass through Render, and object storage is not on the
+> `/health` path, so the free-tier properties above are untouched.
+
 ## ADR-018 — Video implementation and verification (2026-09-26)
 
-Status: implemented locally, live provider setup pending. The owner authorized finishing video
-backend/UI and tests while away, without another branch or intermediate commit. This supersedes
-ADR-014's test deferral for this work and the roadmap's deployment-before-video sequencing.
+**Status: superseded by ADR-019 for the choice of provider.** Bunny Stream was never configured
+or paid for, and the adapter, its TUS upload client and its signed webhook are removed. The
+*requirements* below survive and are restated in ADR-019: direct browser-to-provider uploads, no
+bytes through Render, Ready-and-published-only client access, short-lived playback links,
+creation idempotency on `(CreatedByUserId, CreationKey)`, retryable deletion through an
+unpublished `Deleting` state, revision UUIDs for optimistic concurrency, and accent-normalised
+tags. The original text is kept below as the record. Its supersession of ADR-014's test deferral
+also still stands.
+
+The owner authorized finishing video backend/UI and tests while away, without another branch or
+intermediate commit.
 
 Choose Bunny Stream, following docs/06: browser-to-provider resumable TUS uploads, automatic
 transcoding, signed embedded playback and signed webhooks. R2 plain storage does not meet the
@@ -376,3 +389,107 @@ requires selecting the source file and restarting upload. No video bytes pass th
 Sources: [TUS uploads](https://bunny.net/docs/stream/tus-resumable-uploads),
 [token authentication](https://bunny.net/docs/stream/token-authentication),
 [signed webhooks](https://bunny.net/docs/stream/webhooks).
+
+---
+
+### ADR-019 — Backblaze B2 behind a provider-neutral S3 adapter; Bunny Stream removed (2026-09-27)
+
+**Status:** accepted. **Supersedes ADR-018's choice of provider.** The video *requirements* in
+ADR-018 — direct browser-to-provider uploads, no bytes through Render, published-and-ready-only
+client access, short-lived playback links, creation idempotency, retryable deletion — all stand.
+What changes is the provider and, because of that, what the product can promise.
+
+Video is stored in **Backblaze B2** through its **S3-compatible API**, reached with a generic
+S3 adapter. `Video:Provider` exists as an explicit seam and accepts only `S3`; **Cloudflare R2 or
+MinIO would work by changing `ServiceUrl`, `Region`, keys and bucket, with no code change.**
+
+**Why B2 and not Bunny.** Bunny Stream costs about $1/month minimum and needs a card. B2's free
+tier is 10 GB of storage with no card, which is what the owner chose. That decision is the whole
+of it; the rest of this ADR is the consequences.
+
+**What B2 does not give us, and what we do instead.**
+
+| Bunny Stream gave | B2 gives | What we do |
+|---|---|---|
+| Transcoding to several renditions | Nothing; the object is the file uploaded | The browser plays the trainer's original. Recording settings now matter, so docs/12 tells the trainer to use "Most Compatible" on iPhone and 720p/1080p |
+| HLS packaging and adaptive bitrate | A single file over HTTP range requests | A native `<video>` element. A client on a weak connection buffers instead of dropping to a lower rendition |
+| A hosted player with signed embeds | No player | Native controls, `controlsList="nodownload"`, `playsinline` |
+| A webhook when processing finishes | No events at all | There is nothing to process. The API completes the multipart upload, HEADs the object and marks it Ready in one request |
+| Signed embed tokens tied to a session | Presigned URLs | See "the playback trade-off" below |
+
+**Bunny is removed, not kept selectable.** Keeping both was considered and rejected. The old
+`IVideoStorage` was Bunny-shaped — `UploadCredentials(…, LibraryId, Signature, …)`,
+`VerifyWebhook`, `OwnsLibrary`, `RemoteVideo(int Status, …)` decoding Bunny's numeric states —
+so supporting both meant a union interface where half the members throw per provider, a webhook
+endpoint one provider never calls, two upload clients in Angular (`tus-js-client` and the
+multipart client), and two player modes. That is roughly double the video surface for a provider
+the owner has decided not to pay for. Re-adding a provider later is a new adapter behind the
+seam, not a rewrite.
+
+**The multipart lifecycle is server-side, and that is the load-bearing design choice.** The
+browser only ever PUTs a part to a presigned URL. The API calls `CreateMultipartUpload`, issues
+one presigned PUT per part, and on completion calls **`ListParts` itself** to read the part
+ETags before `CompleteMultipartUpload`.
+
+The alternative — the browser collecting ETags from its own PUT responses — requires the bucket
+to expose `ETag` to script via CORS. Backblaze's CORS documentation lists `exposeHeaders` but
+does not document `ETag` as a supported value, and its S3 CORS `allowedOperations` are limited
+to `s3_put`, `s3_get`, `s3_head` and `s3_delete`. Reading the ETags server-side removes that
+dependency entirely: the bucket only ever has to allow `s3_put` from the browser. It also means
+nothing the browser reports about the upload is trusted.
+
+**Verification replaces the webhook.** After completion the API HEADs the object and compares
+size and content type against what was declared at creation. A mismatch deletes the object and
+leaves the row `Failed`; only a match becomes `Ready`. `Refresh` re-derives state the same way.
+The `Processing` status survives in the enum — persisted integers must not shift — but is
+unreachable for S3.
+
+**Accepted: only MP4 and QuickTime.** Anything else is refused before a URL is issued, because
+without transcoding an unusual container is a file no client can play.
+
+**Accepted, the playback trade-off: a presigned link is shareable until it expires.** Playback
+is a presigned GET with a default two-hour lifetime. Anyone given that URL can fetch the file
+without signing in, until it expires. There is no per-session binding and no revocation: an
+already-issued link survives unpublishing and account suspension. This is weaker than Bunny's
+signed embeds and it is accepted, for the same reason ADR-018 accepted its own limit — this is
+access control for a private library, not DRM. Two hours is the balance between "long enough to
+watch a workout without the link dying mid-playback" and "short enough that a leaked URL rots".
+
+**Storage cap, enforced before presigning.** `Video:S3:StorageCapBytes` defaults to 9 GiB,
+under B2's 10 GB free tier. The check sums `SizeBytes` over **every** row including drafts,
+because a multipart upload's parts occupy provider storage from the moment they land. Aborting
+or deleting a draft aborts its multipart upload so those parts stop counting. The admin screen
+shows usage against the cap and warns from 80%.
+
+**Egress is the limit that is easier to hit than storage.** B2's free downloads are 3× average
+monthly stored data. At 9 GB stored that is about 27 GB a month, which a 200 MB workout watched
+135 times exhausts. Watch it in the Backblaze dashboard; see docs/11.
+
+**Checksums.** AWS SDK v4 attaches CRC checksums by default and several S3-compatible providers,
+B2 among them, have rejected those headers with HTTP 400. The adapter sets
+`RequestChecksumCalculation` and `ResponseChecksumValidation` to `WHEN_REQUIRED`. Backblaze is
+reported to have added support for these headers in July 2025, so this may now be unnecessary;
+it is kept because it costs nothing and keeps the adapter portable. **Unverified against B2.**
+
+**Path-style addressing** (`ForcePathStyle`) is used because B2 and MinIO both serve buckets
+under the endpoint path. B2's documentation does not state this either way — **unverified**
+until the live acceptance run.
+
+**Presigned URLs follow the endpoint's scheme.** The SDK presigns `https` regardless of the
+configured endpoint, which is wrong for a plain-HTTP container. Production is HTTPS-only and
+startup validation enforces it.
+
+**Cost.** No transcoding means the trainer's recording settings decide compatibility and size,
+and the guide has to say so. No adaptive bitrate means a weak connection buffers. A presigned
+link is shareable until expiry. Free storage is 10 GB and free egress is 3× stored, so the
+product has a real ceiling that the cap and the dashboard make visible rather than surprising.
+
+**Upgrade triggers:** storage consistently near the cap, or egress approaching 3× stored →
+a paid B2 plan, or Cloudflare R2, which has no egress charge and needs only new configuration
+values. Adaptive playback actually being needed → a transcoding provider, which is a new adapter.
+
+Sources: [B2 S3-compatible API](https://www.backblaze.com/docs/cloud-storage-s3-compatible-api),
+[S3-compatible API operations](https://www.backblaze.com/apidocs/introduction-to-the-s3-compatible-api),
+[B2 CORS rules](https://www.backblaze.com/docs/cloud-storage-cross-origin-resource-sharing-rules),
+[B2 pricing and free tier](https://www.backblaze.com/cloud-storage/pricing),
+[AWS SDK data-integrity settings](https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html).

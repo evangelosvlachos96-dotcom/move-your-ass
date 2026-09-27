@@ -17,14 +17,23 @@ of work that outlives any one checkpoint.
 
 ## Video live acceptance
 
-Backend and UI are implemented. Configure the Bunny library and run docs/11 live acceptance;
-then load trainer content and complete docs/12 handover. No real uploads or paid provisioning
-have been performed. Future improvements: automatic orphan reconciliation after uncertain remote
-creation, durable cross-browser upload resumption, and server-side global drag ordering.
+Backend and UI are implemented on Backblaze B2 (ADR-019). Create the bucket and key, apply the
+CORS rule, and run the docs/11 §6 acceptance list; then load trainer content and complete the
+docs/12 handover. No Backblaze resource has been created by an agent.
+
+Future improvements, none of them blocking:
+
+- A lifecycle rule or sweep for unfinished large files left by a crash mid-upload.
+- Dropping the now-unused `Video.ThumbnailUrl` column in a deliberate, owner-approved migration.
+- Server-side global drag ordering across pages, rather than adjacent moves on the visible page.
+- Transcoding, if 4K or HEVC uploads become a real problem rather than a documented instruction.
+- Cloudflare R2 instead of B2 if egress rather than storage becomes the binding limit; it is a
+  configuration change, not a code change.
 
 ## Production upgrades (ADR-017 triggers, no code changes)
 
-- Render Starter: always on, which removes the spin-down and the UptimeRobot keep-alive
+- Render Starter: always on, which removes the spin-down, the cron-job.org keep-alive and the
+  slow first request each morning
 - Paid Neon plan if compute hours approach the free allowance, which stops hard rather than throttling
 - Paid Resend plan beyond 100 emails/day
 - A staging environment, which needs paid Render: the free instance-hour budget covers one service

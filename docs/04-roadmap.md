@@ -13,7 +13,8 @@ were exercised. See docs/08-milestone-handover.md for the exact evidence and rem
 The owner committed this checkpoint and gave the green light on 2026-09-25. Current work is
 Phase 4 on `feature/prod-readiness`; see `docs/08-milestone-handover.md` for the current position
 and `docs/10-production.md` for the runbook.
-Resend admin notification receipt is confirmed. Video implementation is present; live Bunny verification and deployment remain.
+The app is deployed and live at https://moveyourass.gr. Video moved to Backblaze B2 (ADR-019);
+live video acceptance and real-inbox email verification remain. See docs/08.
 
 ## Phase 1 — Foundation
 
@@ -41,7 +42,7 @@ Done when the manual checklist passes for both account creation paths, invalid/e
 links, admin/client access boundaries and responsive screens. Build/lint are not a substitute for
 these checks. The owner reviews, commits and pushes this milestone before the next phase.
 
-## Phase 4 — Deployment and real delivery verification (current)
+## Phase 4 — Deployment and real delivery verification (done)
 
 Move the stack from Azure to Render + Neon + Resend (ADR-017) and get it live on
 `https://moveyourass.gr`. Runbook: `docs/10-production.md`. Current position, always:
@@ -64,11 +65,11 @@ on the real URL. The owner authorized video code work before live deployment; pr
 
 ## Phase 5 — Video backend
 
-Implemented; local automated/API verification passes. Live Bunny acceptance remains in docs/11.
+Implemented; local automated verification passes. Live Backblaze acceptance remains in docs/11.
 
-Video/Tag/VideoTag and migrations, admin CRUD, Bunny Stream adapter behind IVideoStorage,
-upload credentials, authenticated provider webhook, published/ready-only client query and playback.
-Idempotency for video creation. See docs/06-video-catalogue.md.
+Video/Tag/VideoTag and migrations, admin CRUD, an S3-compatible adapter behind IVideoStorage,
+presigned multipart upload URLs, HEAD-based completion instead of a webhook, published/ready-only
+client query and presigned playback. Idempotency for video creation. See docs/06-video-catalogue.md.
 
 ## Phase 6 — Video UI
 
@@ -80,6 +81,23 @@ cards, pagination and player. No fictional usage/progress metrics.
 ## Phase 7 — Content and handover
 
 Trainer uploads real workouts; onboard initial clients; transfer admin ownership and verify operations. The operator guide is docs/12-trainer-guide.md. Real content and operational sign-off remain owner/trainer work.
+
+## Phase 8 — B2 video, cleanup, auth robustness and UI (current)
+
+On `feature/b2-video-and-polish`, in four parts, each reviewed and committed separately.
+
+- **A — Backblaze B2 video (ADR-019).** Bunny Stream removed; a provider-neutral S3-compatible
+  adapter, presigned multipart uploads, HEAD verification instead of a webhook, a storage cap,
+  and presigned playback in a native player.
+- **B — cleanup.** Branded HTML and plain-text emails, the Npgsql GSSAPI log noise, the
+  AutoMapper Community licence, and dead references left by the provider change.
+- **D — authentication and robustness.** Two tabs on one device must stop logging each other
+  out while one-session-per-user stays the rule; forgotten-password recovery; safer lockout;
+  concurrency and double-submit coverage; encrypted weekly backups; index review.
+- **C — logo, navigation and a responsive pass** with Playwright at three viewports, last, so
+  the screenshots include everything above.
+
+Current position, always: `docs/08-milestone-handover.md` §"Current state".
 
 ## Account API
 

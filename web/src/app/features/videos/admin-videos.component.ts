@@ -9,17 +9,24 @@ import {
 import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import type { Upload } from 'tus-js-client';
 import { VideosApi } from '../../core/videos/videos.api';
-import { VideoUploadService } from '../../core/videos/video-upload.service';
 import {
+  UploadHandle,
+  VideoUploadService,
+  captureFrame,
+} from '../../core/videos/video-upload.service';
+import {
+  ACCEPTED_VIDEO_TYPES,
   Audience,
   BodyArea,
   STATUS_LABELS,
+  StorageUsage,
   Tag,
+  UploadTicket,
   Video,
   VideoInput,
   VideoPage,
+  sizeLabel,
 } from '../../core/videos/video.models';
 @Component({
   selector: 'app-admin-videos',
@@ -42,16 +49,13 @@ export class AdminVideosComponent implements OnDestroy {
   protected readonly paused = signal(false);
   protected readonly note = signal('');
   protected readonly configured = signal(false);
+  protected readonly storage = signal<StorageUsage | null>(null);
   protected readonly status = STATUS_LABELS;
+  protected readonly size = sizeLabel;
   protected search = '';
   protected pageNumber = 1;
   protected editing: Video | null = null;
   protected recovering = false;
-  protected recover(video: Video): void {
-    this.open(video);
-    this.recovering = true;
-    this.createdId = video.id;
-  }
   protected title = '';
   protected description = '';
   protected audience: Audience | '' = '';
@@ -62,17 +66,32 @@ export class AdminVideosComponent implements OnDestroy {
   protected file: File | null = null;
   private creationKey = crypto.randomUUID();
   private createdId: string | null = null;
-  private upload: Upload | null = null;
+  private upload: UploadHandle | null = null;
+
+  /** Percentage of the storage allowance in use, for the bar and its warning band. */
+  protected get storagePercent(): number {
+    const usage = this.storage();
+    return usage && usage.capBytes > 0
+      ? Math.min(100, Math.round((usage.usedBytes / usage.capBytes) * 100))
+      : 0;
+  }
+
+  protected get storageNearlyFull(): boolean {
+    return this.storagePercent >= 80;
+  }
+
   constructor() {
     void this.load();
     void this.loadTags();
-    this.api
-      .summary()
-      .subscribe({
-        next: (s) => this.configured.set(s.providerConfigured),
-        error: () => this.note.set('Δεν ήταν δυνατός ο έλεγχος μεταφόρτωσης.'),
-      });
+    void this.loadSummary();
   }
+
+  protected recover(video: Video): void {
+    this.open(video);
+    this.recovering = true;
+    this.createdId = video.id;
+  }
+
   protected async load(page = this.pageNumber): Promise<void> {
     this.pageNumber = page;
     this.loading.set(true);
@@ -87,6 +106,7 @@ export class AdminVideosComponent implements OnDestroy {
       this.loading.set(false);
     }
   }
+
   private async loadTags(): Promise<void> {
     try {
       this.tags.set(await firstValueFrom(this.api.tags(true)));
@@ -94,6 +114,17 @@ export class AdminVideosComponent implements OnDestroy {
       this.note.set('Δεν ήταν δυνατή η φόρτωση ετικετών.');
     }
   }
+
+  private async loadSummary(): Promise<void> {
+    try {
+      const summary = await firstValueFrom(this.api.summary());
+      this.configured.set(summary.providerConfigured);
+      this.storage.set(summary.storage);
+    } catch {
+      this.note.set('Δεν ήταν δυνατός ο έλεγχος μεταφόρτωσης.');
+    }
+  }
+
   protected open(video: Video | null = null): void {
     if (this.uploading() || this.paused()) return;
     this.recovering = false;
@@ -111,29 +142,40 @@ export class AdminVideosComponent implements OnDestroy {
     this.note.set('');
     this.editor.set(true);
   }
+
   protected close(): void {
     if (!this.uploading() && !this.paused() && !this.busy()) this.editor.set(false);
   }
+
   protected choose(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0] ?? null;
-    if (
-      file &&
-      ((!file.type.startsWith('video/') && !/\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(file.name)) ||
-        file.size > 5 * 1024 ** 3 ||
-        !file.size)
-    ) {
-      this.note.set('Επίλεξε αρχείο βίντεο έως 5 GB.');
-      this.file = null;
+    this.file = null;
+    if (!file) {
+      this.note.set('');
+      return;
+    }
+    // The same two rules the API enforces, said early so the trainer is not left waiting.
+    if (!(ACCEPTED_VIDEO_TYPES as readonly string[]).includes(file.type)) {
+      this.note.set(
+        'Δεκτά αρχεία: MP4 ή MOV. Στο iPhone επίλεξε Ρυθμίσεις → Κάμερα → Μορφές → «Μέγιστη συμβατότητα».',
+      );
+      return;
+    }
+    const limit = this.storage()?.maxFileBytes ?? 0;
+    if (!file.size || (limit > 0 && file.size > limit)) {
+      this.note.set(`Το αρχείο είναι πολύ μεγάλο. Όριο: ${sizeLabel(limit)}.`);
       return;
     }
     this.file = file;
     this.note.set('');
   }
+
   protected toggleTag(id: string): void {
     this.tagIds = this.tagIds.includes(id)
       ? this.tagIds.filter((x) => x !== id)
       : [...this.tagIds, id];
   }
+
   protected async addTag(): Promise<void> {
     if (!this.newTag.trim() || this.busy()) return;
     this.busy.set(true);
@@ -148,6 +190,7 @@ export class AdminVideosComponent implements OnDestroy {
       this.busy.set(false);
     }
   }
+
   protected async removeTag(tag: Tag): Promise<void> {
     if (tag.usageCount || !confirm('Διαγραφή της ετικέτας «' + tag.name + '»;')) return;
     try {
@@ -158,6 +201,7 @@ export class AdminVideosComponent implements OnDestroy {
       this.note.set('Η ετικέτα χρησιμοποιείται ή άλλαξε. Ανανέωσε τη λίστα.');
     }
   }
+
   protected async save(form: NgForm): Promise<void> {
     if (this.busy() || this.uploading() || this.paused()) return;
     if (
@@ -189,72 +233,125 @@ export class AdminVideosComponent implements OnDestroy {
         await this.load();
         return;
       }
+      const file = this.file!;
+      const request = { contentType: file.type, sizeBytes: file.size };
       if (this.editing && this.recovering) {
         await firstValueFrom(this.api.update(this.editing.id, input));
-        this.editing = await firstValueFrom(this.api.detail(this.editing.id, true));
       }
-      let credentials;
-      if (this.createdId) credentials = await firstValueFrom(this.api.upload(this.createdId));
+      let ticket;
+      if (this.createdId) ticket = await firstValueFrom(this.api.upload(this.createdId, request));
       else {
-        const result = await firstValueFrom(this.api.create(input, this.creationKey));
+        const result = await firstValueFrom(this.api.create(input, request, this.creationKey));
         this.createdId = result.id;
-        credentials = result.upload;
+        ticket = result.upload;
       }
-      if (!credentials) {
+      if (!ticket) {
         this.note.set('Το βίντεο έχει ήδη δημιουργηθεί. Ανανέωσε τη λίστα για την κατάστασή του.');
         await this.load();
         return;
       }
-      this.uploading.set(true);
-      this.progress.set(0);
-      this.upload = this.uploader.start(
-        this.file!,
-        this.title,
-        credentials,
-        (p) => this.progress.set(p),
-        () => {
-          this.uploading.set(false);
-          this.paused.set(false);
-          this.note.set(
-            'Το ανέβασμα ολοκληρώθηκε. Πάτησε «Έλεγχος» μέχρι να είναι έτοιμο και μετά δημοσίευσέ το.',
-          );
-          this.editor.set(false);
-          void this.load();
-        },
-        () => {
-          this.uploading.set(false);
-          this.paused.set(true);
-          this.note.set('Το ανέβασμα διακόπηκε. Πάτησε συνέχεια για επανάληψη.');
-        },
-      );
+      this.startUpload(file, ticket);
     } catch {
       this.note.set('Δεν ολοκληρώθηκε η ενέργεια. Ανανέωσε τη λίστα πριν αλλάξεις τα στοιχεία.');
     } finally {
       this.busy.set(false);
     }
   }
-  protected async pause(): Promise<void> {
-    if (this.upload) {
-      await this.upload.abort();
+
+  private startUpload(file: File, ticket: UploadTicket): void {
+    this.uploading.set(true);
+    this.paused.set(false);
+    this.progress.set(0);
+    this.upload = this.uploader.start(file, ticket, {
+      progress: (value) => this.progress.set(value),
+      done: () => void this.finish(file, ticket.thumbnailUploadUrl),
+      failed: (message) => {
+        this.uploading.set(false);
+        this.paused.set(true);
+        this.note.set(message);
+      },
+    });
+  }
+
+  /**
+   * The server completes and verifies the upload. A poster frame is best effort: a browser that
+   * cannot decode the recording simply sends none, and the library shows the placeholder.
+   */
+  private async finish(file: File, thumbnailUrl: string): Promise<void> {
+    const id = this.createdId!;
+    this.note.set('Ολοκλήρωση ανεβάσματος…');
+    let thumbnailUploaded = false;
+    let duration: number | null = null;
+    try {
+      const captured = await captureFrame(file);
+      duration = captured.duration;
+      if (captured.frame) {
+        thumbnailUploaded = await this.uploader.uploadThumbnail(thumbnailUrl, captured.frame);
+      }
+    } catch {
+      thumbnailUploaded = false;
+    }
+    try {
+      await firstValueFrom(this.api.completeUpload(id, thumbnailUploaded, duration));
+      this.uploading.set(false);
+      this.paused.set(false);
+      this.upload = null;
+      this.note.set('Το βίντεο ανέβηκε. Κάνε προεπισκόπηση και μετά δημοσίευσέ το.');
+      this.editor.set(false);
+    } catch {
       this.uploading.set(false);
       this.paused.set(true);
+      this.note.set('Το ανέβασμα δεν επιβεβαιώθηκε. Πάτησε «Συνέχεια» για νέα προσπάθεια.');
     }
+    await this.load();
+    await this.loadSummary();
   }
-  protected resume(): void {
-    if (this.upload) {
+
+  protected pause(): void {
+    this.upload?.pause();
+    this.upload = null;
+    this.uploading.set(false);
+    this.paused.set(true);
+    this.note.set('Σε παύση. Πάτησε «Συνέχεια» για να συνεχίσει από εκεί που έμεινε.');
+  }
+
+  /** Resume asks the API for a fresh ticket, so it also survives an expired part URL. */
+  protected async resume(): Promise<void> {
+    if (!this.file || !this.createdId || this.busy()) return;
+    this.busy.set(true);
+    this.note.set('');
+    try {
+      const ticket = await firstValueFrom(
+        this.api.upload(this.createdId, { contentType: this.file.type, sizeBytes: this.file.size }),
+      );
       this.paused.set(false);
-      this.uploading.set(true);
-      this.upload.start();
+      this.startUpload(this.file, ticket);
+    } catch {
+      this.note.set('Δεν ήταν δυνατή η συνέχιση. Ανανέωσε τη λίστα και δοκίμασε ξανά.');
+    } finally {
+      this.busy.set(false);
     }
   }
+
   protected async cancelUpload(): Promise<void> {
     if (!confirm('Διακοπή ανεβάσματος; Το πρόχειρο βίντεο θα παραμείνει στη λίστα.')) return;
-    await this.upload?.abort();
+    this.upload?.cancel();
+    this.upload = null;
     this.uploading.set(false);
     this.paused.set(false);
     this.editor.set(false);
+    if (this.createdId) {
+      // Abandon the multipart upload so its parts stop using the storage allowance.
+      try {
+        await firstValueFrom(this.api.abortUpload(this.createdId));
+      } catch {
+        this.note.set('Το ανέβασμα σταμάτησε, αλλά το πρόχειρο χρειάζεται έλεγχο.');
+      }
+    }
     await this.load();
+    await this.loadSummary();
   }
+
   protected async action(video: Video, action: 'publish' | 'delete' | 'refresh'): Promise<void> {
     if (this.busy() || this.uploading() || this.paused()) return;
     if (
@@ -278,12 +375,14 @@ export class AdminVideosComponent implements OnDestroy {
       );
       await this.load();
       await this.loadTags();
+      await this.loadSummary();
     } catch {
       this.note.set('Η ενέργεια δεν ολοκληρώθηκε. Ανανέωσε για να δεις την τρέχουσα κατάσταση.');
     } finally {
       this.busy.set(false);
     }
   }
+
   protected async move(video: Video, direction: number): Promise<void> {
     const items = this.page()?.items ?? [];
     const index = items.findIndex((x) => x.id === video.id);
@@ -309,16 +408,19 @@ export class AdminVideosComponent implements OnDestroy {
       this.busy.set(false);
     }
   }
+
   canLeave(): boolean {
     return (
       (!this.uploading() && !this.paused()) ||
       confirm('Υπάρχει ημιτελές ανέβασμα. Θέλεις να φύγεις;')
     );
   }
+
   @HostListener('window:beforeunload', ['$event']) protected warn(event: BeforeUnloadEvent): void {
     if (this.uploading() || this.paused()) event.preventDefault();
   }
+
   ngOnDestroy(): void {
-    void this.upload?.abort();
+    this.upload?.cancel();
   }
 }

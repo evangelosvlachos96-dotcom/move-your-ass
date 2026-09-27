@@ -173,10 +173,49 @@ button.selected {
 }
 .player {
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 16/9;
   border: 0;
   border-radius: 12px;
-  background: var(--brand-bg);
+  background: #000;
+  display: block;
+}
+
+// Storage allowance. The bar turns to the warning colour near the cap, and the text says the
+// numbers as well, so the state does not depend on colour alone.
+.storage {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: var(--brand-surface);
+}
+.storage__text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+.storage__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--brand-surface-2);
+  overflow: hidden;
+}
+.storage__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--brand-accent);
+  transition: width 0.2s ease;
+}
+.storage--warning {
+  border-color: var(--brand-danger);
+}
+.storage--warning .storage__bar > span {
+  background: var(--brand-danger);
 }
 .description {
   white-space: pre-wrap;

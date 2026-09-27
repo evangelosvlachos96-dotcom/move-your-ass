@@ -108,6 +108,20 @@ function messageFor(error: HttpErrorResponse): string {
       return 'Απαιτείται σύνδεση.';
     case ErrorCodes.UserNotFound:
       return 'Ο χρήστης δεν βρέθηκε.';
+    case 'VIDEO_FILE_TYPE':
+      return 'Δεκτά αρχεία: MP4 ή MOV. Στο iPhone επίλεξε Ρυθμίσεις → Κάμερα → Μορφές → «Μέγιστη συμβατότητα».';
+    case 'VIDEO_FILE_TOO_LARGE':
+      return 'Το αρχείο είναι μεγαλύτερο από το επιτρεπόμενο όριο.';
+    case 'VIDEO_STORAGE_FULL':
+      return 'Ο αποθηκευτικός χώρος είναι γεμάτος. Διέγραψε παλιές προπονήσεις και δοκίμασε ξανά.';
+    case 'VIDEO_UPLOAD_MISMATCH':
+      return 'Το αρχείο που ανέβηκε δεν ταιριάζει με αυτό που επιλέχθηκε. Δοκίμασε νέο ανέβασμα.';
+    case 'VIDEO_PROVIDER_UNAVAILABLE':
+      return 'Ο αποθηκευτικός χώρος βίντεο δεν είναι διαθέσιμος αυτή τη στιγμή. Δοκίμασε ξανά σε λίγο.';
+    case 'VIDEO_CONFLICT':
+      return 'Το βίντεο άλλαξε στο μεταξύ. Ανανέωσε τη λίστα πριν δοκιμάσεις ξανά.';
+    case 'VIDEO_NOT_FOUND':
+      return 'Το βίντεο δεν βρέθηκε.';
     case ErrorCodes.UserNotPending:
     case ErrorCodes.CannotDeleteSelf:
     case ErrorCodes.CannotModifySelf:

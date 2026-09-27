@@ -13,6 +13,8 @@ using Mya.Infrastructure.Notifications;
 using Mya.Infrastructure.Persistence;
 using Mya.Infrastructure.Persistence.Interceptors;
 using Mya.Infrastructure.Persistence.Seed;
+using Mya.Infrastructure.Storage;
+using Mya.Application.Abstractions.Media;
 
 namespace Mya.Infrastructure;
 
@@ -109,20 +111,60 @@ public static class DependencyInjection
             services.AddSingleton<IEmailSender, ConsoleEmailSender>();
         }
 
-        services.AddOptions<Mya.Infrastructure.Streaming.BunnySettings>()
-            .Bind(configuration.GetSection("Video:Bunny"))
-            .Validate(s => !s.Enabled || (s.LibraryId > 0 && !string.IsNullOrWhiteSpace(s.ApiKey)
-                && !string.IsNullOrWhiteSpace(s.ReadOnlyApiKey) && !string.IsNullOrWhiteSpace(s.TokenKey)
-                && Uri.CheckHostName(s.CdnHost) == UriHostNameType.Dns && s.CdnHost.EndsWith(".b-cdn.net", StringComparison.OrdinalIgnoreCase)),
-                "Enabled Bunny Stream requires LibraryId, ApiKey, ReadOnlyApiKey, TokenKey and a b-cdn.net CdnHost.")
-            .ValidateOnStart();
-        services.AddHttpClient<Mya.Application.Abstractions.Media.IVideoStorage, Mya.Infrastructure.Streaming.BunnyVideoStorage>(client =>
-            client.Timeout = TimeSpan.FromSeconds(30))
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        AddVideoStorage(services, configuration);
 
         services.AddHostedService<OutboxDispatcher>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Video object storage (ADR-019). <c>Video:Provider</c> exists so the seam stays explicit;
+    /// S3-compatible is the only implementation, and Backblaze B2, Cloudflare R2 and MinIO differ
+    /// by configuration alone. An unknown provider name fails startup rather than silently
+    /// disabling uploads.
+    /// </summary>
+    private static void AddVideoStorage(IServiceCollection services, IConfiguration configuration)
+    {
+        var provider = configuration["Video:Provider"];
+        if (!string.IsNullOrWhiteSpace(provider)
+            && !string.Equals(provider, "S3", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Video:Provider '{provider}' is not supported. The only value is 'S3' (ADR-019).");
+        }
+
+        services.AddOptions<S3VideoSettings>()
+            .Bind(configuration.GetSection("Video:S3"))
+            .Validate(
+                s => !s.Enabled || (
+                    Uri.TryCreate(s.ServiceUrl, UriKind.Absolute, out var url)
+                    && url.Scheme == Uri.UriSchemeHttps
+                    && url.AbsolutePath == "/"
+                    && string.IsNullOrEmpty(url.Query)
+                    && string.IsNullOrEmpty(url.UserInfo)),
+                "Video:S3:ServiceUrl must be an absolute HTTPS endpoint without a path, query or credentials.")
+            .Validate(
+                s => !s.Enabled || (!string.IsNullOrWhiteSpace(s.Region)
+                    && !string.IsNullOrWhiteSpace(s.BucketName)
+                    && !string.IsNullOrWhiteSpace(s.AccessKeyId)
+                    && !string.IsNullOrWhiteSpace(s.SecretAccessKey)),
+                "Enabled S3 video storage requires Region, BucketName, AccessKeyId and SecretAccessKey.")
+            .Validate(
+                s => !s.Enabled || (s.PartSizeBytes >= S3VideoSettings.MinimumPartSize
+                    && s.PartSizeBytes <= S3VideoSettings.MaximumPartSize),
+                "Video:S3:PartSizeBytes must be between 5 MiB and 5 GiB, which every S3 implementation requires.")
+            .Validate(
+                s => !s.Enabled || (s.MaxFileBytes > 0
+                    && s.MaxFileBytes <= s.StorageCapBytes
+                    && s.MaxFileBytes <= s.PartSizeBytes * S3VideoSettings.MaximumParts),
+                "Video:S3:MaxFileBytes must be positive, no larger than StorageCapBytes, and reachable in 10,000 parts.")
+            .Validate(
+                s => !s.Enabled || (s.PlaybackMinutes is > 0 and <= 720 && s.UploadMinutes is > 0 and <= 10080),
+                "Video:S3:PlaybackMinutes must be 1-720 and UploadMinutes 1-10080 (the SigV4 presign maximum).")
+            .ValidateOnStart();
+
+        services.AddSingleton<IVideoStorage, S3VideoStorage>();
     }
 
     /// <summary>
