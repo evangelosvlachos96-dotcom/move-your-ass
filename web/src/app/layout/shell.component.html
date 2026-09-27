@@ -1,54 +1,54 @@
-<mat-sidenav-container class="shell">
-  @if (!forced()) {
-    <mat-sidenav
-      class="shell__nav"
-      [mode]="isWide() ? 'side' : 'over'"
-      [opened]="isWide() || drawerOpen()"
-      (closedStart)="drawerOpen.set(false)"
-    >
-      <nav aria-label="Κύρια πλοήγηση">
-        <mat-nav-list>
-          @for (item of navItems(); track item.link) {
-            <a
-              mat-list-item
-              [routerLink]="item.link"
-              routerLinkActive="shell__nav-item--active"
-              ariaCurrentWhenActive="page"
-              (click)="closeDrawerIfNarrow()"
-            >
-              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-              <span matListItemTitle>{{ item.label }} @if (item.link === '/admin/users' && pending.count()) { ({{ pending.count() }}) }</span>
-            </a>
-          }
-        </mat-nav-list>
+<div class="shell" [class.shell--forced]="forced()">
+  @if (!forced() && !isPhone()) {
+    <!-- Sidebar and top bar share one surface and one border, so they read as a single frame.
+         The logo sits at the top of the sidebar, on the nav items' left edge. -->
+    <aside class="shell__sidebar">
+      <a class="shell__brand" routerLink="/dashboard" aria-label="Move Your Ass — αρχική">
+        <app-brand-logo />
+      </a>
+      <nav class="shell__nav" aria-label="Κύρια πλοήγηση">
+        @for (item of navItems(); track item.link) {
+          <a
+            class="shell__nav-item"
+            [routerLink]="item.link"
+            routerLinkActive="shell__nav-item--active"
+            ariaCurrentWhenActive="page"
+          >
+            <mat-icon class="shell__nav-icon">{{ item.icon }}</mat-icon>
+            <span class="shell__nav-label">{{ item.label }}</span>
+            @if (item.link === '/admin/users' && pending.count()) {
+              <span class="shell__badge" [attr.aria-label]="pending.count() + ' εκκρεμείς εγγραφές'">
+                {{ pending.count() }}
+              </span>
+            }
+          </a>
+        }
       </nav>
-    </mat-sidenav>
+    </aside>
   }
 
-  <mat-sidenav-content class="shell__body">
-    <mat-toolbar class="shell__toolbar">
-      @if (!isWide() && !forced()) {
-        <button matIconButton type="button" (click)="toggleDrawer()" aria-label="Μενού">
-          <mat-icon>menu</mat-icon>
-        </button>
-      }
-
-      @if (forced()) {
-        <span class="shell__logo">
-          <img class="shell__logo-img" src="assets/brand/logo-horizontal.svg" alt="MoveYourAss" width="170" height="36" />
-        </span>
+  <div class="shell__main">
+    <header class="shell__topbar">
+      @if (isPhone() || forced()) {
+        @if (forced()) {
+          <span class="shell__brand shell__brand--phone"><app-brand-logo [compact]="true" /></span>
+        } @else {
+          <a class="shell__brand shell__brand--phone" routerLink="/dashboard" aria-label="Move Your Ass — αρχική">
+            <app-brand-logo [compact]="true" />
+          </a>
+        }
       } @else {
-        <a class="shell__logo" routerLink="/dashboard" aria-label="Αρχική">
-          <img class="shell__logo-img" src="assets/brand/logo-horizontal.svg" alt="MoveYourAss" width="170" height="36" />
-        </a>
+        <h1 class="shell__title">{{ pageTitle() }}</h1>
       }
 
-      <span class="shell__spacer"></span>
-
-      <button matButton type="button" class="shell__user" [matMenuTriggerFor]="userMenu" aria-label="Μενού χρήστη">
-        <mat-icon>account_circle</mat-icon>
-        <span class="shell__user-name">{{ store.fullName() }}</span>
-        <mat-icon>expand_more</mat-icon>
+      <button
+        matIconButton
+        type="button"
+        class="shell__user"
+        [matMenuTriggerFor]="userMenu"
+        aria-label="Μενού χρήστη"
+      >
+        <mat-icon class="shell__user-icon">account_circle</mat-icon>
       </button>
 
       <mat-menu #userMenu="matMenu" xPosition="before">
@@ -72,10 +72,34 @@
           <span>Αποσύνδεση</span>
         </button>
       </mat-menu>
-    </mat-toolbar>
+    </header>
 
     <main class="shell__content">
       <router-outlet />
     </main>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+  </div>
+
+  @if (!forced() && isPhone()) {
+    <!-- Bottom navigation, within thumb reach and clear of the home indicator. No hamburger. -->
+    <nav class="shell__bottom" aria-label="Κύρια πλοήγηση">
+      @for (item of navItems(); track item.link) {
+        <a
+          class="shell__bottom-item"
+          [routerLink]="item.link"
+          routerLinkActive="shell__bottom-item--active"
+          ariaCurrentWhenActive="page"
+        >
+          <span class="shell__bottom-icon">
+            <mat-icon>{{ item.icon }}</mat-icon>
+            @if (item.link === '/admin/users' && pending.count()) {
+              <span class="shell__badge shell__badge--dot" [attr.aria-label]="pending.count() + ' εκκρεμείς εγγραφές'">
+                {{ pending.count() }}
+              </span>
+            }
+          </span>
+          <span class="shell__bottom-label">{{ item.short }}</span>
+        </a>
+      }
+    </nav>
+  }
+</div>

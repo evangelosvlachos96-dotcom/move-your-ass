@@ -7,7 +7,7 @@ public static class Policies
 
 public static class RateLimitPolicies
 {
-    /// <summary>5 attempts per email per 15 minutes on login and register (docs/03 section 4.2).</summary>
+    /// <summary>5 attempts per (email, IP) per 15 minutes on the credential endpoints.</summary>
     public const string AuthPerEmail = "auth-per-email";
 }
 

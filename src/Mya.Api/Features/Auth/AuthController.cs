@@ -5,6 +5,7 @@ using Mya.Api.Authorization;
 using Mya.Api.Extensions;
 using Mya.Application.Features.Auth.ChangePassword;
 using Mya.Application.Features.Auth.AcceptInvitation;
+using Mya.Application.Features.Auth.ForgotPassword;
 using Mya.Application.Features.Auth.Login;
 using Mya.Application.Features.Auth.Logout;
 using Mya.Application.Features.Auth.Me;
@@ -24,13 +25,31 @@ public sealed class AuthController(
     GetMeHandler me,
     ChangePasswordHandler changePassword,
     UpdateProfileHandler updateProfile,
-    LogoutHandler logout) : ControllerBase
+    LogoutHandler logout,
+    ForgotPasswordHandler forgotPassword,
+    ResetPasswordHandler resetPassword) : ControllerBase
 {
     [HttpPost("accept-invitation")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.AuthPerEmail)]
     public async Task<IActionResult> AcceptInvitation(AcceptInvitationCommand command, CancellationToken ct) =>
         (await acceptInvitation.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+
+    /// <summary>
+    /// Always 204, whether or not the address exists: anything else is an enumeration oracle.
+    /// Rate-limited per email like login, which is what actually stops someone probing.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.AuthPerEmail)]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordCommand command, CancellationToken ct) =>
+        (await forgotPassword.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.AuthPerEmail)]
+    public async Task<IActionResult> ResetPassword(ResetPasswordCommand command, CancellationToken ct) =>
+        (await resetPassword.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
 
     [HttpPost("register")]
     [AllowAnonymous]
@@ -53,7 +72,13 @@ public sealed class AuthController(
     public async Task<IActionResult> Refresh(CancellationToken ct) =>
         (await refresh.Handle(new RefreshCommand(Request.Cookies[RefreshCookie.Name]), ct)).ToActionResult(HttpContext, result =>
         {
-            RefreshCookie.Set(Response, result.RefreshToken, result.RefreshTokenExpiresAtUtc);
+            // No new token means another tab on this device rotated first; the browser already
+            // holds the newer cookie, so overwriting it here would replace it with nothing.
+            if (result.RefreshToken is { } token && result.RefreshTokenExpiresAtUtc is { } expires)
+            {
+                RefreshCookie.Set(Response, token, expires);
+            }
+
             return Ok(new RefreshResponse(result.AccessToken, result.ExpiresIn));
         });
 

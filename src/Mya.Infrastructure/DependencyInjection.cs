@@ -61,6 +61,21 @@ public static class DependencyInjection
                 database.ConnectionIdleLifetime = 240;
             }
 
+            // Npgsql 10 defaults GssEncryptionMode to Prefer, so it attempts Kerberos on every
+            // connection. Microsoft's .NET runtime images have not shipped libkrb5 since .NET 8,
+            // so each attempt fails and logs "Cannot load library libgssapi_krb5.so.2" — and the
+            // failure is an exception per connection, not just a line of noise.
+            //
+            // Disabled here rather than by installing libgssapi-krb5-2 in the image: Neon is
+            // reached over TLS with password authentication and there is no Kerberos realm
+            // anywhere in this system, so the library would be a dependency we ship, patch and
+            // never use. Set in code rather than in the connection string so it cannot be lost
+            // when the owner rotates the Neon credential.
+            if (!database.ShouldSerialize("GSS Encryption Mode"))
+            {
+                database.GssEncryptionMode = GssEncryptionMode.Disable;
+            }
+
             options.UseNpgsql(database.ConnectionString)
                 .AddInterceptors(
                     serviceProvider.GetRequiredService<OutboxSaveChangesInterceptor>(),

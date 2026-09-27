@@ -25,7 +25,17 @@ public sealed class S3VideoStorageMinioTests : IAsyncLifetime
 
     // MinIO's own Docker Hub repository now requires authentication, so CI and a clean laptop
     // cannot pull minio/minio anonymously. Chainguard publishes an equivalent public build.
-    private const string MinioImage = "chainguard/minio:latest";
+    //
+    // Pinned by digest, not by tag: Chainguard's free tier publishes only :latest, which moves,
+    // and a moving image means these tests can change behaviour without a commit. This digest is
+    // MinIO RELEASE.2026-09-22T19-25-18Z.
+    //
+    // Chainguard prunes old free digests after roughly a month, so when this stops pulling the
+    // fix is to run `docker pull chainguard/minio:latest`, read the new digest from
+    // `docker image inspect chainguard/minio:latest --format '{{index .RepoDigests 0}}'`, and
+    // update the line below. A pull failure here is image rotation, not a code regression.
+    private const string MinioImage =
+        "chainguard/minio@sha256:bd014394a80898e68c149f2311fdf8d5a2c2f3bb2c33b9327ae6d02b4b065ae1";
 
     private readonly MinioContainer _minio = new MinioBuilder(MinioImage).Build();
     private static readonly HttpClient Browser = new();

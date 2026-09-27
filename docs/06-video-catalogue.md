@@ -92,7 +92,8 @@ The additive `VideoObjectStorage` migration adds four nullable columns for S3 st
 the storage cap, `ContentType`, and `ThumbnailObjectKey` (200). `ExternalId` now holds the
 object key rather than a provider asset ID, and its unique index still prevents two rows claiming
 the same object. **`ThumbnailUrl` is left unused** — poster URLs are presigned per response and
-never stored — and is a candidate for a deliberate drop migration once the owner approves one.
+never stored. It is kept on purpose: dropping a column inverts the deploy order, because the new
+code must be live before the migration runs. See `docs/backlog.md`.
 
 Tag has UUID Id, display Name (60), unique NormalizedName (120), UTC creation time. Normalization
 trims, removes combining accents and uppercases invariantly, so Greek spelling variants collapse.

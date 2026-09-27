@@ -146,8 +146,13 @@ Real provider delivery requires operator-supplied Resend configuration (docs/09-
 
 ## Video regression
 
-Run docs/11-video-operations.md live acceptance before production sign-off. Local tests cover
-filters, privacy, role/status checks, creation replay, revision conflicts, signatures and deletion
-recovery. Browser checks must include admin metadata save, client URL filters, empty/error retry,
-mobile layout, file progress/pause/resume and protected playback. Mark live provider tests separately
-from synthetic fixtures; never treat mocks as evidence that provider security is configured.
+Run docs/11-video-operations.md §6 live acceptance before production sign-off. Local tests cover
+filters, privacy, role/status checks, creation replay, revision conflicts, upload verification and
+deletion recovery, plus the S3 adapter against a MinIO container. Browser checks must include
+admin metadata save, client URL filters, empty/error retry, mobile layout, upload
+progress/pause/resume and playback with seeking. Mark live provider tests separately from
+synthetic fixtures; a container passing is not evidence that Backblaze is configured correctly.
+
+**Playback links are presigned and time-limited, not session-bound.** A copied link keeps working
+until it expires, including after the video is unpublished. Test that it *does* stop working after
+the configured lifetime; do not record "link still worked after unpublish" as a defect.

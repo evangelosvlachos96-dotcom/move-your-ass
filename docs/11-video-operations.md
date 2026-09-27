@@ -48,29 +48,34 @@ Without CORS the browser cannot PUT to the bucket at all and every upload fails 
 **What is actually needed is small**, because the multipart lifecycle is server-side: the browser
 only ever sends `PUT` for parts and the poster frame, and `GET` for playback. **It never reads an
 `ETag`** — the API collects part ETags itself with `ListParts` — so no `exposeHeaders` entry is
-strictly required. `ETag` is included below anyway as a harmless belt-and-braces measure; if
-Backblaze rejects it, remove that line and everything still works.
+strictly required. `ETag` is included below as belt-and-braces, and B2 does accept it (see the
+verification note under Option A).
 
-### Option A — the Backblaze web UI (try this first)
+### The web console cannot express this rule — use a CLI
 
-**Buckets → your bucket → CORS Rules → Custom CORS rules**, then add one rule:
+**Buckets → bucket → Settings → CORS Rules** offers only four presets: share with no origin,
+with every origin, with all HTTPS origins, or with **exactly one** origin plus a choice of B2
+Native / S3-compatible / Both. It cannot set two origins, cannot choose individual operations and
+cannot set `exposeHeaders`. Custom rules have to go through a CLI or the API. Worse, the console
+does not display rules created that way — *"If there are custom rules in place through an API,
+those rules are not reflected in the enterprise web console"* — so after applying the rule below,
+**read it back with the CLI, not the console.**
 
-| Field | Value |
-|---|---|
-| CORS Rule Name | `moveyourass-web` |
-| Origins | `https://moveyourass.gr` and `http://localhost:4200` |
-| Allowed Operations | `s3_put`, `s3_get`, `s3_head` |
-| Allowed Headers | `*` |
-| Expose Headers | `ETag` |
-| Max Age Seconds | `3600` |
+Two origins are needed: `https://moveyourass.gr` for production and `http://localhost:4200` for
+local testing. "All HTTPS origins" would not cover localhost (it is HTTP) and would open the
+bucket to every site on the internet, so it is not a shortcut worth taking.
 
 B2 only offers `s3_put`, `s3_get`, `s3_head` and `s3_delete` for the S3 API — there is no
 `s3_post`, and none is needed. Do **not** grant `s3_delete`: deletion is a server-side call.
 
-### Option B — the AWS CLI, if the UI cannot express the rule
+### Option A — the AWS CLI (recommended: reads the JSON from a file, so no shell quoting)
 
-B2's S3 API accepts `PutBucketCors`, so the standard AWS CLI works. Save this as `cors.json`
-**outside the repository**:
+B2's S3 API accepts `PutBucketCors`, so the standard AWS CLI works. **This is the route that was
+actually used** (2026-09-27, bucket in `eu-central-003`).
+
+Install it on Windows with `winget install --id Amazon.AWSCLI`, then reopen the terminal so `aws`
+is on `PATH`. Create `cors.json` **anywhere outside the repository** — your own Documents folder
+is fine, and a short path saves pain with the `file://` argument:
 
 ```json
 {
@@ -86,18 +91,61 @@ B2's S3 API accepts `PutBucketCors`, so the standard AWS CLI works. Save this as
 }
 ```
 
-Then, with the key from section 2 configured in the AWS CLI:
+Then apply it. Session environment variables keep the key out of an on-disk AWS credentials file:
 
 ```powershell
-aws s3api put-bucket-cors --endpoint-url https://<your endpoint> --bucket <your bucket> --cors-configuration file://cors.json
+$env:AWS_ACCESS_KEY_ID = "<keyID>"
+$env:AWS_SECRET_ACCESS_KEY = "<applicationKey>"
+$env:AWS_DEFAULT_REGION = "<region, e.g. eu-central-003>"
+
+aws s3api put-bucket-cors --endpoint-url https://<your endpoint> --bucket <your bucket> --cors-configuration file://<full path to>/cors.json
 aws s3api get-bucket-cors --endpoint-url https://<your endpoint> --bucket <your bucket>
+
+Remove-Item Env:AWS_ACCESS_KEY_ID, Env:AWS_SECRET_ACCESS_KEY
 ```
 
-### Option C — the b2 CLI
+`put-bucket-cors` prints nothing on success, so **the `get-bucket-cors` read-back is the only
+confirmation** — all the more so because the web console does not show API-created rules.
+
+**Verified 2026-09-27:** B2 accepts `ExposeHeaders: ["ETag"]` through `PutBucketCors` and returns
+it lowercased as `etag`. The earlier note that this was unsupported was wrong. It is still not
+required — the API reads part ETags itself with `ListParts` — so if a future B2 change rejects it,
+remove the line and uploads keep working.
+
+A successful `put` also proves the key, the endpoint and the region before the app is involved.
+An `InvalidAccessKeyId` or signature error means the key is not scoped to this bucket, or the
+region is not exactly the middle segment of the endpoint hostname.
+
+### Option B — the b2 CLI
+
+`b2 bucket update` takes the rules inline or from a file, and **the bucket type argument is
+mandatory — pass `allPrivate` or the bucket becomes public.** Save the rule as `b2-cors.json`
+outside the repository:
+
+```json
+[
+  {
+    "corsRuleName": "moveyourassweb",
+    "allowedOrigins": ["https://moveyourass.gr", "http://localhost:4200"],
+    "allowedOperations": ["s3_put", "s3_get", "s3_head"],
+    "allowedHeaders": ["*"],
+    "exposeHeaders": ["ETag"],
+    "maxAgeSeconds": 3600
+  }
+]
+```
 
 ```powershell
-b2 bucket update <your bucket> allPrivate --cors-rules '[{"corsRuleName":"moveyourass-web","allowedOrigins":["https://moveyourass.gr","http://localhost:4200"],"allowedOperations":["s3_put","s3_get","s3_head"],"allowedHeaders":["*"],"exposeHeaders":["ETag"],"maxAgeSeconds":3600}]'
+b2 account authorize
+b2 bucket update --cors-rules "$(Get-Content ./b2-cors.json -Raw)" <your bucket> allPrivate
+b2 bucket get <your bucket>
 ```
+
+`corsRuleName` allows only letters, digits and hyphens, and may not start with `b2-`.
+
+**Windows PowerShell 5.1 mangles quotes when passing JSON to a native executable.** If the command
+above fails with a JSON parse error, that is why — use Option A, which never puts JSON on the
+command line.
 
 **Check:** open the site, start an upload, and watch the browser's network tab. The `OPTIONS`
 preflight to the bucket must return 200 and the `PUT` that follows must return 200. A CORS error
@@ -171,6 +219,11 @@ in section 4.
 
 Nothing below is proven by the automated tests. They run against MinIO in a container, which is
 evidence about the adapter, not about Backblaze.
+
+> **Locally, against the real bucket, this passed on 2026-09-27** — a 44 MB H.264 recording in
+> three parts, HEAD-verified to Ready, played with seeking, published, deleted, storage back to
+> zero. See docs/08. **The same list still has to be run against production**, and a phone
+> browser has not been used at all yet.
 
 - Upload a real phone recording through the admin form. Watch the network tab: **only presigned
   URLs**, never a key. Confirm byte progress moves and the preflight and PUTs return 200.

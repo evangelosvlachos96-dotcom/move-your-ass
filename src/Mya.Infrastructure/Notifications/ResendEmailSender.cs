@@ -24,12 +24,15 @@ public sealed class ResendEmailSender(
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.ApiKey);
         request.Headers.Add("Idempotency-Key", messageId.ToString("D"));
+        // Both parts: the client picks. Sending HTML alone loses readers whose client blocks it
+        // and reads as spammier to filters.
         request.Content = JsonContent.Create(new
         {
             from = settings.From,
             to = new[] { message.To },
             subject = message.Subject,
-            text = message.Body,
+            text = message.Text,
+            html = message.Html,
         });
 
         using var response = await SendRequestAsync(request, cancellationToken);

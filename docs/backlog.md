@@ -24,7 +24,13 @@ docs/12 handover. No Backblaze resource has been created by an agent.
 Future improvements, none of them blocking:
 
 - A lifecycle rule or sweep for unfinished large files left by a crash mid-upload.
-- Dropping the now-unused `Video.ThumbnailUrl` column in a deliberate, owner-approved migration.
+- Dropping the now-unused `Video.ThumbnailUrl` column, and the entirely unused
+  **`IdempotencyRecord` table** (superseded by the `(CreatedByUserId, CreationKey)` reservation
+  on `Video`; no handler touches it). **Deliberately deferred by the owner on 2026-09-27, not
+  forgotten.** Dropping a column or table inverts the usual deploy order — the new code has to be
+  live *before* the migration runs, or the running build selects something that no longer exists
+  — and both are harmless where they are. Do this only as its own change, with that ordering
+  stated in the plan.
 - Server-side global drag ordering across pages, rather than adjacent moves on the visible page.
 - Transcoding, if 4K or HEVC uploads become a real problem rather than a documented instruction.
 - Cloudflare R2 instead of B2 if egress rather than storage becomes the binding limit; it is a

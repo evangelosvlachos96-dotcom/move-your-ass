@@ -9,6 +9,7 @@ import {
 import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 import { VideosApi } from '../../core/videos/videos.api';
 import {
   UploadHandle,
@@ -38,6 +39,7 @@ import {
 export class AdminVideosComponent implements OnDestroy {
   private readonly api = inject(VideosApi);
   private readonly uploader = inject(VideoUploadService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   protected readonly page = signal<VideoPage | null>(null);
   protected readonly tags = signal<Tag[]>([]);
   protected readonly busy = signal(false);
@@ -192,7 +194,14 @@ export class AdminVideosComponent implements OnDestroy {
   }
 
   protected async removeTag(tag: Tag): Promise<void> {
-    if (tag.usageCount || !confirm('Διαγραφή της ετικέτας «' + tag.name + '»;')) return;
+    if (tag.usageCount) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Διαγραφή ετικέτας',
+      message: `Να διαγραφεί η ετικέτα «${tag.name}»;`,
+      confirmLabel: 'Διαγραφή',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await firstValueFrom(this.api.deleteTag(tag.id));
       await this.loadTags();
@@ -334,7 +343,15 @@ export class AdminVideosComponent implements OnDestroy {
   }
 
   protected async cancelUpload(): Promise<void> {
-    if (!confirm('Διακοπή ανεβάσματος; Το πρόχειρο βίντεο θα παραμείνει στη λίστα.')) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Διακοπή ανεβάσματος',
+      message: 'Να σταματήσει το ανέβασμα;',
+      detail: 'Το πρόχειρο βίντεο παραμένει στη λίστα και μπορείς να ξαναδοκιμάσεις αργότερα.',
+      confirmLabel: 'Διακοπή',
+      cancelLabel: 'Συνέχιση ανεβάσματος',
+      destructive: true,
+    });
+    if (!ok) return;
     this.upload?.cancel();
     this.upload = null;
     this.uploading.set(false);
@@ -354,16 +371,31 @@ export class AdminVideosComponent implements OnDestroy {
 
   protected async action(video: Video, action: 'publish' | 'delete' | 'refresh'): Promise<void> {
     if (this.busy() || this.uploading() || this.paused()) return;
-    if (
-      action === 'delete' &&
-      !confirm('Οριστική διαγραφή του βίντεο «' + video.title + '» και του αρχείου του;')
-    )
-      return;
-    if (
-      action === 'publish' &&
-      !confirm((video.isPublished ? 'Απόσυρση' : 'Δημοσίευση') + ' του «' + video.title + '»;')
-    )
-      return;
+    if (action === 'delete') {
+      const ok = await this.confirmDialog.confirm({
+        title: 'Οριστική διαγραφή βίντεο',
+        message: `Να διαγραφεί οριστικά το βίντεο «${video.title}»;`,
+        detail: 'Διαγράφεται και το αρχείο. Κράτα πρώτα το δικό σου αντίγραφο — δεν επαναφέρεται.',
+        confirmLabel: 'Οριστική διαγραφή',
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    if (action === 'publish') {
+      const withdrawing = video.isPublished;
+      const ok = await this.confirmDialog.confirm({
+        title: withdrawing ? 'Απόσυρση βίντεο' : 'Δημοσίευση βίντεο',
+        message: withdrawing
+          ? `Να αποσυρθεί το «${video.title}» από τη βιβλιοθήκη;`
+          : `Να δημοσιευτεί το «${video.title}» σε όλους τους πελάτες;`,
+        detail: withdrawing
+          ? 'Δεν θα εκδίδονται νέοι σύνδεσμοι. Ένας σύνδεσμος που έχει ήδη δοθεί δουλεύει μέχρι να λήξει.'
+          : undefined,
+        confirmLabel: withdrawing ? 'Απόσυρση' : 'Δημοσίευση',
+        destructive: withdrawing,
+      });
+      if (!ok) return;
+    }
     this.busy.set(true);
     try {
       await firstValueFrom(
@@ -409,11 +441,23 @@ export class AdminVideosComponent implements OnDestroy {
     }
   }
 
-  canLeave(): boolean {
-    return (
-      (!this.uploading() && !this.paused()) ||
-      confirm('Υπάρχει ημιτελές ανέβασμα. Θέλεις να φύγεις;')
-    );
+  /**
+   * The router guard awaits this. A dialog rather than a browser confirm, which the guard can do
+   * because CanDeactivate accepts a promise.
+   */
+  async canLeave(): Promise<boolean> {
+    if (!this.uploading() && !this.paused()) {
+      return true;
+    }
+
+    return this.confirmDialog.confirm({
+      title: 'Ημιτελές ανέβασμα',
+      message: 'Υπάρχει ανέβασμα σε εξέλιξη. Αν φύγεις τώρα θα διακοπεί.',
+      detail: 'Μπορείς να το συνεχίσεις αργότερα από το πρόχειρο βίντεο, επιλέγοντας ξανά το αρχείο.',
+      confirmLabel: 'Έξοδος',
+      cancelLabel: 'Παραμονή',
+      destructive: true,
+    });
   }
 
   @HostListener('window:beforeunload', ['$event']) protected warn(event: BeforeUnloadEvent): void {

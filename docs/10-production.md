@@ -284,6 +284,82 @@ is not used.
 6. Check spam placement for both messages. A verified sending domain should land in the inbox.
 7. Run `docs/07-manual-test-checklist.md` against the real URL.
 
+## Backups
+
+`.github/workflows/backup.yml` dumps the production database every Sunday at 03:17 UTC, and on
+demand from the Actions tab. **The repository is public**, and artifacts on a public repository
+are downloadable by anyone who can see it, so the dump is encrypted on the runner with AES-256
+before it is written anywhere. `pg_dump` is piped straight into `gpg`; no plaintext file exists at
+any point. A dump under 2 KB fails the job rather than storing a reassuring but empty artifact.
+
+### Secrets to create
+
+**Settings → Secrets and variables → Actions → New repository secret:**
+
+| Name | Value |
+|---|---|
+| `BACKUP_DATABASE_URL` | the Neon **production** **direct** connection string — not pooled |
+| `BACKUP_PASSPHRASE` | a long random passphrase you store in your password manager |
+
+Use the **direct** string: `pg_dump` opens a session and takes a snapshot, which is exactly what
+transaction pooling does not provide. The `postgres://…` URL form is correct here — that is what
+`pg_dump` wants, and it is the opposite of what `ConnectionStrings__Default` needs.
+
+**If you lose `BACKUP_PASSPHRASE`, every backup is lost with it.** There is no recovery path and
+that is the point. Store it somewhere that is not this repository and not the same laptop.
+
+### Restoring — test this now, not during an incident
+
+An untested backup is a guess. Restore into a scratch Neon branch and look at it:
+
+1. Download the artifact from the Actions run and unzip it to get `production.sql.gpg`.
+2. Decrypt:
+   ```powershell
+   gpg --batch --yes --decrypt --output production.sql production.sql.gpg
+   ```
+   It prompts for the passphrase. On Windows, `gpg` comes with Git for Windows.
+3. In the Neon console create a branch from `production` named e.g. `restore-test`, and copy its
+   **direct** connection string.
+4. Restore into it:
+   ```powershell
+   psql "<restore-test DIRECT connection string>" --set ON_ERROR_STOP=on --file production.sql
+   ```
+5. Check it is real: the row counts should match production.
+   ```powershell
+   psql "<restore-test DIRECT connection string>" -c "select (select count(*) from \"AspNetUsers\") as users, (select count(*) from \"Video\") as videos;"
+   ```
+6. Delete the `restore-test` branch, and **delete the decrypted `production.sql`** — it is a
+   plaintext copy of every account.
+
+**What a database backup does not contain: the videos.** Those live in Backblaze and are not
+dumped by anything here. Losing the bucket loses the workouts; see docs/11 §7.
+
+**Check:** run the workflow manually once from the Actions tab, then do the restore above. Record
+the date you last tested a restore in docs/08.
+
+## AutoMapper licence
+
+AutoMapper is **free** for organisations and individuals under **$5,000,000 gross annual
+revenue**, which this is, but recent versions want a licence key so the vendor can audit that
+use. Without one the application still runs; it logs a licence warning on every start, which
+buries everything else in Render's log tail.
+
+1. Go to **automapper.io** and sign in or create an account.
+2. Choose the **Community** licence — the free one. Do not pick a paid tier.
+3. Copy the key it issues.
+4. In the Render dashboard, **Environment → Add Environment Variable**: name
+   `AUTOMAPPER_LICENSE_KEY`, value the key. Save; Render redeploys.
+
+The code reads it from the environment only
+(`src/Mya.Application/DependencyInjection.cs`) and never from `appsettings.json`, so the key
+does not enter the repository. Locally the warning is harmless and no key is needed.
+
+**There is no `MEDIATR_LICENSE_KEY`.** MediatR is not referenced anywhere in this solution —
+ADR-002 rejected it in favour of plain handler classes. Earlier notes named the variable; they
+were wrong and have been corrected.
+
+**Check:** the next deploy's startup log has no AutoMapper licence warning.
+
 ## Living within the free limits
 
 - **Weekly, check Neon's usage page.** This is the substitute for a budget alert. Neon documents a
@@ -297,6 +373,23 @@ is not used.
 - **Four code properties keep this working** and must survive future changes: `/health` does no
   database work, no background service polls the database, Npgsql `Keepalive` stays disabled, and
   EF connection resiliency stays off. ADR-017 explains why each one matters.
+
+## Npgsql and Kerberos
+
+Npgsql 10 changed its default `GssEncryptionMode` to `Prefer`, so it attempts Kerberos on every
+connection. Microsoft's .NET runtime images have not shipped `libkrb5` since .NET 8, so each
+attempt fails, logging *"Cannot load library libgssapi_krb5.so.2"* — and it is a thrown exception
+per connection, not merely a log line, which under load has been reported to produce exception
+storms.
+
+`AddInfrastructure` sets **`GSS Encryption Mode=Disable`** on the connection string it builds,
+unless the supplied string already specifies one. Chosen over installing `libgssapi-krb5-2` in
+the runtime image because Neon is reached over TLS with password authentication and there is no
+Kerberos realm anywhere in this system: the library would be a dependency to ship and patch
+forever, for a mechanism that can never be used. Setting it in code rather than in the connection
+string also means it cannot be lost when the Neon credential is rotated.
+
+**Check:** the log after a deploy contains no `libgssapi_krb5` line.
 
 ## Container and proxy verification
 

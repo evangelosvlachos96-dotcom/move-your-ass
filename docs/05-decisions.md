@@ -432,11 +432,15 @@ one presigned PUT per part, and on completion calls **`ListParts` itself** to re
 ETags before `CompleteMultipartUpload`.
 
 The alternative — the browser collecting ETags from its own PUT responses — requires the bucket
-to expose `ETag` to script via CORS. Backblaze's CORS documentation lists `exposeHeaders` but
-does not document `ETag` as a supported value, and its S3 CORS `allowedOperations` are limited
-to `s3_put`, `s3_get`, `s3_head` and `s3_delete`. Reading the ETags server-side removes that
-dependency entirely: the bucket only ever has to allow `s3_put` from the browser. It also means
-nothing the browser reports about the upload is trusted.
+to expose `ETag` to script via CORS, and Backblaze's CORS documentation does not list `ETag` among
+supported `exposeHeaders` values. Reading the ETags server-side removes that dependency entirely:
+the bucket only ever has to allow `s3_put` from the browser. It also means nothing the browser
+reports about the upload is trusted, which is worth having on its own.
+
+**Measured afterwards (2026-09-27): B2 does in fact accept `ExposeHeaders: ["ETag"]`** through
+`PutBucketCors`, returning it lowercased. So the CORS obstacle turned out not to exist. The design
+stays, because not trusting the browser's account of its own upload is the better property, and
+because it keeps the bucket's CORS surface to the minimum either way.
 
 **Verification replaces the webhook.** After completion the API HEADs the object and compares
 size and content type against what was declared at creation. A mismatch deletes the object and
@@ -469,11 +473,16 @@ monthly stored data. At 9 GB stored that is about 27 GB a month, which a 200 MB 
 B2 among them, have rejected those headers with HTTP 400. The adapter sets
 `RequestChecksumCalculation` and `ResponseChecksumValidation` to `WHEN_REQUIRED`. Backblaze is
 reported to have added support for these headers in July 2025, so this may now be unnecessary;
-it is kept because it costs nothing and keeps the adapter portable. **Unverified against B2.**
+it is kept because it costs nothing and keeps the adapter portable. **Verified working against
+the real bucket on 2026-09-27** — no checksum rejection occurred.
 
 **Path-style addressing** (`ForcePathStyle`) is used because B2 and MinIO both serve buckets
-under the endpoint path. B2's documentation does not state this either way — **unverified**
-until the live acceptance run.
+under the endpoint path. B2's documentation does not state this either way; **verified working
+against the real bucket on 2026-09-27.**
+
+**Live acceptance passed on 2026-09-27**: a 44 MB H.264 phone recording uploaded as three
+presigned parts, completed and HEAD-verified to Ready, played back with seeking, published, and
+deleted. See docs/08. Production upload, any mobile browser, and HEVC recordings remain untested.
 
 **Presigned URLs follow the endpoint's scheme.** The SDK presigns `https` regardless of the
 configured endpoint, which is wrong for a plain-HTTP container. Production is HTTPS-only and

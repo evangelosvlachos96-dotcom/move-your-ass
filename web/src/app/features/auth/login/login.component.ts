@@ -12,10 +12,11 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { ErrorCodes, problemCode } from '../../../core/http/problem-details';
 import { focusControl, focusFirstInvalid } from '../../../shared/forms/focus-first-invalid';
 import { ChevronLoaderComponent } from '../../../shared/ui/chevron-loader/chevron-loader.component';
+import { BrandLogoComponent } from '../../../shared/ui/brand-logo/brand-logo.component';
 
 @Component({
   selector: 'app-login',
-  imports: [
+  imports: [BrandLogoComponent, 
     ReactiveFormsModule,
     RouterLink,
     MatCardModule,

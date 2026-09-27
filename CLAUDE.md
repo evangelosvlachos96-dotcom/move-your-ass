@@ -33,14 +33,16 @@ production, not a demo.
 
 ## Licensing notes
 
-- **AutoMapper and MediatR are fine to use.** Both are free under the Community licence for
-  companies and individuals under **$5,000,000 gross annual revenue**. A licence key is required
-  for auditing — set it via `AUTOMAPPER_LICENSE_KEY` / `MEDIATR_LICENSE_KEY` environment
-  variables, never in `appsettings.json`.
+- **AutoMapper is fine to use.** It is free under the Community licence for companies and
+  individuals under **$5,000,000 gross annual revenue**. A licence key is required for auditing —
+  set it via the `AUTOMAPPER_LICENSE_KEY` environment variable, never in `appsettings.json`.
+  How to obtain one: `docs/10-production.md` §"AutoMapper licence".
+  **MediatR is not referenced anywhere** (ADR-002 rejected it), so no `MEDIATR_LICENSE_KEY` is
+  needed. Do not add one back.
 - **FluentAssertions v8+ is not free for commercial use.** Pin v7 (Apache 2.0) or use Shouldly.
   This repo uses Shouldly.
-- Register both keys as environment variables in the Render dashboard before the first production
-  deploy, or startup logs will fill with licence warnings.
+- Register the key as an environment variable in the Render dashboard, or startup logs fill with
+  licence warnings on every deploy.
 
 ## Non-negotiable rules
 

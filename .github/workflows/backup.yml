@@ -1,0 +1,66 @@
+name: backup
+
+# Weekly encrypted dump of the production database.
+#
+# THIS REPOSITORY IS PUBLIC. Workflow artifacts on a public repository are downloadable by
+# anyone who can see the repository, so an unencrypted dump here would publish every client's
+# email address and password hash. The dump is therefore encrypted on the runner, before it is
+# ever written where the upload step can see it, and the plaintext never touches the workspace.
+
+on:
+  schedule:
+    # 03:17 UTC every Sunday. Off the hour on purpose: scheduled jobs on the hour queue behind
+    # everyone else's, and GitHub drops schedules it cannot start.
+    - cron: '17 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Refuse to run without both secrets
+        env:
+          CONNECTION: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$CONNECTION" ] || [ -z "$PASSPHRASE" ]; then
+            echo "::error::BACKUP_DATABASE_URL and BACKUP_PASSPHRASE must both be set. See docs/10-production.md."
+            exit 1
+          fi
+
+      - name: Dump and encrypt
+        env:
+          CONNECTION: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+
+          # pg_dump from the matching major version, via the official image, so the dump is never
+          # refused for a server-newer-than-client mismatch as Neon upgrades.
+          # The dump is piped straight into gpg: no plaintext file is ever created.
+          docker run --rm -i -e PGCONNECT_TIMEOUT=30 postgres:17-alpine \
+            pg_dump --no-owner --no-privileges --format=plain --dbname "$CONNECTION" \
+            | gpg --batch --yes --symmetric --cipher-algo AES256 \
+                  --passphrase-fd 3 --output out/production.sql.gpg 3<<<"$PASSPHRASE"
+
+          ls -lh out/production.sql.gpg
+          # A dump of an empty or failed connection is a few hundred bytes of header. Refuse it,
+          # rather than storing a reassuring artifact that restores to nothing.
+          size=$(stat -c%s out/production.sql.gpg)
+          if [ "$size" -lt 2048 ]; then
+            echo "::error::Encrypted dump is only ${size} bytes; treating as a failed backup."
+            exit 1
+          fi
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-backup-${{ github.run_id }}
+          path: out/production.sql.gpg
+          retention-days: 30
+          if-no-files-found: error

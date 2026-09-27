@@ -25,9 +25,11 @@
 }
 
 .auth-page__logo {
-  display: block;
-  width: 160px;
-  height: auto;
+  // One logo, centred as a group. The old stacked SVG leaned left because its text started at
+  // x=8 inside a wider viewBox, which no amount of centring the element could correct.
+  display: flex;
+  justify-content: center;
+  margin-block-end: 24px;
 }
 
 .auth-page__card {

@@ -238,6 +238,10 @@ namespace Mya.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ProcessedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("SubjectUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -266,6 +270,9 @@ namespace Mya.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("integer");
 
                     b.Property<byte[]>("TokenHash")
                         .IsRequired()
@@ -327,6 +334,10 @@ namespace Mya.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("FamilyId")
                         .HasDatabaseName("IX_RefreshToken_Family");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RefreshToken_TokenHash");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_RefreshToken_UserActive")
