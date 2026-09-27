@@ -13,10 +13,11 @@ deleted. Record the names you choose in `infra/README.md` so the environment is 
 
 ## Status of this runbook
 
-The four code checkpoints are implemented. Neon dev migrations and account flows were verified;
-the owner received a real Resend admin notification. Docker works locally. Render deployment,
-production database setup, DNS cutover and phone acceptance have not been performed by this agent.
-Use docs/08 for precise evidence, and docs/11-video-operations.md for Bunny configuration.
+**The environment is live.** Sections 0 to 6 have been carried out by the owner: the Render
+service, both domains with certificates, the Cloudflare records, the production migrations and
+the first Admin. Section 7's keep-alive and section 8's end-to-end verification are outstanding,
+along with Backblaze setup in docs/11. docs/08 §"Current state" is the precise record of what is
+verified and what is not; this file is the procedure, not the status.
 
 ## Free limits and what breaks first
 
@@ -25,12 +26,15 @@ Use docs/08 for precise evidence, and docs/11-video-operations.md for Bunny conf
 | App (API + Angular) | **Render free web service**, Docker, Frankfurt | 512 MB RAM, 0.1 CPU, 750 instance-hours/month per workspace | Exceeding the hours **suspends every free service in the workspace** until the next month |
 | Database | **Neon PostgreSQL** free, `aws-eu-central-1` | 0.5 GB storage, 100 CU-hours/month, 10 branches | Compute is **suspended until the next billing period**; connections drop and new ones fail |
 | Email | **Resend** free | 100 emails/day, 3,000/month | Sends are rejected; the outbox retries and then dead-letters |
-| DNS and redirect | **Cloudflare** free | 10 single redirect rules | — |
-| Keep-alive | **UptimeRobot** free | 50 monitors, 5-minute interval | — |
+| DNS | **Cloudflare** free | unlimited records; 10 single redirect rules, none of which this setup uses | — |
+| Video storage | **Backblaze B2** free | 10 GB stored, egress 3× average monthly stored | The app's own 9 GiB cap refuses uploads first; egress overage is $0.01/GB |
+| Keep-alive | **cron-job.org** free | ample for one job every 10 minutes | — |
 
-Keeping one service awake costs about 730 of the 750 instance-hours, so the free budget supports
-**exactly one always-on service and no staging environment**. Neon's compute clock runs only while
-queries are active, so an idle night costs nothing.
+Keeping one service awake around the clock would cost about 730 of the 750 instance-hours, so the
+free budget supports **exactly one always-on service and no staging environment**. The keep-alive
+in section 7 runs only 06:00–23:00, which leaves roughly 210 hours of headroom a month at the
+cost of a slow first request in the morning. Neon's compute clock runs only while queries are
+active, so an idle night costs nothing there either.
 
 **Upgrade triggers** are in ADR-017. The one that matters: move to Render Starter once real clients
 use the site daily, which removes the spin-down and the dependency on an external pinger.
@@ -48,10 +52,21 @@ about proxying. Render needs the record it validates to reach Render directly. C
 redirect rules only run on proxied records. So the apex points at Render unproxied, and `www` is
 answered at Cloudflare's edge and never reaches Render at all.
 
+> **As actually deployed, both records point at Render and there is no Cloudflare redirect
+> rule.** Render holds a certificate for `www` as well and performs the redirect itself, which
+> is simpler than the arrangement originally planned here. The table below describes what is
+> live; the paragraph after it explains the alternative and why it was not needed.
+
 | Record | Type | Name | Content | Proxy |
 |---|---|---|---|---|
 | Apex | `CNAME` | `@` | the service's `*.onrender.com` hostname (section 4) | **DNS only (grey)** |
-| www | `CNAME` | `www` | `moveyourass.gr` | **Proxied (orange)** |
+| www | `CNAME` | `www` | the service's `*.onrender.com` hostname | **DNS only (grey)** |
+
+Add **both** `moveyourass.gr` and `www.moveyourass.gr` as custom domains on Render, and Render
+issues a certificate for each and redirects `www` to the apex. The alternative — answering `www`
+at Cloudflare's edge with a proxied record and a Redirect Rule — also works, but needs the record
+orange-clouded and one of Cloudflare's ten free redirect rules. **Do not do both**: a Cloudflare
+redirect in front of a Render domain that also redirects is a loop waiting to happen.
 
 Notes that will save an hour:
 
@@ -66,12 +81,8 @@ Notes that will save an hour:
   do proxy it later, the SSL/TLS mode must be **Full (strict)**, because Render presents a
   publicly trusted certificate.
 
-Then add the **www redirect**: Rules, then Redirect Rules, then a single redirect. When the
-hostname equals `www.moveyourass.gr`, redirect to `https://moveyourass.gr` preserving path and
-query, status 301. This needs `www` to be proxied, which is why it is orange above.
-
-**Check:** `www.moveyourass.gr` returns a 301 to the apex. The apex does not resolve to anything
-useful yet; that comes in section 4.
+**Check:** `www.moveyourass.gr` redirects to the apex, and the apex serves the app over a valid
+certificate once section 4 is done.
 
 ## 2. Database — Neon
 
@@ -141,17 +152,32 @@ Downtime can extend this past 24 hours, so deduplication is not guaranteed for d
 
    | Name | Where the value comes from | Secret |
    |---|---|---|
-   | `ASPNETCORE_ENVIRONMENT` | `Production` | no |
    | `ConnectionStrings__Default` | Neon **production** branch, **pooled** string | **yes** |
    | `Jwt__SigningKey` | 64 random characters, generated once | **yes** |
    | `App__PublicOrigin` | `https://moveyourass.gr` | no |
    | `Email__Mode` | `Resend` | no |
    | `Email__ApiKey` | Resend API key from section 3 | **yes** |
    | `Email__From` | `Move Your Ass <noreply@moveyourass.gr>` | no |
+   | `Video__Provider` | `S3` | no |
+   | `Video__S3__Enabled` | `true` | no |
+   | `Video__S3__ServiceUrl` | the bucket's B2 endpoint, with `https://` (docs/11 §1) | no |
+   | `Video__S3__Region` | the region inside that hostname | no |
+   | `Video__S3__AccessKeyId` | Backblaze application key `keyID` (docs/11 §2) | **yes** |
+   | `Video__S3__SecretAccessKey` | Backblaze `applicationKey` | **yes** |
+   | `Video__S3__BucketName` | the bucket name | no |
 
    The JWT issuer and audience come from `appsettings.Production.json` and are not secrets.
    `Seed__*` is deliberately **not** set here: the first Admin is created by a one-shot local
    command in section 6, so the seed password never lives in the dashboard.
+
+   **Two settings that have already cost an outage each:**
+
+   - **Do not set `ASPNETCORE_ENVIRONMENT`.** The Dockerfile already sets it to `Production`. A
+     value in the Render dashboard overrides it, and a wrong one stops
+     `appsettings.Production.json` from loading at all.
+   - **`ConnectionStrings__Default` must be Npgsql `key=value` format**
+     (`Host=…;Database=…;Username=…;Password=…;SSL Mode=Require;…`), **never** the
+     `postgres://…` URL Neon also offers. The URL form produces HTTP 500 on login.
 
 5. **Settings, then Custom Domains:** add `moveyourass.gr`. Render issues and renews the
    certificate. Do not add `www`; Cloudflare redirects it before it reaches Render.
@@ -177,8 +203,14 @@ idempotent PostgreSQL script and uploads it as an artifact, which can also be pa
 SQL editor.
 
 **Check:** the `production` branch has the `AspNetUsers`, `OutboxMessage`, `PasswordInvitation`,
-`RefreshToken`, `TwoFactorTicket` and `IdempotencyRecord` tables, and `__EFMigrationsHistory`
-lists every migration under `src/Mya.Infrastructure/Persistence/Migrations`.
+`RefreshToken`, `TwoFactorTicket`, `IdempotencyRecord`, `Video`, `Tag` and `VideoTag` tables, and
+`__EFMigrationsHistory` lists every migration under
+`src/Mya.Infrastructure/Persistence/Migrations`.
+
+**This is a live database now, so the same command is also the upgrade path.** Run it again
+whenever a branch adds a migration, **before** the new code is deployed. It is additive and
+idempotent: EF applies only what `__EFMigrationsHistory` is missing. The current branch adds
+`VideoObjectStorage`, which adds four nullable columns to `Video` and drops nothing.
 
 ## 6. First Admin — one-shot seed
 
@@ -206,21 +238,37 @@ The email and JWT variables are present only because startup options validation 
 seeder does; the seeder itself sends nothing. The command is idempotent and safe to run twice. The
 Admin changes the password from the profile page after the first login.
 
-## 7. Keep-alive — UptimeRobot
+## 7. Keep-alive — cron-job.org, daytime only
 
-A Render free service spins down after 15 minutes without inbound traffic and takes about a minute
-to come back. One monitor prevents that.
+A Render free service spins down after 15 minutes without inbound traffic and takes about a
+minute to come back. A scheduled request prevents that during the hours clients actually use the
+site.
 
-- Type **HTTP(s)**, URL `https://moveyourass.gr/health`, interval **5 minutes**.
-- Optionally make it a keyword monitor expecting `ok`, so that a 200 from a broken build still
-  alerts.
-- Point the alert at an address the owner reads. This monitor is both the keep-alive and the only
-  uptime alerting the environment has.
+At **cron-job.org**, create one job:
 
-`/health` performs no database work, so this keeps Render awake without keeping Neon awake. That
-separation is the whole reason the free tier works; see ADR-017.
+| Field | Value |
+|---|---|
+| URL | `https://moveyourass.gr/health` |
+| Schedule | every **10 minutes**, hours **06:00–23:00** |
+| Timezone | **Europe/Athens** |
+| Method | `GET` |
 
-**Check:** the monitor reports up, and Render's metrics show no spin-down over a few hours.
+**Only `/health`.** It performs no database work, so this keeps Render awake without keeping Neon
+awake. That separation is the whole reason the free tier works; see ADR-017. Pointing a pinger at
+any other path would hold Neon's compute open all day and burn the monthly allowance.
+
+**The night gap is deliberate and has two consequences.** The service is allowed to spin down
+overnight, which saves roughly 7 of the 24 hours against Render's 750 free instance-hours a
+month. In exchange, **the first request after 23:00 — or the first one in the morning before the
+job's first run — waits about a minute** while the instance restarts. That is the trade, and it
+is the right one for a single trainer's client list.
+
+**This is a keep-alive, not monitoring.** cron-job.org can email on failure; turn that on and
+point it at an address the owner reads, otherwise nothing tells you the site is down. UptimeRobot
+is not used.
+
+**Check:** the job's history shows 200 responses, and Render's metrics show no spin-down between
+06:00 and 23:00.
 
 ## 8. Verify end to end
 
@@ -236,6 +284,82 @@ separation is the whole reason the free tier works; see ADR-017.
 6. Check spam placement for both messages. A verified sending domain should land in the inbox.
 7. Run `docs/07-manual-test-checklist.md` against the real URL.
 
+## Backups
+
+`.github/workflows/backup.yml` dumps the production database every Sunday at 03:17 UTC, and on
+demand from the Actions tab. **The repository is public**, and artifacts on a public repository
+are downloadable by anyone who can see it, so the dump is encrypted on the runner with AES-256
+before it is written anywhere. `pg_dump` is piped straight into `gpg`; no plaintext file exists at
+any point. A dump under 2 KB fails the job rather than storing a reassuring but empty artifact.
+
+### Secrets to create
+
+**Settings → Secrets and variables → Actions → New repository secret:**
+
+| Name | Value |
+|---|---|
+| `BACKUP_DATABASE_URL` | the Neon **production** **direct** connection string — not pooled |
+| `BACKUP_PASSPHRASE` | a long random passphrase you store in your password manager |
+
+Use the **direct** string: `pg_dump` opens a session and takes a snapshot, which is exactly what
+transaction pooling does not provide. The `postgres://…` URL form is correct here — that is what
+`pg_dump` wants, and it is the opposite of what `ConnectionStrings__Default` needs.
+
+**If you lose `BACKUP_PASSPHRASE`, every backup is lost with it.** There is no recovery path and
+that is the point. Store it somewhere that is not this repository and not the same laptop.
+
+### Restoring — test this now, not during an incident
+
+An untested backup is a guess. Restore into a scratch Neon branch and look at it:
+
+1. Download the artifact from the Actions run and unzip it to get `production.sql.gpg`.
+2. Decrypt:
+   ```powershell
+   gpg --batch --yes --decrypt --output production.sql production.sql.gpg
+   ```
+   It prompts for the passphrase. On Windows, `gpg` comes with Git for Windows.
+3. In the Neon console create a branch from `production` named e.g. `restore-test`, and copy its
+   **direct** connection string.
+4. Restore into it:
+   ```powershell
+   psql "<restore-test DIRECT connection string>" --set ON_ERROR_STOP=on --file production.sql
+   ```
+5. Check it is real: the row counts should match production.
+   ```powershell
+   psql "<restore-test DIRECT connection string>" -c "select (select count(*) from \"AspNetUsers\") as users, (select count(*) from \"Video\") as videos;"
+   ```
+6. Delete the `restore-test` branch, and **delete the decrypted `production.sql`** — it is a
+   plaintext copy of every account.
+
+**What a database backup does not contain: the videos.** Those live in Backblaze and are not
+dumped by anything here. Losing the bucket loses the workouts; see docs/11 §7.
+
+**Check:** run the workflow manually once from the Actions tab, then do the restore above. Record
+the date you last tested a restore in docs/08.
+
+## AutoMapper licence
+
+AutoMapper is **free** for organisations and individuals under **$5,000,000 gross annual
+revenue**, which this is, but recent versions want a licence key so the vendor can audit that
+use. Without one the application still runs; it logs a licence warning on every start, which
+buries everything else in Render's log tail.
+
+1. Go to **automapper.io** and sign in or create an account.
+2. Choose the **Community** licence — the free one. Do not pick a paid tier.
+3. Copy the key it issues.
+4. In the Render dashboard, **Environment → Add Environment Variable**: name
+   `AUTOMAPPER_LICENSE_KEY`, value the key. Save; Render redeploys.
+
+The code reads it from the environment only
+(`src/Mya.Application/DependencyInjection.cs`) and never from `appsettings.json`, so the key
+does not enter the repository. Locally the warning is harmless and no key is needed.
+
+**There is no `MEDIATR_LICENSE_KEY`.** MediatR is not referenced anywhere in this solution —
+ADR-002 rejected it in favour of plain handler classes. Earlier notes named the variable; they
+were wrong and have been corrected.
+
+**Check:** the next deploy's startup log has no AutoMapper licence warning.
+
 ## Living within the free limits
 
 - **Weekly, check Neon's usage page.** This is the substitute for a budget alert. Neon documents a
@@ -249,6 +373,23 @@ separation is the whole reason the free tier works; see ADR-017.
 - **Four code properties keep this working** and must survive future changes: `/health` does no
   database work, no background service polls the database, Npgsql `Keepalive` stays disabled, and
   EF connection resiliency stays off. ADR-017 explains why each one matters.
+
+## Npgsql and Kerberos
+
+Npgsql 10 changed its default `GssEncryptionMode` to `Prefer`, so it attempts Kerberos on every
+connection. Microsoft's .NET runtime images have not shipped `libkrb5` since .NET 8, so each
+attempt fails, logging *"Cannot load library libgssapi_krb5.so.2"* — and it is a thrown exception
+per connection, not merely a log line, which under load has been reported to produce exception
+storms.
+
+`AddInfrastructure` sets **`GSS Encryption Mode=Disable`** on the connection string it builds,
+unless the supplied string already specifies one. Chosen over installing `libgssapi-krb5-2` in
+the runtime image because Neon is reached over TLS with password authentication and there is no
+Kerberos realm anywhere in this system: the library would be a dependency to ship and patch
+forever, for a mechanism that can never be used. Setting it in code rather than in the connection
+string also means it cannot be lost when the Neon credential is rotated.
+
+**Check:** the log after a deploy contains no `libgssapi_krb5` line.
 
 ## Container and proxy verification
 

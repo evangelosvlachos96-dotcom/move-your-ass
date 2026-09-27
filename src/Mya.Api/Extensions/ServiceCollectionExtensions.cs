@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -25,6 +26,10 @@ public static class ServiceCollectionExtensions
 {
     private const int AuthPermitLimit = 5;
     private static readonly TimeSpan AuthWindow = TimeSpan.FromMinutes(15);
+
+    /// <summary>Backstop across every IP for one email. Generous: a real person never meets it.</summary>
+    private const int AuthGlobalPermitLimit = 50;
+    private static readonly TimeSpan AuthGlobalWindow = TimeSpan.FromHours(1);
     private static readonly TimeSpan JwtClockSkew = TimeSpan.FromSeconds(30);
 
     /// <summary>
@@ -38,7 +43,6 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(environment);
 
-        services.AddScoped<Mya.Api.Features.Videos.VideoWebhookRequest>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUserAccessor>();
 
@@ -66,8 +70,13 @@ public static class ServiceCollectionExtensions
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
         services.AddJwtAuthentication();
+        // RequireRole reads the token; CurrentAdminRequirement re-reads the database. Both, so a
+        // request without the claim is rejected without a query, and a stale claim is caught.
+        services.AddScoped<IAuthorizationHandler, CurrentAdminHandler>();
         services.AddAuthorization(options =>
-            options.AddPolicy(Policies.AdminOnly, policy => policy.RequireRole(Roles.Admin)));
+            options.AddPolicy(Policies.AdminOnly, policy => policy
+                .RequireRole(Roles.Admin)
+                .AddRequirements(new CurrentAdminRequirement())));
 
         services.AddAuthRateLimiting();
 
@@ -150,6 +159,12 @@ public static class ServiceCollectionExtensions
                     "Too many attempts, try again later");
             };
 
+            // Two limits, chained. The tight one is keyed per (email, IP) so one attacker cannot
+            // spend the victim's budget: locking someone out of their own account by guessing at
+            // their email from elsewhere is exactly what account lockout got wrong, and partition
+            // by email alone would reintroduce it. The loose one is keyed per email across every
+            // IP, as a backstop against an attempt spread over many addresses; it is generous
+            // enough that a real person retrying from a new network never meets it.
             options.AddPolicy(RateLimitPolicies.AuthPerEmail, httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     AuthRateLimitKeyMiddleware.PartitionKey(httpContext),
@@ -160,6 +175,22 @@ public static class ServiceCollectionExtensions
                         QueueLimit = 0,
                         AutoReplenishment = true,
                     }));
+
+            // The backstop runs as the global limiter rather than a second policy, because
+            // [EnableRateLimiting] may only be applied once per endpoint. It passes everything
+            // through untouched except the credential endpoints.
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                AuthRateLimitKeyMiddleware.IsCredentialEndpoint(httpContext)
+                    ? RateLimitPartition.GetFixedWindowLimiter(
+                        AuthRateLimitKeyMiddleware.EmailOnlyPartitionKey(httpContext),
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = AuthGlobalPermitLimit,
+                            Window = AuthGlobalWindow,
+                            QueueLimit = 0,
+                            AutoReplenishment = true,
+                        })
+                    : RateLimitPartition.GetNoLimiter("unlimited"));
         });
     }
 

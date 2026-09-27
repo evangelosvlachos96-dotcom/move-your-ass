@@ -1,7 +1,6 @@
 <section class="video-page">
   <header class="video-heading">
     <div>
-      <span class="eyebrow">MOVE YOUR ASS / ΔΙΑΧΕΙΡΙΣΗ</span>
       <h1>Οι προπονήσεις σου</h1>
       <p>Ανέβασε, οργάνωσε και δημοσίευσε το πρόγραμμά σου.</p>
     </div>
@@ -14,6 +13,29 @@
       Η μεταφόρτωση βίντεο δεν έχει ενεργοποιηθεί ακόμη. Μπορείς να οργανώσεις τον κατάλογο και τις
       ετικέτες.
     </p>
+  }
+  @if (storage(); as used) {
+    <div class="storage" [class.storage--warning]="storageNearlyFull">
+      <div class="storage__text">
+        <strong>Αποθηκευτικός χώρος</strong>
+        <span>{{ size(used.usedBytes) }} από {{ size(used.capBytes) }} ({{ storagePercent }}%)</span>
+      </div>
+      <div
+        class="storage__bar"
+        role="progressbar"
+        aria-label="Χρήση αποθηκευτικού χώρου"
+        [attr.aria-valuenow]="storagePercent"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        <span [style.width.%]="storagePercent"></span>
+      </div>
+      @if (storageNearlyFull) {
+        <p role="status">
+          Ο χώρος κοντεύει να γεμίσει. Διέγραψε παλιές προπονήσεις πριν ανεβάσεις νέες.
+        </p>
+      }
+    </div>
   }
   @if (note()) {
     <p role="status">{{ note() }}</p>
@@ -86,11 +108,17 @@
         @if (!editing || recovering) {
           <div class="upload-box">
             <label
-              >Αρχείο βίντεο<input type="file" accept="video/*,.mov,.mkv" (change)="choose($event)"
+              >Αρχείο βίντεο<input
+                type="file"
+                accept="video/mp4,video/quicktime,.mp4,.mov"
+                (change)="choose($event)"
             /></label>
-            <p>Έως 5 GB. Το αρχείο ανεβαίνει απευθείας στην υπηρεσία βίντεο.</p>
+            <p>
+              MP4 ή MOV, έως {{ size(storage()?.maxFileBytes ?? null) }}. Το αρχείο ανεβαίνει
+              απευθείας στον αποθηκευτικό χώρο, όχι μέσω του site.
+            </p>
             @if (file) {
-              <p>{{ file.name }}</p>
+              <p>{{ file.name }} — {{ size(file.size) }}</p>
             }
           </div>
         }
@@ -105,7 +133,9 @@
         @if (uploading()) {
           <button type="button" (click)="pause()">Παύση</button>
         } @else if (paused()) {
-          <button type="button" class="primary" (click)="resume()">Συνέχεια</button>
+          <button type="button" class="primary" [disabled]="busy()" (click)="resume()">
+            {{ busy() ? 'Συνέχιση…' : 'Συνέχεια' }}
+          </button>
         } @else {
           <button
             class="primary"

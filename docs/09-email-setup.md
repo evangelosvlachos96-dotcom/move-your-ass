@@ -65,3 +65,35 @@ message has expired or dead-lettered.
 
 Resend send endpoint and idempotency: https://resend.com/docs/api-reference/emails/send-email and
 https://resend.com/docs/dashboard/emails/idempotency-keys
+
+## Branded templates
+
+Every message is sent as **both** an HTML and a plain-text part. The text part is not optional:
+some clients block HTML by default, and a message with no text alternative is likelier to be
+filtered as spam.
+
+`EmailContent` describes what a message says — heading, paragraphs, an optional call to action
+and an optional note. `EmailLayout` renders both bodies from that one object, so the text version
+cannot drift away from the HTML one as copy changes. Templates never build HTML by hand.
+
+The layout is tables with inline CSS, because email clients strip `<style>` blocks and Outlook
+ignores most modern layout. Colours mirror `web/src/styles/_brand.scss`. **The logo is a PNG**
+(`web/public/email-logo.png`, served from `App:PublicOrigin`) — **Gmail refuses to render SVG**,
+so the app's SVG marks cannot be used here. Its background matches the email background so it
+does not show as a pale box.
+
+Every user-controlled value — names, decline reasons, email addresses — goes through HTML
+encoding. Tests cover this: `EmailTemplateTests` asserts that a name containing `<script>` is
+encoded in the HTML body.
+
+**To look at the emails**, set a directory and run the suite; each template is written out as
+`.html` and `.txt`:
+
+```powershell
+$env:MYA_EMAIL_PREVIEW_DIR = "$env:TEMP\mya-email-preview"
+dotnet test --filter "FullyQualifiedName~EmailTemplateTests"
+```
+
+Open the `.html` files in a browser. The logo will not load from a local file because it points
+at the production origin; that is expected and does not affect delivered mail. Automated
+assertions cannot tell you an email is ugly, which is the point of the preview.

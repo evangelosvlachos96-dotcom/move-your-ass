@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Mya.Application.Abstractions.Notifications;
 using Mya.Application.Common.Notifications;
@@ -6,8 +7,10 @@ using Mya.Domain.Entities;
 namespace Mya.Infrastructure.Notifications;
 
 /// <summary>
-/// Renders an outbox row into a plain-text email. Greek copy, hardcoded for now like the UI.
-/// Links use the configured public origin, never an incoming request header.
+/// Renders an outbox row into a branded email. Greek copy, hardcoded like the UI. Links use the
+/// configured public origin, never an incoming request header, so a host-header injection cannot
+/// redirect a password link. Each template describes itself once as <see cref="EmailContent"/>;
+/// <see cref="EmailLayout"/> produces the HTML and the plain-text bodies from that.
 /// </summary>
 public sealed class EmailTemplates(IConfiguration configuration)
 {
@@ -29,55 +32,95 @@ public sealed class EmailTemplates(IConfiguration configuration)
                 EmailOutbox.Deserialize<AccountApprovedPayload>(message.PayloadJson)),
             OutboxMessageTypes.AccountDeclined => AccountDeclined(
                 EmailOutbox.Deserialize<AccountDeclinedPayload>(message.PayloadJson)),
+            OutboxMessageTypes.PasswordReset => PasswordReset(
+                EmailOutbox.Deserialize<PasswordResetPayload>(message.PayloadJson)),
             _ => throw new InvalidOperationException($"No email template for outbox message type '{message.Type}'."),
         };
     }
 
     private EmailMessage PasswordInvitation(PasswordInvitationPayload p)
     {
-        if (_spaOrigin is null)
-        {
-            throw new InvalidOperationException("App:PublicOrigin is required for invitation links.");
-        }
+        var origin = RequireOrigin();
 
         // Fragment keeps the credential out of web-server request URLs and referrer headers.
-        return new EmailMessage(p.To, "Ορίστε τον κωδικό σας στο Move Your Ass",
-            $"Γεια σας {p.FirstName},\n\nΟρίστε τον κωδικό σας για να ενεργοποιήσετε τον λογαριασμό σας.\n" +
-            $"Ο σύνδεσμος χρησιμοποιείται μία φορά και λήγει στις {p.ExpiresAtUtc:yyyy-MM-dd HH:mm} UTC.\n\n" +
-            $"{_spaOrigin}/set-password#token={Uri.EscapeDataString(p.Token)}\n\n" +
-            "Αν ο σύνδεσμος έχει λήξει, ζητήστε νέα πρόσκληση από τον διαχειριστή.");
+        var link = $"{origin}/set-password#token={Uri.EscapeDataString(p.Token)}";
+
+        return Build(p.To, "Ορίστε τον κωδικό σας στο Move Your Ass", new EmailContent(
+            $"Γεια σας {p.FirstName},",
+            [
+                "Ο λογαριασμός σας στο Move Your Ass είναι έτοιμος. Ορίστε τον κωδικό σας για να τον ενεργοποιήσετε.",
+            ])
+        {
+            Cta = new EmailCta("Ορισμός κωδικού", link),
+            Note = $"Ο σύνδεσμος χρησιμοποιείται μία φορά και λήγει στις "
+                 + $"{p.ExpiresAtUtc.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)} UTC. "
+                 + "Αν έχει λήξει, ζητήστε νέα πρόσκληση από τη διαχειρίστρια.",
+        });
     }
 
-    private EmailMessage AdminNewRegistration(AdminNewRegistrationPayload p) => new(
-        p.To,
-        $"Νέα εγγραφή: {p.FirstName} {p.LastName}",
-        $"""
-        Νέα εγγραφή στην πλατφόρμα.
+    private EmailMessage PasswordReset(PasswordResetPayload p)
+    {
+        var origin = RequireOrigin();
+        var link = $"{origin}/reset-password#token={Uri.EscapeDataString(p.Token)}";
 
-        Όνομα:  {p.FirstName} {p.LastName}
-        Email:  {p.Email}
+        return Build(p.To, "Επαναφορά κωδικού στο Move Your Ass", new EmailContent(
+            $"Γεια σας {p.FirstName},",
+            [
+                "Ζητήθηκε επαναφορά του κωδικού σας. Πατήστε το κουμπί για να ορίσετε νέο κωδικό.",
+                "Αν δεν το ζητήσατε εσείς, αγνοήστε αυτό το μήνυμα: ο κωδικός σας παραμένει ο ίδιος.",
+            ])
+        {
+            Cta = new EmailCta("Νέος κωδικός", link),
+            Note = $"Ο σύνδεσμος χρησιμοποιείται μία φορά και λήγει στις "
+                 + $"{p.ExpiresAtUtc.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)} UTC. "
+                 + "Μετά την επαναφορά θα χρειαστεί να συνδεθείτε ξανά σε όλες τις συσκευές.",
+        });
+    }
 
-        Η εγγραφή περιμένει έγκριση.{Link("/admin/users?status=PendingApproval", "Εκκρεμείς εγγραφές")}
-        """);
+    private EmailMessage AdminNewRegistration(AdminNewRegistrationPayload p) =>
+        Build(p.To, $"Νέα εγγραφή: {p.FirstName} {p.LastName}", new EmailContent(
+            "Νέα εγγραφή στην πλατφόρμα",
+            [
+                $"Όνομα: {p.FirstName} {p.LastName}",
+                $"Email: {p.Email}",
+                "Η εγγραφή περιμένει την έγκρισή σας. Μέχρι τότε δεν είναι δυνατή η σύνδεση.",
+            ])
+        {
+            Cta = Link("/admin/users?status=PendingApproval", "Έλεγχος εγγραφών"),
+        });
 
-    private EmailMessage AccountApproved(AccountApprovedPayload p) => new(
-        p.To,
-        "Ο λογαριασμός σας εγκρίθηκε",
-        $"""
-        Γεια σας {p.FirstName},
+    private EmailMessage AccountApproved(AccountApprovedPayload p) =>
+        Build(p.To, "Ο λογαριασμός σας εγκρίθηκε", new EmailContent(
+            $"Γεια σας {p.FirstName},",
+            [
+                "Ο λογαριασμός σας εγκρίθηκε. Μπορείτε πλέον να συνδεθείτε και να δείτε τις προπονήσεις.",
+            ])
+        {
+            Cta = Link("/login", "Σύνδεση"),
+        });
 
-        ο λογαριασμός σας εγκρίθηκε. Μπορείτε πλέον να συνδεθείτε.{Link("/login", "Σύνδεση")}
-        """);
+    private EmailMessage AccountDeclined(AccountDeclinedPayload p)
+    {
+        List<string> paragraphs = ["Δυστυχώς η εγγραφή σας δεν έγινε δεκτή."];
+        if (p.Reason is { Length: > 0 })
+        {
+            paragraphs.Add($"Αιτία: {p.Reason}");
+        }
 
-    private static EmailMessage AccountDeclined(AccountDeclinedPayload p) => new(
-        p.To,
-        "Η εγγραφή σας δεν έγινε δεκτή",
-        $"""
-        Γεια σας {p.FirstName},
+        return Build(p.To, "Η εγγραφή σας δεν έγινε δεκτή",
+            new EmailContent($"Γεια σας {p.FirstName},", paragraphs));
+    }
 
-        δυστυχώς η εγγραφή σας δεν έγινε δεκτή.{(p.Reason is null ? string.Empty : $"\n\nΑιτία: {p.Reason}")}
-        """);
+    private EmailMessage Build(string to, string subject, EmailContent content)
+    {
+        var origin = RequireOrigin();
+        return new EmailMessage(to, subject, EmailLayout.PlainText(content, origin), EmailLayout.Html(content, origin));
+    }
 
-    private string Link(string path, string label) =>
-        _spaOrigin is null ? string.Empty : $"\n\n{label}: {_spaOrigin}{path}";
+    private EmailCta? Link(string path, string label) =>
+        _spaOrigin is null ? null : new EmailCta(label, _spaOrigin + path);
+
+    private string RequireOrigin() =>
+        _spaOrigin ?? throw new InvalidOperationException(
+            "App:PublicOrigin is required to render emails: every link and the logo are built from it.");
 }

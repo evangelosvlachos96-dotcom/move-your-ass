@@ -1,11 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, catchError, finalize, map, of, shareReplay, switchMap, tap } from 'rxjs';
+import { Observable, catchError, finalize, firstValueFrom, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import { ApiClient } from '../http/api-client.service';
 import { handles, silent } from '../http/http-context';
 import { ErrorCodes } from '../http/problem-details';
 import { NotifyService } from '../ui/notify.service';
 import { AuthStore } from './auth.store';
+import { SessionSyncService } from './session-sync.service';
 import {
   ChangePasswordRequest,
   LoginRequest,
@@ -23,6 +24,7 @@ export class AuthService {
   private readonly store = inject(AuthStore);
   private readonly router = inject(Router);
   private readonly notify = inject(NotifyService);
+  private readonly sessionSync = inject(SessionSyncService);
 
   /** The one shared refresh call while it is in flight. See refresh(). */
   private refreshInFlight$: Observable<void> | null = null;
@@ -49,21 +51,40 @@ export class AuthService {
   }
 
   /**
-   * Single-flight refresh. Every caller that arrives while a refresh is running subscribes to
-   * the same observable and gets the same outcome. Two parallel refreshes would present the
-   * same cookie twice and trip the backend's reuse detection, which revokes the whole token
-   * family and logs the user out at random.
+   * Always succeeds as far as the caller can tell: the server answers the same whether or not
+   * the address exists, so that this form cannot be used to discover who has an account.
+   */
+  forgotPassword(email: string): Observable<void> {
+    return this.api.post<void>('/auth/forgot-password', { email });
+  }
+
+  resetPassword(token: string, newPassword: string): Observable<void> {
+    return this.api.post<void>('/auth/reset-password', { token, newPassword });
+  }
+
+  /**
+   * Single-flight refresh, within this tab and across tabs.
+   *
+   * Within the tab: every caller arriving while a refresh runs subscribes to the same observable
+   * and gets the same outcome. Across tabs: SessionSyncService serialises on a Web Lock and
+   * shares the resulting access token, so a second tab reuses it rather than presenting the same
+   * cookie again. Two parallel refreshes would otherwise look like token reuse to the server.
    */
   refresh(): Observable<void> {
     if (!this.refreshInFlight$) {
-      this.refreshInFlight$ = this.api
-        .post<RefreshResponse>('/auth/refresh', undefined, { context: silent() })
-        .pipe(
-          tap((response) => this.store.setAccessToken(response.accessToken)),
-          map(() => undefined),
-          finalize(() => (this.refreshInFlight$ = null)),
-          shareReplay({ bufferSize: 1, refCount: false }),
-        );
+      this.refreshInFlight$ = from(
+        this.sessionSync.coordinate(async () => {
+          const response = await firstValueFrom(
+            this.api.post<RefreshResponse>('/auth/refresh', undefined, { context: silent() }),
+          );
+          return response.accessToken;
+        }),
+      ).pipe(
+        tap((accessToken) => this.store.setAccessToken(accessToken)),
+        map(() => undefined),
+        finalize(() => (this.refreshInFlight$ = null)),
+        shareReplay({ bufferSize: 1, refCount: false }),
+      );
     }
     return this.refreshInFlight$;
   }

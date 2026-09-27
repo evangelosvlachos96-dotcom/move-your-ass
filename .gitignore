@@ -93,3 +93,11 @@ desktop.ini
 
 ## local prompt scratchpad
 Instructions.txt
+
+# Playwright: screenshots and reports stay out of the repository.
+web/test-results/
+web/playwright-report/
+web/blob-report/
+web/.pw-tmp/
+
+web/e2e/.auth/

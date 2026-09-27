@@ -1,0 +1,48 @@
+// Option A: lime chevron mark, then "MoveYour" in bone with "Ass" in the accent, on one line.
+// The group is an inline-flex box that centres as a whole, so wherever it is placed it reads as
+// one object rather than a mark with some text trailing off it.
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1;
+  // Nothing here sets a colour for the mark's box; the mark supplies its own.
+  white-space: nowrap;
+  user-select: none;
+}
+
+.logo__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 32px;
+  block-size: 32px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: var(--brand-accent);
+  // The chevron is drawn with currentColor, so it is the on-accent colour, never white on lime.
+  color: var(--brand-on-accent);
+}
+
+.logo__mark svg {
+  inline-size: 18px;
+  block-size: 18px;
+  display: block;
+}
+
+.logo__word {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--brand-text);
+}
+
+.logo__word b {
+  color: var(--brand-accent);
+  font-weight: 600;
+}
+
+// Wordmark only. Slightly larger, because it is now carrying the whole identity on its own.
+.logo--compact .logo__word {
+  font-size: 19px;
+}

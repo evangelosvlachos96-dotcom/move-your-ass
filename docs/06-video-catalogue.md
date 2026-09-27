@@ -87,6 +87,14 @@ body area and status, boolean equipment/publication, integer ordering, optional 
 provider name, nullable external ID (64) and thumbnail URL (1000), UTC timestamptz creation/update,
 creator ID (450), creation key (100) and SHA-256 payload hash (64).
 
+The additive `VideoObjectStorage` migration adds four nullable columns for S3 storage (ADR-019):
+`UploadId` (200) holding the multipart upload while one is in flight, `SizeBytes` counted against
+the storage cap, `ContentType`, and `ThumbnailObjectKey` (200). `ExternalId` now holds the
+object key rather than a provider asset ID, and its unique index still prevents two rows claiming
+the same object. **`ThumbnailUrl` is left unused** — poster URLs are presigned per response and
+never stored. It is kept on purpose: dropping a column inverts the deploy order, because the new
+code must be live before the migration runs. See `docs/backlog.md`.
+
 Tag has UUID Id, display Name (60), unique NormalizedName (120), UTC creation time. Normalization
 trims, removes combining accents and uppercases invariantly, so Greek spelling variants collapse.
 VideoTag has a composite VideoId/TagId key, cascade deletion from Video and restricted Tag deletion.
@@ -97,43 +105,76 @@ Revision is an application-managed UUID concurrency token. The additive VideoCat
 preserves the applied PostgreSQL InitialCreate. Never regenerate an applied baseline.
 
 Statuses: Uploading, Processing, Ready, Failed, Deleting. Only Ready + IsPublished is visible to
-clients. The provider never publishes a workout automatically.
+clients. Nothing publishes a workout automatically. `Processing` is unreachable under S3 storage
+and is kept only so persisted integer values do not shift.
 
-## 4. Provider and state transitions
+## 4. Storage and state transitions
 
-Bunny Stream is implemented behind IVideoStorage (ADR-018). No video bytes are proxied through
-Render. The admin creates metadata with an Idempotency-Key, receives { id, upload }, and uploads
-directly using TUS temporary credentials. A provider webhook or explicit admin Refresh fetches
-authoritative provider status, duration and thumbnail. The admin previews and publishes separately.
+**Backblaze B2 through its S3-compatible API, behind a provider-neutral `IVideoStorage`
+(ADR-019).** Plain object storage: no transcoding, no HLS, no provider player, no webhooks. The
+same adapter serves Cloudflare R2 or MinIO by configuration alone. No video bytes are proxied
+through Render.
 
-Uploads authorize six hours; playback links authorize fifteen minutes. Raw provider keys never
-reach the browser. The webhook requires version v1, algorithm hmac-sha256 and a valid signature
-over exact request bytes using the library read-only API key. Invalid signatures return 401;
-malformed signed payloads return 400. Unknown/deleted assets are acknowledged without recreation.
-The request body limit is 16 KiB. Replay reads current provider state and cannot publish a draft.
+**Upload.** The admin creates metadata with an `Idempotency-Key`, declaring the file's content
+type and size. The API decides everything before issuing a single URL: the type must be
+`video/mp4` or `video/quicktime`, the size must be within `Video:S3:MaxFileBytes`, and the total
+must stay within `Video:S3:StorageCapBytes`. Only then does it start a multipart upload and
+return one presigned PUT per part. The browser uploads parts directly; a failed part is retried
+on its own, so a flaky mobile connection costs one part rather than the recording.
 
-Database reservation prevents duplicate provider creation for a racing creator/key. Replaying a
-matching payload returns the existing ID; changed payload returns 409. The guarantee lasts while
-the row exists; deletion removes its key reservation. If remote creation succeeds but its response
-is lost, reconcile the Bunny library before removing the failed draft and starting anew. The API
-does not retry non-idempotent creation blindly. This distributed-transaction limit is documented,
-not hidden behind a retry policy.
+**The multipart lifecycle is server-side.** `CreateMultipartUpload`, `ListParts`,
+`CompleteMultipartUpload` and `AbortMultipartUpload` are all signed API calls made by the API.
+The browser never reads a part's ETag, so **the bucket only has to allow `s3_put` from the
+browser and never has to expose `ETag` over CORS**. Nothing the browser reports is trusted.
 
-Delete first marks Deleting and unpublishes, then removes the remote asset, then the database row.
-Provider failure leaves a retryable row. Already-missing remote assets count as deleted. Tags are
-retained; only unused tags can be deleted. Update/publish/reorder require current Revision values.
-Ordering is a stable SortOrder/creation-time/ID sort; the UI offers adjacent moves on the visible
-page. It does not offer a cross-page drag interface.
+**Completion replaces the webhook.** After the last part the browser calls
+`POST /upload/complete`. The API completes the upload, **HEADs the object**, and compares its
+size and content type with what was declared. A match becomes `Ready`; a mismatch deletes the
+object and leaves the row `Failed`. `Refresh` re-derives state the same way. `Processing` remains
+in the status enum so persisted integers do not shift, but is unreachable for S3.
+
+**Resume is durable, not session-bound.** The multipart `UploadId` is persisted on the row, so
+reopening a draft and selecting the same file returns the parts the provider already holds and
+re-presigns the rest. Selecting a different file aborts the previous upload first.
+
+**Storage cap counts drafts.** A multipart upload's parts occupy provider storage from the moment
+they land, so the cap sums `SizeBytes` over every row. Aborting or deleting a draft aborts its
+upload so those parts stop counting.
+
+**Thumbnail.** Optional and best effort. The upload ticket includes one presigned PUT for a
+poster frame; the browser captures a frame and its duration from the selected file and stores it
+there. Completion records the key only if a HEAD confirms a plausible object. A browser that
+cannot decode the recording simply sends none, and the card shows the branded placeholder.
+
+**Playback.** A presigned GET with the configured lifetime, default two hours, played in a native
+`<video>` element using HTTP range requests. **A presigned link works for anyone holding it until
+it expires** — it survives unpublishing and suspension. Accepted trade-off; see ADR-019. No
+provider key ever reaches the browser.
+
+Database reservation prevents a racing creator/key from starting a second upload. Replaying a
+matching payload returns the existing ID and a ticket for the upload in flight; a changed payload
+returns 409. The guarantee lasts while the row exists; deletion removes its key reservation.
+Object keys are derived from the video's ID (`videos/{id}.mp4|.mov`), so an uncertain response
+cannot orphan a second copy — a retry addresses the same key.
+
+Delete first marks `Deleting` and unpublishes, then aborts any upload in flight, removes the
+object and its poster frame, then the database row. Provider failure leaves a retryable row.
+Already-missing objects count as deleted. Tags are retained; only unused tags can be deleted.
+Update/publish/reorder require current `Revision` values. Ordering is a stable
+SortOrder/creation-time/ID sort; the UI offers adjacent moves on the visible page. It does not
+offer a cross-page drag interface.
 
 ## 5. API surface
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET/POST | /api/admin/videos | Paged management list / create with Idempotency-Key |
-| GET | /api/admin/videos/summary | Actual counts and provider availability |
+| GET/POST | /api/admin/videos | Paged management list / create `{ video, file }` with Idempotency-Key |
+| GET | /api/admin/videos/summary | Counts, provider availability and storage used against the cap |
 | GET/PUT/DELETE | /api/admin/videos/{id} | Detail / metadata with revision / retryable deletion |
-| POST | /api/admin/videos/{id}/upload | New credentials for Uploading/Failed asset |
-| POST | /api/admin/videos/{id}/refresh | Read current provider state |
+| POST | /api/admin/videos/{id}/upload | Upload ticket for an Uploading/Failed draft; resumes the same file |
+| POST | /api/admin/videos/{id}/upload/complete | Complete, verify by HEAD, mark Ready |
+| POST | /api/admin/videos/{id}/upload/abort | Abandon an upload in flight and release its parts |
+| POST | /api/admin/videos/{id}/refresh | Re-derive state from the stored object |
 | POST | /api/admin/videos/{id}/publish or /unpublish | Publication with revision |
 | GET | /api/admin/videos/{id}/playback | Ready draft preview |
 | POST | /api/admin/videos/reorder | Array of id, sortOrder, revision |
@@ -141,9 +182,16 @@ page. It does not offer a cross-page drag interface.
 | DELETE | /api/admin/tags/{id} | Delete only if unused |
 | GET | /api/videos | Published Ready catalogue; filters and paging |
 | GET | /api/videos/{id} | Client-visible detail |
-| GET | /api/videos/{id}/playback | Short-lived signed embed link |
+| GET | /api/videos/{id}/playback | Short-lived presigned GET |
 | GET | /api/videos/filters | Tags used by published Ready videos |
-| POST | /api/webhooks/video-ready | Anonymous but signature-verified provider event |
+
+There is no webhook endpoint: object storage emits no events. An upload ticket is
+`{ partSizeBytes, partCount, parts: [{ partNumber, url }], uploadedParts, thumbnailUploadUrl }`
+and carries no provider credential. A video's `thumbnailUrl` is a presigned poster URL computed
+per response, or null when no frame was captured; presigning is a local signature, so a page of
+cards costs no provider round trip. Video error codes: `VIDEO_FILE_TYPE`,
+`VIDEO_FILE_TOO_LARGE`, `VIDEO_STORAGE_FULL`, `VIDEO_UPLOAD_MISMATCH`,
+`VIDEO_PROVIDER_UNAVAILABLE`, `VIDEO_CONFLICT`, `VIDEO_NOT_FOUND`, `VIDEO_INVALID`.
 
 List parameters: audience, bodyArea, equipment, search, page, pageSize and repeated tags or indexed
 tags[0], tags[1]. Defaults: page 1, pageSize 12; max pageSize 100. Equipment omitted means both.
@@ -155,15 +203,21 @@ or account suspension; this is not DRM or instantaneous revocation of an already
 ## 6. UI and acceptance
 
 Admin dashboard links pending registrations, users, videos and published library with real counts.
-The upload form has explicit audience/body/equipment choices, controlled tag checkboxes and inline
-tag creation, a file picker, progress, pause/resume and navigation warning. Files are limited to
-5 GiB by the UI. Resume works in the open page; after navigation select the file again using the
-draft's upload action. Metadata remains editable without a configured provider.
+The video screen shows **storage used against the cap**, with a warning band from 80%. The upload
+form has explicit audience/body/equipment choices, controlled tag checkboxes and inline tag
+creation, a file picker limited to MP4 and MOV, byte progress, pause, resume, cancel and a
+navigation warning. The size limit shown comes from the API, not a hardcoded number.
+
+Resume works both within the open page and after reopening the draft and selecting the same file:
+the server knows which parts already landed. Selecting a different file starts over. Cancel aborts
+the multipart upload so its parts stop using the allowance. Metadata remains editable while
+storage is unconfigured.
 
 Client dashboard contains the library: URL-backed search/filters, responsive cards, pagination and
-the signed embedded player. It provides empty/error/loading states and retry without changing the
-route. Shared brand tokens keep the existing dark theme. Native selects are used instead of the
-original radio/chip proposal; taxonomy and filter semantics are unchanged.
+a native `<video>` player fed by a short-lived presigned URL. It provides empty/error/loading
+states and retry without changing the route. Shared brand tokens keep the existing dark theme.
+Native selects are used instead of the original radio/chip proposal; taxonomy and filter semantics
+are unchanged.
 
 Provider setup and live acceptance: docs/11-video-operations.md. Trainer guide: docs/12-trainer-guide.md.
 Local automated and browser evidence: docs/08-milestone-handover.md. Booking remains out of scope.

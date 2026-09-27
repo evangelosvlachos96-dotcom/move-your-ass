@@ -21,11 +21,17 @@ public sealed class AdminVideosController(VideoAdminHandler admin, VideoQueryHan
     public async Task<IActionResult> Playback(Guid id, CancellationToken ct) =>
         (await query.PlaybackAsync(id, true, ct)).ToActionResult(HttpContext, Ok);
     [HttpPost]
-    public async Task<IActionResult> Create(VideoInput input, [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
+    public async Task<IActionResult> Create(VideoCreateInput input, [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         (await admin.CreateAsync(input, key ?? string.Empty, ct)).ToActionResult(HttpContext, v => Created($"/api/admin/videos/{v.Id}", v));
     [HttpPost("{id:guid}/upload")]
-    public async Task<IActionResult> Upload(Guid id, CancellationToken ct) =>
-        (await admin.UploadAsync(id, ct)).ToActionResult(HttpContext, Ok);
+    public async Task<IActionResult> Upload(Guid id, UploadRequest input, CancellationToken ct) =>
+        (await admin.UploadAsync(id, input, ct)).ToActionResult(HttpContext, Ok);
+    [HttpPost("{id:guid}/upload/complete")]
+    public async Task<IActionResult> Complete(Guid id, CompleteUploadInput input, CancellationToken ct) =>
+        (await admin.CompleteAsync(id, input, ct)).ToActionResult(HttpContext, NoContent);
+    [HttpPost("{id:guid}/upload/abort")]
+    public async Task<IActionResult> Abort(Guid id, CancellationToken ct) =>
+        (await admin.AbortAsync(id, ct)).ToActionResult(HttpContext, NoContent);
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, VideoInput input, CancellationToken ct) =>
         (await admin.UpdateAsync(id, input, ct)).ToActionResult(HttpContext, NoContent);

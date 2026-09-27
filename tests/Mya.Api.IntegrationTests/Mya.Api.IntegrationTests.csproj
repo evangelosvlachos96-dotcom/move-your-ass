@@ -5,10 +5,10 @@
   </PropertyGroup>
 
   <!--
-    The seeder test runs the real model and Identity stores on in-memory SQLite, because it needs
-    no PostgreSQL-specific behaviour and therefore no Docker. Anything that does depend on
-    PostgreSQL semantics belongs on a Testcontainers PostgreSQL fixture; none exists yet
-    (ADR-014 defers new automated tests).
+    Handler tests run the real model and Identity stores on in-memory SQLite, because they need
+    no PostgreSQL-specific behaviour and therefore no Docker. Anything that depends on PostgreSQL
+    semantics belongs on a Testcontainers PostgreSQL fixture. The S3 adapter is exercised against
+    a real S3 implementation with Testcontainers.Minio; those tests skip when Docker is absent.
   -->
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
@@ -16,6 +16,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="Testcontainers.Minio" Version="4.15.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>

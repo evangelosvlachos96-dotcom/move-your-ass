@@ -1,31 +1,37 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { map } from 'rxjs';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
 import { AuthStore } from '../core/auth/auth.store';
 import { PendingRegistrationsService } from '../core/admin/pending-registrations.service';
+import { BrandLogoComponent } from '../shared/ui/brand-logo/brand-logo.component';
+import { ConfirmDialogService } from '../shared/ui/confirm-dialog/confirm-dialog.service';
 
 interface NavItem {
   label: string;
+  /** Bottom-bar label. Short enough not to wrap on a 390px screen split four ways. */
+  short: string;
   icon: string;
   link: string;
 }
 
 /**
- * Toolbar + sidenav + outlet. Sidenav is a drawer under 960px and a fixed column above.
+ * The application frame: a sidebar on tablet and desktop, a bottom bar on phones, and a top bar
+ * that carries the page title and the profile menu. Sidebar and top bar share one surface and
+ * one border so they read as a single L-shaped frame rather than two panels meeting at a seam.
+ *
+ * There is no hamburger. On a phone the four destinations are always visible at the bottom,
+ * within thumb reach, which is both fewer taps and a clearer sense of where you are.
  *
  * While the user must change a temporary password (`forced`) there is nowhere else to go: the
- * sidenav, the logo link and the menu shortcuts are hidden and only "log out" remains. The API
- * enforces this regardless (403 MUST_CHANGE_PASSWORD); the UI just stops pretending otherwise.
+ * navigation and the menu shortcuts are hidden and only "log out" remains. The API enforces this
+ * regardless (403 MUST_CHANGE_PASSWORD); the UI just stops pretending otherwise.
  */
 @Component({
   selector: 'app-shell',
@@ -33,13 +39,11 @@ interface NavItem {
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
-    MatToolbarModule,
-    MatSidenavModule,
-    MatListModule,
     MatButtonModule,
     MatIconModule,
     MatMenuModule,
     MatDividerModule,
+    BrandLogoComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './shell.component.html',
@@ -48,24 +52,42 @@ interface NavItem {
 export class ShellComponent {
   private readonly breakpoints = inject(BreakpointObserver);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   protected readonly store = inject(AuthStore);
   protected readonly pending = inject(PendingRegistrationsService);
   protected readonly forced = this.store.mustChangePassword;
 
-  protected readonly isWide = toSignal(
-    this.breakpoints.observe('(min-width: 960px)').pipe(map((result) => result.matches)),
+  /** Below 600px the sidebar is replaced by the bottom bar. */
+  protected readonly isPhone = toSignal(
+    this.breakpoints.observe('(max-width: 599px)').pipe(map((result) => result.matches)),
     { initialValue: false },
   );
 
-  /** Drawer state in narrow mode; ignored in wide mode where the nav is always open. */
-  protected readonly drawerOpen = signal(false);
-
   protected readonly navItems = computed<readonly NavItem[]>(() => [
-    { label: 'Πίνακας', icon: 'dashboard', link: '/dashboard' },
-    { label: 'Προπονήσεις', icon: 'play_circle', link: '/videos' },
-    ...(this.store.user()?.role === 'Admin' ? [{ label: 'Βίντεο', icon: 'video_library', link: '/admin/videos' }, { label: 'Χρήστες', icon: 'group', link: '/admin/users' }] : []),
+    { label: 'Πίνακας', short: 'Πίνακας', icon: 'dashboard', link: '/dashboard' },
+    { label: 'Προπονήσεις', short: 'Προπονήσεις', icon: 'play_circle', link: '/videos' },
+    ...(this.store.user()?.role === 'Admin'
+      ? [
+          { label: 'Βίντεο', short: 'Βίντεο', icon: 'video_library', link: '/admin/videos' },
+          { label: 'Χρήστες', short: 'Χρήστες', icon: 'group', link: '/admin/users' },
+        ]
+      : []),
   ]);
+
+  /**
+   * The top bar names the current page. The brand does not appear here on desktop — it is in the
+   * sidebar, once.
+   */
+  protected readonly pageTitle = toSignal(
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      startWith(null),
+      map(() => TITLES[stripQuery(this.router.url)] ?? 'Move Your Ass'),
+    ),
+    { initialValue: 'Move Your Ass' },
+  );
 
   constructor() {
     effect(() => {
@@ -74,17 +96,29 @@ export class ShellComponent {
     });
   }
 
-  protected toggleDrawer(): void {
-    this.drawerOpen.update((open) => !open);
-  }
+  protected async logout(): Promise<void> {
+    const ok = await this.confirmDialog.confirm({
+      title: 'Αποσύνδεση',
+      message: 'Θέλεις να αποσυνδεθείς;',
+      confirmLabel: 'Αποσύνδεση',
+    });
 
-  protected closeDrawerIfNarrow(): void {
-    if (!this.isWide()) {
-      this.drawerOpen.set(false);
+    if (ok) {
+      this.auth.logout().subscribe();
     }
   }
+}
 
-  protected logout(): void {
-    this.auth.logout().subscribe();
-  }
+const TITLES: Record<string, string> = {
+  '/dashboard': 'Πίνακας',
+  '/videos': 'Προπονήσεις',
+  '/admin/videos': 'Διαχείριση βίντεο',
+  '/admin/users': 'Χρήστες',
+  '/profile': 'Προφίλ',
+  '/change-password': 'Αλλαγή κωδικού',
+};
+
+/** `/admin/users?status=...` is still the users page. Sub-routes fall back to the brand name. */
+function stripQuery(url: string): string {
+  return url.split('?')[0];
 }

@@ -18,6 +18,7 @@ export interface Video {
   sortOrder: number;
   durationSeconds: number | null;
   thumbnailUrl: string | null;
+  sizeBytes: number | null;
   revision: string;
   tags: Tag[];
 }
@@ -37,16 +38,31 @@ export interface VideoPage {
   totalCount: number;
   totalPages: number;
 }
-export interface UploadCredentials {
-  endpoint: string;
-  videoId: string;
-  libraryId: string;
-  signature: string;
-  expires: number;
+export interface PartUrl {
+  partNumber: number;
+  url: string;
+}
+/** Everything the browser needs to upload directly to object storage. No provider credential. */
+export interface UploadTicket {
+  partSizeBytes: number;
+  partCount: number;
+  parts: PartUrl[];
+  /** Parts the provider already holds, so reopening a draft resumes rather than restarts. */
+  uploadedParts: number[];
+  thumbnailUploadUrl: string;
+}
+export interface UploadRequest {
+  contentType: string;
+  sizeBytes: number;
 }
 export interface CreatedVideo {
   id: string;
-  upload: UploadCredentials | null;
+  upload: UploadTicket | null;
+}
+export interface StorageUsage {
+  usedBytes: number;
+  capBytes: number;
+  maxFileBytes: number;
 }
 export interface Playback {
   url: string;
@@ -58,7 +74,11 @@ export interface VideoSummary {
   processing: number;
   failed: number;
   providerConfigured: boolean;
+  storage: StorageUsage;
 }
+
+/** Content types the API accepts. Anything else is refused before an upload URL is issued. */
+export const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/quicktime'] as const;
 export const AUDIENCE_LABELS: Record<Audience, string> = {
   Male: 'Άντρες',
   Female: 'Γυναίκες',
@@ -70,7 +90,7 @@ export const AREA_LABELS: Record<BodyArea, string> = {
   LowerBody: 'Κάτω μέρος',
 };
 export const STATUS_LABELS: Record<VideoStatus, string> = {
-  Uploading: 'Αναμονή ανεβάσματος',
+  Uploading: 'Ημιτελές ανέβασμα',
   Processing: 'Επεξεργασία',
   Ready: 'Έτοιμο',
   Failed: 'Αποτυχία',
@@ -79,4 +99,12 @@ export const STATUS_LABELS: Record<VideoStatus, string> = {
 export function durationLabel(seconds: number | null): string {
   if (seconds === null) return '—';
   return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+}
+
+/** Human-readable size, for the storage bar and for file-too-large messages. */
+export function sizeLabel(bytes: number | null): string {
+  if (bytes === null) return '—';
+  if (bytes < 1024 ** 2) return Math.round(bytes / 1024) + ' KB';
+  if (bytes < 1024 ** 3) return (bytes / 1024 ** 2).toFixed(bytes < 10 * 1024 ** 2 ? 1 : 0) + ' MB';
+  return (bytes / 1024 ** 3).toFixed(2) + ' GB';
 }

@@ -10,6 +10,15 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/set-password/set-password.component').then(m => m.SetPasswordComponent),
   },
   {
+    path: 'forgot-password',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./features/auth/forgot-password/forgot-password.component').then((m) => m.ForgotPasswordComponent),
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./features/auth/forgot-password/reset-password.component').then((m) => m.ResetPasswordComponent),
+  },
+  {
     path: 'login',
     canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/login/login.component').then((m) => m.LoginComponent),
@@ -30,7 +39,7 @@ export const routes: Routes = [
     children: [
       { path: 'videos', canActivate: [mustChangePasswordGuard], loadComponent: () => import('./features/videos/library.component').then(m => m.VideoLibraryComponent) },
       { path: 'videos/:id', canActivate: [mustChangePasswordGuard], loadComponent: () => import('./features/videos/player.component').then(m => m.VideoPlayerComponent) },
-      { path: 'admin/videos', canActivate: [mustChangePasswordGuard, roleGuard('Admin')], canDeactivate: [(component: { canLeave(): boolean }) => component.canLeave()], loadComponent: () => import('./features/videos/admin-videos.component').then(m => m.AdminVideosComponent) },
+      { path: 'admin/videos', canActivate: [mustChangePasswordGuard, roleGuard('Admin')], canDeactivate: [(component: { canLeave(): Promise<boolean> }) => component.canLeave()], loadComponent: () => import('./features/videos/admin-videos.component').then(m => m.AdminVideosComponent) },
       { path: 'admin/videos/:id', data: { admin: true }, canActivate: [mustChangePasswordGuard, roleGuard('Admin')], loadComponent: () => import('./features/videos/player.component').then(m => m.VideoPlayerComponent) },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {

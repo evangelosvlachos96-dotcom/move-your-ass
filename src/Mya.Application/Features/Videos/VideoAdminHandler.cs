@@ -9,53 +9,137 @@ using Mya.Application.Common.Results;
 using Mya.Domain.Entities;
 using Mya.Domain.Enums;
 namespace Mya.Application.Features.Videos;
-public sealed record CreatedVideo(Guid Id, UploadCredentials? Upload);
+public sealed record CreatedVideo(Guid Id, UploadTicket? Upload);
+
+/// <summary>
+/// Admin video management (ADR-019). Uploads go from the browser straight to object storage with
+/// presigned part URLs; this handler decides whether an upload may start, issues those URLs, and
+/// is the only thing that talks to the provider's multipart API.
+/// </summary>
 public sealed class VideoAdminHandler(IAppDbContext db, VideoAccess access, ICurrentUser current, IClock clock, IVideoStorage storage)
 {
-    public async Task<Result<CreatedVideo>> CreateAsync(VideoInput input, string key, CancellationToken ct)
+    /// <summary>A poster frame is a small JPEG. Anything larger is not the frame we asked for.</summary>
+    private const long MaxThumbnailBytes = 2L * 1024 * 1024;
+
+    public async Task<Result<CreatedVideo>> CreateAsync(VideoCreateInput input, string key, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(input);
         if (!await access.AllowedAsync(true, ct)) return Result.Failure<CreatedVideo>(VideoRules.Forbidden);
         if (string.IsNullOrWhiteSpace(key) || key.Length > 100) return Result.Failure<CreatedVideo>(VideoRules.Invalid);
         if (!storage.IsConfigured) return Result.Failure<CreatedVideo>(VideoRules.Unavailable);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(input))));
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(input.Video))));
         var old = await db.Videos.SingleOrDefaultAsync(v => v.CreatedByUserId == current.UserId && v.CreationKey == key, ct);
         if (old is not null)
         {
             if (old.CreationHash != hash) return Result.Failure<CreatedVideo>(VideoRules.Conflict);
-            return Result.Success(new CreatedVideo(old.Id, old.ExternalId is null || old.Status != VideoStatus.Uploading ? null : storage.Upload(old.ExternalId)));
+            // Replay of the same create: hand back a ticket for the upload already in flight.
+            return old.Status == VideoStatus.Uploading && old.ExternalId is not null && old.UploadId is not null
+                ? Result.Success(new CreatedVideo(old.Id, await TicketAsync(old, ct)))
+                : Result.Success(new CreatedVideo(old.Id, null));
         }
-        if (!await TagsExistAsync(input.TagIds, ct)) return Result.Failure<CreatedVideo>(VideoRules.Invalid);
-        var video = new Video { Id = Guid.NewGuid(), CreatedByUserId = current.UserId!, CreatedAtUtc = clock.UtcNow, CreationKey = key, CreationHash = hash };
-        Apply(video, input);
+        var allowed = await CheckFileAsync(input.File, null, ct);
+        if (allowed is not null) return Result.Failure<CreatedVideo>(allowed);
+        if (!await TagsExistAsync(input.Video.TagIds, ct)) return Result.Failure<CreatedVideo>(VideoRules.Invalid);
+        var video = new Video
+        {
+            Id = Guid.NewGuid(), CreatedByUserId = current.UserId!, CreatedAtUtc = clock.UtcNow,
+            CreationKey = key, CreationHash = hash, Status = VideoStatus.Uploading,
+            ContentType = input.File.ContentType, SizeBytes = input.File.SizeBytes,
+        };
+        video.ExternalId = VideoRules.ObjectKey(video.Id, video.ContentType!);
+        Apply(video, input.Video);
         video.SortOrder = (await db.Videos.MaxAsync(v => (int?)v.SortOrder, ct) ?? -1) + 1;
         db.Videos.Add(video);
-        // Reserve the key before contacting the provider. A racing request cannot create a second asset.
+        // Reserve the key before contacting the provider. A racing request cannot start a second upload.
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return Result.Failure<CreatedVideo>(VideoRules.Conflict); }
-        try
-        {
-            video.ExternalId = await storage.CreateAsync(video.Title, ct);
-            await db.SaveChangesAsync(ct);
-            return Result.Success(new CreatedVideo(video.Id, storage.Upload(video.ExternalId)));
-        }
-        catch (HttpRequestException)
-        {
-            video.Status = VideoStatus.Failed; await db.SaveChangesAsync(ct);
-            return Result.Failure<CreatedVideo>(VideoRules.Unavailable);
-        }
+        var started = await StartAsync(video, ct);
+        return started.IsFailure
+            ? Result.Failure<CreatedVideo>(started.Error!)
+            : Result.Success(new CreatedVideo(video.Id, started.Value));
     }
-    public async Task<Result<UploadCredentials>> UploadAsync(Guid id, CancellationToken ct)
+
+    /// <summary>
+    /// Issues upload URLs for an existing draft. The same file resumes the upload already in
+    /// flight; a different file abandons it and starts a new one.
+    /// </summary>
+    public async Task<Result<UploadTicket>> UploadAsync(Guid id, UploadRequest file, CancellationToken ct)
     {
-        if (!await access.AllowedAsync(true, ct)) return Result.Failure<UploadCredentials>(VideoRules.Forbidden);
+        ArgumentNullException.ThrowIfNull(file);
+        if (!await access.AllowedAsync(true, ct)) return Result.Failure<UploadTicket>(VideoRules.Forbidden);
         var v = await db.Videos.SingleOrDefaultAsync(x => x.Id == id, ct);
-        if (v is null) return Result.Failure<UploadCredentials>(VideoRules.Missing);
-        if (!storage.IsConfigured) return Result.Failure<UploadCredentials>(VideoRules.Unavailable);
-        if (v.ExternalId is null || v.Status is not (VideoStatus.Uploading or VideoStatus.Failed)) return Result.Failure<UploadCredentials>(VideoRules.Invalid);
-        v.Status = VideoStatus.Uploading; v.IsPublished = false; v.Revision = Guid.NewGuid();
-        var saved = await SaveAsync(ct);
-        return saved.IsFailure ? Result.Failure<UploadCredentials>(saved.Error!) : Result.Success(storage.Upload(v.ExternalId));
+        if (v is null) return Result.Failure<UploadTicket>(VideoRules.Missing);
+        if (!storage.IsConfigured) return Result.Failure<UploadTicket>(VideoRules.Unavailable);
+        if (v.Status is not (VideoStatus.Uploading or VideoStatus.Failed)) return Result.Failure<UploadTicket>(VideoRules.Invalid);
+
+        var sameFile = v.UploadId is not null && v.ExternalId is not null
+            && v.ContentType == file.ContentType && v.SizeBytes == file.SizeBytes;
+        if (sameFile)
+        {
+            v.Status = VideoStatus.Uploading; v.IsPublished = false; v.Revision = Guid.NewGuid();
+            var resumed = await SaveAsync(ct);
+            if (resumed.IsFailure) return Result.Failure<UploadTicket>(resumed.Error!);
+            return Result.Success(await TicketAsync(v, ct));
+        }
+
+        var allowed = await CheckFileAsync(file, v.Id, ct);
+        if (allowed is not null) return Result.Failure<UploadTicket>(allowed);
+        await DiscardUploadAsync(v, ct);
+        v.ContentType = file.ContentType; v.SizeBytes = file.SizeBytes;
+        v.ExternalId = VideoRules.ObjectKey(v.Id, v.ContentType!);
+        v.Status = VideoStatus.Uploading; v.IsPublished = false;
+        var started = await StartAsync(v, ct);
+        return started.IsFailure ? Result.Failure<UploadTicket>(started.Error!) : Result.Success(started.Value);
     }
+
+    /// <summary>
+    /// Completes the multipart upload and verifies the result. There is no provider webhook
+    /// (ADR-019): the object is read back with HEAD, and only a matching object becomes Ready.
+    /// </summary>
+    public async Task<Result> CompleteAsync(Guid id, CompleteUploadInput input, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (!await access.AllowedAsync(true, ct)) return Result.Failure(VideoRules.Forbidden);
+        var v = await db.Videos.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (v is null) return Result.Failure(VideoRules.Missing);
+        if (!storage.IsConfigured) return Result.Failure(VideoRules.Unavailable);
+        if (v.Status != VideoStatus.Uploading || v.ExternalId is null || v.UploadId is null) return Result.Failure(VideoRules.Invalid);
+
+        StoredObject stored;
+        try { stored = await storage.CompleteUploadAsync(v.ExternalId, v.UploadId, ct); }
+        catch (VideoStorageException) { return Result.Failure(VideoRules.Unavailable); }
+
+        if (stored.SizeBytes != v.SizeBytes || !storage.AllowedContentTypes.Contains(stored.ContentType, StringComparer.OrdinalIgnoreCase))
+        {
+            // Not what was authorised. Remove it rather than leave unverified bytes in the bucket.
+            try { await storage.DeleteAsync(v.ExternalId, ct); } catch (VideoStorageException) { /* retried by Delete */ }
+            v.Status = VideoStatus.Failed; v.UploadId = null; v.IsPublished = false;
+            v.Revision = Guid.NewGuid(); v.UpdatedAtUtc = clock.UtcNow;
+            await SaveAsync(ct);
+            return Result.Failure(VideoRules.UploadMismatch);
+        }
+
+        v.SizeBytes = stored.SizeBytes; v.ContentType = stored.ContentType; v.UploadId = null;
+        v.DurationSeconds = input.DurationSeconds;
+        v.ThumbnailObjectKey = input.ThumbnailUploaded ? await VerifyThumbnailAsync(v.Id, ct) : null;
+        v.Status = VideoStatus.Ready; v.Revision = Guid.NewGuid(); v.UpdatedAtUtc = clock.UtcNow;
+        return await SaveAsync(ct);
+    }
+
+    /// <summary>Abandons an upload in flight so its parts stop occupying the storage allowance.</summary>
+    public async Task<Result> AbortAsync(Guid id, CancellationToken ct)
+    {
+        if (!await access.AllowedAsync(true, ct)) return Result.Failure(VideoRules.Forbidden);
+        var v = await db.Videos.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (v is null) return Result.Failure(VideoRules.Missing);
+        if (v.Status != VideoStatus.Uploading) return Result.Failure(VideoRules.Invalid);
+        try { await DiscardUploadAsync(v, ct); }
+        catch (VideoStorageException) { return Result.Failure(VideoRules.Unavailable); }
+        v.Status = VideoStatus.Failed; v.IsPublished = false;
+        v.Revision = Guid.NewGuid(); v.UpdatedAtUtc = clock.UtcNow;
+        return await SaveAsync(ct);
+    }
+
     public async Task<Result> UpdateAsync(Guid id, VideoInput input, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -86,8 +170,13 @@ public sealed class VideoAdminHandler(IAppDbContext db, VideoAccess access, ICur
         if (v.ExternalId is not null && !storage.IsConfigured) return Result.Failure(VideoRules.Unavailable);
         v.Status = VideoStatus.Deleting; v.IsPublished = false; v.Revision = Guid.NewGuid();
         var saved = await SaveAsync(ct); if (saved.IsFailure) return saved;
-        try { if (v.ExternalId is not null) await storage.DeleteAsync(v.ExternalId, ct); }
-        catch (HttpRequestException) { return Result.Failure(VideoRules.Unavailable); }
+        try
+        {
+            await DiscardUploadAsync(v, ct);
+            if (v.ExternalId is not null) await storage.DeleteAsync(v.ExternalId, ct);
+            if (v.ThumbnailObjectKey is not null) await storage.DeleteAsync(v.ThumbnailObjectKey, ct);
+        }
+        catch (VideoStorageException) { return Result.Failure(VideoRules.Unavailable); }
         db.Videos.Remove(v); return await SaveAsync(ct);
     }
     public async Task<Result> ReorderAsync(VideoOrder[] order, CancellationToken ct)
@@ -121,6 +210,74 @@ public sealed class VideoAdminHandler(IAppDbContext db, VideoAccess access, ICur
         db.Tags.Remove(tag);
         try { await db.SaveChangesAsync(ct); return Result.Success(); } catch (DbUpdateException) { return Result.Failure(VideoRules.Conflict); }
     }
+
+    /// <summary>
+    /// Type, size and the storage cap, decided before a single presigned URL exists. The cap
+    /// counts drafts too: their parts occupy provider storage until they complete or are aborted.
+    /// </summary>
+    private async Task<Error?> CheckFileAsync(UploadRequest file, Guid? excluding, CancellationToken ct)
+    {
+        if (file.ContentType is null || !storage.AllowedContentTypes.Contains(file.ContentType, StringComparer.OrdinalIgnoreCase))
+            return VideoRules.FileType;
+        if (file.SizeBytes <= 0 || file.SizeBytes > storage.MaxFileBytes) return VideoRules.FileTooLarge;
+        var used = await UsedBytesAsync(excluding, ct);
+        return used + file.SizeBytes > storage.StorageCapBytes ? VideoRules.StorageFull : null;
+    }
+
+    /// <summary>Bytes counted against the cap, optionally ignoring one row that is being replaced.</summary>
+    public Task<long> UsedBytesAsync(Guid? excluding, CancellationToken ct) =>
+        db.Videos.Where(v => excluding == null || v.Id != excluding).SumAsync(v => v.SizeBytes ?? 0L, ct);
+
+    private async Task<Result<UploadTicket>> StartAsync(Video video, CancellationToken ct)
+    {
+        try
+        {
+            var session = await storage.BeginUploadAsync(video.ExternalId!, video.ContentType!, video.SizeBytes!.Value, ct);
+            video.UploadId = session.UploadId;
+            video.Revision = Guid.NewGuid();
+            await db.SaveChangesAsync(ct);
+            return Result.Success(new UploadTicket(session.PartSizeBytes, session.PartCount,
+                storage.PresignPartUrls(session.ObjectKey, session.UploadId, 1, session.PartCount),
+                [], storage.PresignPut(VideoRules.ThumbnailKey(video.Id), storage.UploadLifetime)));
+        }
+        catch (VideoStorageException)
+        {
+            video.Status = VideoStatus.Failed; video.UploadId = null;
+            await db.SaveChangesAsync(ct);
+            return Result.Failure<UploadTicket>(VideoRules.Unavailable);
+        }
+    }
+
+    private async Task<UploadTicket> TicketAsync(Video video, CancellationToken ct)
+    {
+        var parts = VideoStorageMath.PartCount(video.SizeBytes!.Value, storage.PartSizeBytes);
+        IReadOnlyList<int> uploaded;
+        try { uploaded = await storage.ListUploadedPartsAsync(video.ExternalId!, video.UploadId!, ct); }
+        catch (VideoStorageException) { uploaded = []; }
+        return new UploadTicket(storage.PartSizeBytes, parts,
+            storage.PresignPartUrls(video.ExternalId!, video.UploadId!, 1, parts), uploaded,
+            storage.PresignPut(VideoRules.ThumbnailKey(video.Id), storage.UploadLifetime));
+    }
+
+    /// <summary>A poster frame only counts once the provider confirms a plausible object.</summary>
+    private async Task<string?> VerifyThumbnailAsync(Guid id, CancellationToken ct)
+    {
+        var key = VideoRules.ThumbnailKey(id);
+        try
+        {
+            var head = await storage.HeadAsync(key, ct);
+            return head is { SizeBytes: > 0 and <= MaxThumbnailBytes } ? key : null;
+        }
+        catch (VideoStorageException) { return null; }
+    }
+
+    private async Task DiscardUploadAsync(Video video, CancellationToken ct)
+    {
+        if (video.ExternalId is null || video.UploadId is null) return;
+        await storage.AbortUploadAsync(video.ExternalId, video.UploadId, ct);
+        video.UploadId = null;
+    }
+
     private async Task<bool> TagsExistAsync(Guid[] ids, CancellationToken ct) => await db.Tags.CountAsync(t => ids.Contains(t.Id), ct) == ids.Distinct().Count();
     private static void Apply(Video v, VideoInput input)
     {

@@ -17,8 +17,8 @@ payments and multiple trainers are outside scope.
 ## Stack and layout
 
 ASP.NET Core / .NET 10, EF Core and PostgreSQL; Angular standalone components, signals and
-Angular Material. Email goes through the Resend HTTPS API. Bunny Stream is the implemented video
-provider.
+Angular Material. Email goes through the Resend HTTPS API. Video is stored in Backblaze B2 via
+its S3-compatible API, behind a provider-neutral adapter (ADR-019).
 
 Production is one Render web service (Docker, Frankfurt) serving the API and the Angular build
 from the same origin on `https://moveyourass.gr`, with a Neon database and Cloudflare DNS.
@@ -85,4 +85,5 @@ Private and proprietary. All rights reserved.
 
 Video setup and acceptance: [docs/11-video-operations.md](docs/11-video-operations.md).
 Trainer guide: [docs/12-trainer-guide.md](docs/12-trainer-guide.md).
-Video uploads remain disabled until Bunny settings are supplied. Run backend and frontend tests before deployment.
+Video uploads stay disabled until the `Video:S3:*` settings are supplied. Run backend and
+frontend tests before deployment.
