@@ -99,3 +99,5 @@ web/test-results/
 web/playwright-report/
 web/blob-report/
 web/.pw-tmp/
+
+web/e2e/.auth/
