@@ -7,7 +7,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { TokenPageNotice } from '../../../core/auth/token-page-notice.service';
 import { BrandLogoComponent } from '../../../shared/ui/brand-logo/brand-logo.component';
+import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.component';
 import {
   PASSWORD_MAX_LENGTH,
   passwordPolicy,
@@ -25,6 +27,7 @@ import {
     ReactiveFormsModule,
     RouterLink,
     BrandLogoComponent,
+    SiteFooterComponent,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -42,6 +45,11 @@ import {
           </mat-card-header>
 
           <mat-card-content>
+            @if (signedOutPrevious) {
+              <p role="status" class="reset__notice">
+                Αποσυνδεθήκατε από τον προηγούμενο λογαριασμό για να ορίσετε κωδικό.
+              </p>
+            }
             @if (done()) {
               <p role="status">
                 Ο κωδικός άλλαξε. Για ασφάλεια αποσυνδέθηκαν όλες οι συσκευές, οπότε συνδέσου ξανά.
@@ -86,10 +94,11 @@ import {
             }
           </mat-card-content>
         </mat-card>
+        <app-site-footer />
       </div>
     </div>
   `,
-  styles: [`form { display: grid; gap: 12px; } mat-form-field { width: 100%; }`],
+  styles: [`form { display: grid; gap: 12px; } mat-form-field { width: 100%; } .reset__notice { color: var(--brand-muted); }`],
 })
 export class ResetPasswordComponent {
   private readonly auth = inject(AuthService);
@@ -98,6 +107,9 @@ export class ResetPasswordComponent {
 
   protected readonly token =
     new URLSearchParams(this.route.snapshot.fragment ?? '').get('token') ?? '';
+
+  /** True when the guard ended an active session to show this page. */
+  protected readonly signedOutPrevious = inject(TokenPageNotice).consume();
 
   protected readonly busy = signal(false);
   protected readonly done = signal(false);

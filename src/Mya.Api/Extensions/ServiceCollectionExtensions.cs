@@ -24,8 +24,24 @@ namespace Mya.Api.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    private const int AuthPermitLimit = 5;
+    /// <summary>
+    /// Sign-in attempts allowed per (email, IP) per window. Five in production, which is what
+    /// stops online guessing without locking anybody's account.
+    ///
+    /// Configurable because the end-to-end suite signs in once per browser engine per role and
+    /// legitimately needs more than five in fifteen minutes on a developer machine. The limit
+    /// itself is covered by the backend tests, so raising it locally tests nothing away —
+    /// and leaving it at five meant the suite spent its time fighting a production control
+    /// rather than checking the product.
+    /// </summary>
+    private const string AuthPermitLimitKey = "RateLimits:AuthPermitLimit";
+    private const int DefaultAuthPermitLimit = 5;
     private static readonly TimeSpan AuthWindow = TimeSpan.FromMinutes(15);
+
+    /// <summary>Contact messages and test emails one account may send per window.</summary>
+    private const string PerUserWriteLimitKey = "RateLimits:PerUserWritePermitLimit";
+    private const int DefaultPerUserWritePermitLimit = 5;
+    private static readonly TimeSpan PerUserWriteWindow = TimeSpan.FromMinutes(10);
 
     /// <summary>Backstop across every IP for one email. Generous: a real person never meets it.</summary>
     private const int AuthGlobalPermitLimit = 50;
@@ -78,7 +94,7 @@ public static class ServiceCollectionExtensions
                 .RequireRole(Roles.Admin)
                 .AddRequirements(new CurrentAdminRequirement())));
 
-        services.AddAuthRateLimiting();
+        services.AddAuthRateLimiting(configuration);
 
 
         if (environment.IsDevelopment())
@@ -138,8 +154,13 @@ public static class ServiceCollectionExtensions
             });
     }
 
-    private static void AddAuthRateLimiting(this IServiceCollection services)
+    private static void AddAuthRateLimiting(this IServiceCollection services, IConfiguration configuration)
     {
+        // Read once at startup: a limit that could change per request would be a limit nobody
+        // could reason about.
+        var authPermitLimit = configuration.GetValue(AuthPermitLimitKey, DefaultAuthPermitLimit);
+        var perUserWriteLimit = configuration.GetValue(PerUserWriteLimitKey, DefaultPerUserWritePermitLimit);
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -170,8 +191,22 @@ public static class ServiceCollectionExtensions
                     AuthRateLimitKeyMiddleware.PartitionKey(httpContext),
                     _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = AuthPermitLimit,
+                        PermitLimit = authPermitLimit,
                         Window = AuthWindow,
+                        QueueLimit = 0,
+                        AutoReplenishment = true,
+                    }));
+
+            options.AddPolicy(RateLimitPolicies.PerUserWrite, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    // Falls back to the address for a caller with no identity, which the
+                    // [Authorize] attribute should already have refused.
+                    httpContext.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                        ?? $"ip:{httpContext.Connection.RemoteIpAddress}",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = perUserWriteLimit,
+                        Window = PerUserWriteWindow,
                         QueueLimit = 0,
                         AutoReplenishment = true,
                     }));

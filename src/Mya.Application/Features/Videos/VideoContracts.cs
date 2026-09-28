@@ -40,6 +40,27 @@ public sealed class VideoCreateInputValidator : AbstractValidator<VideoCreateInp
     }
 }
 
+/// <summary>A cover image the trainer picked, described before any URL is issued.</summary>
+public sealed record CoverRequest(string? ContentType, long SizeBytes);
+public sealed class CoverRequestValidator : AbstractValidator<CoverRequest>
+{
+    public CoverRequestValidator()
+    {
+        RuleFor(x => x.ContentType).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.SizeBytes).GreaterThan(0);
+    }
+}
+
+/// <summary>Where to PUT the cover, and the key to send back once it is there.</summary>
+public sealed record CoverTicket(string ObjectKey, string UploadUrl);
+
+/// <summary>Confirms a cover the browser has finished uploading.</summary>
+public sealed record CoverConfirm(string ObjectKey);
+public sealed class CoverConfirmValidator : AbstractValidator<CoverConfirm>
+{
+    public CoverConfirmValidator() { RuleFor(x => x.ObjectKey).NotEmpty().MaximumLength(200); }
+}
+
 /// <summary>Reported by the browser after the last part, then verified server-side.</summary>
 public sealed record CompleteUploadInput(bool ThumbnailUploaded, int? DurationSeconds);
 public sealed class CompleteUploadInputValidator : AbstractValidator<CompleteUploadInput>
@@ -83,7 +104,7 @@ public sealed class TagInputValidator : AbstractValidator<TagInput>
 public sealed record TagDto(Guid Id, string Name, int UsageCount);
 public sealed record VideoDto(Guid Id, string Title, string? Description, VideoAudience Audience, VideoBodyArea BodyArea,
     bool RequiresEquipment, VideoStatus Status, bool IsPublished, int SortOrder, int? DurationSeconds,
-    string? ThumbnailUrl, long? SizeBytes, Guid Revision, IReadOnlyList<TagDto> Tags);
+    string? ThumbnailUrl, bool HasCustomCover, long? SizeBytes, Guid Revision, IReadOnlyList<TagDto> Tags);
 public sealed record RevisionInput(Guid Revision);
 public sealed record VideoOrder(Guid Id, int SortOrder, Guid Revision);
 public static class VideoRules
@@ -106,12 +127,39 @@ public static class VideoRules
     /// <summary>The provider's object does not match what was declared, so the upload is not trusted.</summary>
     public static readonly Error UploadMismatch = new("VIDEO_UPLOAD_MISMATCH", "The uploaded file does not match what was expected", ResultStatus.Invalid);
 
+    /// <summary>The cover image is not one of the accepted picture formats.</summary>
+    public static readonly Error CoverType = new("VIDEO_COVER_TYPE", "Only JPG, PNG and WebP cover images are accepted", ResultStatus.Invalid);
+
+    /// <summary>The cover image is larger than the allowed size.</summary>
+    public static readonly Error CoverTooLarge = new("VIDEO_COVER_TOO_LARGE", "The cover image is larger than the allowed size", ResultStatus.Invalid);
+
+    /// <summary>Picture formats accepted for a cover image.</summary>
+    public static readonly string[] CoverContentTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    /// <summary>Largest cover the API will presign, before the browser resizes it. 5 MB.</summary>
+    public const long MaxCoverBytes = 5L * 1024 * 1024;
+
     /// <summary>Object key for the original recording. Deterministic, so a retry cannot orphan bytes.</summary>
     public static string ObjectKey(Guid id, string contentType) =>
         $"videos/{id:D}{(contentType == "video/quicktime" ? ".mov" : ".mp4")}";
 
-    /// <summary>Object key for the optional poster frame of the same video.</summary>
+    /// <summary>Object key for the optional auto-captured poster frame of the same video.</summary>
     public static string ThumbnailKey(Guid id) => $"videos/{id:D}-poster.jpg";
+
+    /// <summary>
+    /// Object key for an uploaded cover. The random suffix matters: replacing a cover must not
+    /// reuse a key, or a presigned URL already in a client's cache would still serve the old
+    /// picture. It also makes the delete-then-replace order safe, since the two never collide.
+    /// </summary>
+    public static string CoverKey(Guid id, string contentType) =>
+        $"videos/{id:D}-cover-{Guid.NewGuid():N}{CoverExtension(contentType)}";
+
+    private static string CoverExtension(string contentType) => contentType switch
+    {
+        "image/png" => ".png",
+        "image/webp" => ".webp",
+        _ => ".jpg",
+    };
 
     /// <summary>
     /// Maps a row for the wire. <paramref name="presign"/> turns the stored poster-frame key into
@@ -121,9 +169,12 @@ public static class VideoRules
     public static VideoDto Map(Video v, Func<string, string?>? presign = null)
     {
         ArgumentNullException.ThrowIfNull(v);
-        var thumbnail = v.ThumbnailObjectKey is null || presign is null ? null : presign(v.ThumbnailObjectKey);
+        // Priority: the trainer's cover, then the frame captured at upload, then nothing —
+        // which the UI renders as the branded placeholder.
+        var thumbnailKey = v.CoverObjectKey ?? v.ThumbnailObjectKey;
+        var thumbnail = thumbnailKey is null || presign is null ? null : presign(thumbnailKey);
         return new(v.Id, v.Title, v.Description, v.Audience, v.BodyArea, v.RequiresEquipment,
-        v.Status, v.IsPublished, v.SortOrder, v.DurationSeconds, thumbnail, v.SizeBytes, v.Revision,
+        v.Status, v.IsPublished, v.SortOrder, v.DurationSeconds, thumbnail, v.CoverObjectKey is not null, v.SizeBytes, v.Revision,
         v.VideoTags.Select(t => new TagDto(t.TagId, t.Tag.Name, 0)).OrderBy(t => t.Name).ToList());
     }
     public static string NormalizeTag(string name)

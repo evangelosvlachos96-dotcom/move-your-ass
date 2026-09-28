@@ -10,6 +10,8 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
+import { MAX_IMAGE_BYTES, resizeImage } from '../../core/images/image-resize';
+import { NotifyService } from '../../core/ui/notify.service';
 import { VideosApi } from '../../core/videos/videos.api';
 import {
   UploadHandle,
@@ -34,12 +36,13 @@ import {
   imports: [FormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-videos.component.html',
-  styleUrl: './videos.scss',
+  styleUrls: ['./videos.scss', './admin-videos.scss'],
 })
 export class AdminVideosComponent implements OnDestroy {
   private readonly api = inject(VideosApi);
   private readonly uploader = inject(VideoUploadService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly notify = inject(NotifyService);
   protected readonly page = signal<VideoPage | null>(null);
   protected readonly tags = signal<Tag[]>([]);
   protected readonly busy = signal(false);
@@ -52,6 +55,8 @@ export class AdminVideosComponent implements OnDestroy {
   protected readonly note = signal('');
   protected readonly configured = signal(false);
   protected readonly storage = signal<StorageUsage | null>(null);
+  /** The video whose cover is being changed, so only its row shows a busy state. */
+  protected readonly coverBusyId = signal<string | null>(null);
   protected readonly status = STATUS_LABELS;
   protected readonly size = sizeLabel;
   protected search = '';
@@ -369,6 +374,79 @@ export class AdminVideosComponent implements OnDestroy {
     await this.loadSummary();
   }
 
+  /**
+   * Uploads a cover image for one video: resize, presign, PUT, confirm.
+   *
+   * The picture is shrunk before it leaves the browser. A phone photo is several megabytes and
+   * several thousand pixels wide; as a card cover it is displayed a few hundred wide, so sending
+   * the original would spend the storage allowance and every client's data on nothing.
+   */
+  protected async chooseCover(video: Video, event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || this.coverBusyId()) return;
+
+    this.coverBusyId.set(video.id);
+    try {
+      const resized = await resizeImage(file);
+      if (resized === 'type') {
+        this.notify.error('Δεκτές εικόνες: JPG, PNG ή WebP.');
+        return;
+      }
+      if (resized === 'size') {
+        this.notify.error(`Η εικόνα ξεπερνά τα ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)} MB.`);
+        return;
+      }
+      if (resized === 'decode') {
+        this.notify.error('Η εικόνα δεν διαβάστηκε. Δοκίμασε άλλο αρχείο.');
+        return;
+      }
+
+      const ticket = await firstValueFrom(
+        this.api.coverTicket(video.id, resized.contentType, resized.blob.size),
+      );
+      const stored = await putBlob(ticket.uploadUrl, resized.blob);
+      if (!stored) {
+        this.notify.error('Η εικόνα δεν ανέβηκε. Δοκίμασε ξανά.');
+        return;
+      }
+
+      await firstValueFrom(this.api.confirmCover(video.id, ticket.objectKey));
+      await this.load();
+      await this.loadSummary();
+      this.notify.success('Η εικόνα εξωφύλλου ενημερώθηκε.');
+    } catch {
+      // Reported by the error interceptor.
+    } finally {
+      this.coverBusyId.set(null);
+    }
+  }
+
+  /** Removes the cover; the card falls back to the captured frame, then to the placeholder. */
+  protected async removeCover(video: Video): Promise<void> {
+    if (this.coverBusyId()) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Αφαίρεση εικόνας',
+      message: `Να αφαιρεθεί η εικόνα εξωφύλλου από το «${video.title}»;`,
+      detail: 'Θα χρησιμοποιηθεί ξανά το καρέ που κρατήθηκε κατά το ανέβασμα, αν υπάρχει.',
+      confirmLabel: 'Αφαίρεση',
+      destructive: true,
+    });
+    if (!ok) return;
+
+    this.coverBusyId.set(video.id);
+    try {
+      await firstValueFrom(this.api.removeCover(video.id));
+      await this.load();
+      await this.loadSummary();
+    } catch {
+      // Reported by the error interceptor.
+    } finally {
+      this.coverBusyId.set(null);
+    }
+  }
+
   protected async action(video: Video, action: 'publish' | 'delete' | 'refresh'): Promise<void> {
     if (this.busy() || this.uploading() || this.paused()) return;
     if (action === 'delete') {
@@ -467,4 +545,16 @@ export class AdminVideosComponent implements OnDestroy {
   ngOnDestroy(): void {
     this.upload?.cancel();
   }
+}
+
+/** Straight PUT to a presigned URL, the same shape the video parts use. */
+function putBlob(url: string, body: Blob): Promise<boolean> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url, true);
+    xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
+    xhr.onerror = () => resolve(false);
+    xhr.ontimeout = () => resolve(false);
+    xhr.send(body);
+  });
 }

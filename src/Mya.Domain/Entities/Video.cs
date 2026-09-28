@@ -27,8 +27,21 @@ public sealed class Video
     /// <summary>Content type of the original, as accepted at creation and confirmed by HEAD.</summary>
     public string? ContentType { get; set; }
 
-    /// <summary>Provider object key of the poster frame, when one was captured.</summary>
+    /// <summary>Provider object key of the auto-captured poster frame, when one was captured.</summary>
     public string? ThumbnailObjectKey { get; set; }
+
+    /// <summary>Bytes the auto poster occupies. Counts towards the storage cap like everything else.</summary>
+    public long? ThumbnailSizeBytes { get; set; }
+
+    /// <summary>
+    /// Provider object key of a cover image the trainer uploaded. Takes priority over the
+    /// auto-captured frame; clearing it falls back to that frame, and then to the placeholder.
+    /// The key carries a random suffix so replacing a cover cannot be served from a cached URL.
+    /// </summary>
+    public string? CoverObjectKey { get; set; }
+
+    /// <summary>Bytes the cover occupies. Counts towards the storage cap.</summary>
+    public long? CoverSizeBytes { get; set; }
 
     public int? DurationSeconds { get; set; }
     public string? ThumbnailUrl { get; set; }

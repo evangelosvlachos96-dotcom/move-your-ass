@@ -2,9 +2,18 @@ import { Injectable, OnDestroy } from '@angular/core';
 
 /** An access token one tab obtained, shared with the others. */
 interface SharedToken {
+  kind: 'token';
   accessToken: string;
   at: number;
 }
+
+/** One tab signed out; the others must not stay half-authenticated. */
+interface SignedOut {
+  kind: 'signed-out';
+  at: number;
+}
+
+type SyncMessage = SharedToken | SignedOut;
 
 const LOCK_NAME = 'mya-auth-refresh';
 const CHANNEL_NAME = 'mya-auth';
@@ -36,15 +45,38 @@ const FRESH_MS = 10_000;
 export class SessionSyncService implements OnDestroy {
   private readonly channel = this.openChannel();
   private shared: SharedToken | null = null;
+  private onSignedOut: (() => void) | null = null;
 
   constructor() {
     if (this.channel) {
-      this.channel.onmessage = (event: MessageEvent<SharedToken>) => {
-        if (typeof event.data?.accessToken === 'string') {
-          this.shared = event.data;
+      this.channel.onmessage = (event: MessageEvent<SyncMessage>) => {
+        const message = event.data;
+        if (message?.kind === 'token' && typeof message.accessToken === 'string') {
+          this.shared = message;
+          return;
+        }
+
+        if (message?.kind === 'signed-out') {
+          // A token borrowed from before the sign-out is no longer worth anything.
+          this.shared = null;
+          this.onSignedOut?.();
         }
       };
     }
+  }
+
+  /**
+   * Called once by AuthService so a sign-out in any tab reaches the rest. A callback rather than
+   * an observable because there is exactly one listener and it lives for the life of the app.
+   */
+  whenSignedOutElsewhere(handler: () => void): void {
+    this.onSignedOut = handler;
+  }
+
+  /** Tells the other tabs that this session is over. Also forgets any token in flight here. */
+  announceSignOut(): void {
+    this.shared = null;
+    this.channel?.postMessage({ kind: 'signed-out', at: Date.now() } satisfies SignedOut);
   }
 
   /**
@@ -85,7 +117,7 @@ export class SessionSyncService implements OnDestroy {
   }
 
   private publish(accessToken: string): void {
-    const message: SharedToken = { accessToken, at: Date.now() };
+    const message: SharedToken = { kind: 'token', accessToken, at: Date.now() };
     this.shared = message;
     this.channel?.postMessage(message);
   }

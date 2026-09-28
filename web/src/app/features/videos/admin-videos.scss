@@ -1,0 +1,184 @@
+// Styles for the admin management screen only.
+//
+// The library, the player and this screen share videos.scss for the frame they have in common —
+// page, headings, filters, chips, pagination. Everything below is used by this screen alone, and
+// lived in the shared file until it pushed every one of the three components past the component
+// style budget. A component should not carry the CSS of a screen it does not render.
+
+// Storage allowance. The bar turns to the warning colour near the cap, and the text says the
+// numbers as well, so the state does not depend on colour alone.
+.storage {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: var(--brand-surface);
+}
+.storage__text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+.storage__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--brand-surface-2);
+  overflow: hidden;
+}
+.storage__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--brand-accent);
+  transition: width 0.2s ease;
+}
+.storage--warning {
+  border-color: var(--brand-danger);
+}
+.storage--warning .storage__bar > span {
+  background: var(--brand-danger);
+}
+
+.editor {
+  display: grid;
+  gap: 18px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+.upload-box {
+  padding: 18px;
+  border: 1px dashed var(--brand-muted);
+  border-radius: 10px;
+}
+progress {
+  width: 100%;
+  height: 20px;
+  accent-color: var(--brand-accent);
+}
+.row-copy {
+  flex: 1;
+  min-width: min(240px, 100%);
+}
+.danger {
+  color: var(--brand-danger);
+}
+.tag-check {
+  display: flex !important;
+  align-items: center;
+}
+
+// Cover thumbnail on an admin row, so the trainer can see what a card will look like without
+// opening the library.
+.admin-row__cover {
+  inline-size: 96px;
+  block-size: 60px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--brand-surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-row__cover img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-row__cover-placeholder {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--brand-muted);
+  letter-spacing: 0.08em;
+}
+
+// A file input dressed as a button: the control itself is off-screen but still focusable, so
+// keyboard users reach it the same way.
+.admin-row__cover-button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding-inline: 14px;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.admin-row__cover-button.is-busy {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.admin-row__cover-button input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-row__cover-button:focus-within {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 599px) {
+  .admin-row__cover {
+    inline-size: 72px;
+    block-size: 46px;
+  }
+}
+
+// The "why is this off" notice. Distinct from an error: nothing is broken, it is unconfigured.
+.admin-notice {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: var(--brand-surface);
+  color: var(--brand-muted);
+  line-height: 1.6;
+}
+
+.admin-notice strong {
+  color: var(--brand-text);
+  display: block;
+  margin-block-end: 4px;
+}
+
+.admin-notice code {
+  color: var(--brand-accent);
+}
+
+@media (max-width: 1000px) {
+  .admin-row {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .editor {
+    padding: 14px;
+  }
+  input[type='file'] {
+    width: 100%;
+  }
+}

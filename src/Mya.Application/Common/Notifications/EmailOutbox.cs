@@ -11,6 +11,8 @@ public static class OutboxMessageTypes
     public const string AccountApproved = "AccountApproved";
     public const string AccountDeclined = "AccountDeclined";
     public const string PasswordReset = "PasswordReset";
+    public const string ContactMessage = "ContactMessage";
+    public const string TestEmail = "TestEmail";
 }
 
 public sealed record PasswordInvitationPayload(string To, string FirstName, string Token, DateTime ExpiresAtUtc);
@@ -22,6 +24,12 @@ public sealed record AdminNewRegistrationPayload(string To, string FirstName, st
 public sealed record AccountApprovedPayload(string To, string FirstName);
 
 public sealed record AccountDeclinedPayload(string To, string FirstName, string? Reason);
+
+/// <summary>A message a client sent from the About page. ReplyTo is the client's own address.</summary>
+public sealed record ContactMessagePayload(string To, string ReplyTo, string SenderName, string SenderEmail, string Subject, string Message);
+
+/// <summary>An admin proving delivery works, to their own address.</summary>
+public sealed record TestEmailPayload(string To, string FirstName);
 
 /// <summary>
 /// Builds account notification and invitation emails. Handlers add these in the same
@@ -67,6 +75,27 @@ public static class EmailOutbox
         ArgumentNullException.ThrowIfNull(user);
         return Create(OutboxMessageTypes.PasswordReset,
             new PasswordResetPayload(user.Email, user.FirstName, token, expiresAtUtc), nowUtc, user.Id);
+    }
+
+    /// <summary>
+    /// One message per recipient. <paramref name="fingerprint"/> rides in the subject column,
+    /// which is what lets a repeat submission be spotted with one indexed read rather than a scan
+    /// of message bodies. It is deliberately not a user id: deleting the client must not withdraw
+    /// a message the trainer may already be acting on.
+    /// </summary>
+    public static OutboxMessage ContactMessage(string to, UserAccount sender, string subject, string message, DateTime nowUtc, string fingerprint)
+    {
+        ArgumentNullException.ThrowIfNull(sender);
+        return Create(OutboxMessageTypes.ContactMessage,
+            new ContactMessagePayload(to, sender.Email, $"{sender.FirstName} {sender.LastName}".Trim(), sender.Email, subject, message),
+            nowUtc,
+            subjectUserId: fingerprint);
+    }
+
+    public static OutboxMessage TestEmail(UserAccount admin, DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(admin);
+        return Create(OutboxMessageTypes.TestEmail, new TestEmailPayload(admin.Email, admin.FirstName), nowUtc, admin.Id);
     }
 
     public static T Deserialize<T>(string payloadJson) =>

@@ -34,6 +34,8 @@ public sealed class EmailTemplateTests
         { OutboxMessageTypes.AdminNewRegistration, new AdminNewRegistrationPayload("admin@example.test", "Γιώργος", "Παπαδόπουλος", "g@example.test") },
         { OutboxMessageTypes.AccountApproved, new AccountApprovedPayload("a@example.test", "Μαρία") },
         { OutboxMessageTypes.AccountDeclined, new AccountDeclinedPayload("a@example.test", "Μαρία", "Διπλή εγγραφή") },
+        { OutboxMessageTypes.ContactMessage, new ContactMessagePayload("coach@example.test", "m@example.test", "Μαρία Παπά", "m@example.test", "Ερώτηση", "Το μήνυμά μου.") },
+        { OutboxMessageTypes.TestEmail, new TestEmailPayload("admin@example.test", "Τάσος") },
     };
 
     [Theory]
@@ -122,6 +124,33 @@ public sealed class EmailTemplateTests
         // Repeated in plain sight, not only inside the anchor.
         message.Html.ShouldContain($">{Origin}/login</p>");
         message.Text.ShouldContain($"{Origin}/login");
+    }
+
+    [Fact]
+    public void The_contact_message_replies_to_the_client_and_escapes_what_they_wrote()
+    {
+        var message = Templates().Render(Message(OutboxMessageTypes.ContactMessage,
+            new ContactMessagePayload("coach@example.test", "m@example.test", "Μαρία", "m@example.test",
+                "<b>Θέμα</b>", "<script>alert(1)</script> γεια")));
+
+        // Replying in the mail client reaches the client, not the no-reply sender.
+        message.ReplyTo.ShouldBe("m@example.test");
+        message.To.ShouldBe("coach@example.test");
+        message.Subject.ShouldContain("Μαρία");
+
+        // Every part of this is written by a stranger on the internet.
+        message.Html.ShouldNotContain("<script>");
+        message.Html.ShouldContain("&lt;script&gt;");
+        message.Html.ShouldContain("&lt;b&gt;Θέμα&lt;/b&gt;");
+    }
+
+    [Fact]
+    public void Only_the_contact_message_sets_a_reply_to()
+    {
+        Templates().Render(Message(OutboxMessageTypes.TestEmail, new TestEmailPayload("a@example.test", "Τάσος")))
+            .ReplyTo.ShouldBeNull();
+        Templates().Render(Message(OutboxMessageTypes.AccountApproved, new AccountApprovedPayload("a@example.test", "Μαρία")))
+            .ReplyTo.ShouldBeNull();
     }
 
     [Fact]

@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { BrandLogoComponent } from '../../../shared/ui/brand-logo/brand-logo.component';
+import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.component';
 
 /**
  * Asks for a reset link.
@@ -22,6 +23,7 @@ import { BrandLogoComponent } from '../../../shared/ui/brand-logo/brand-logo.com
     ReactiveFormsModule,
     RouterLink,
     BrandLogoComponent,
+    SiteFooterComponent,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -67,6 +69,7 @@ import { BrandLogoComponent } from '../../../shared/ui/brand-logo/brand-logo.com
             <p class="auth-page__alt"><a routerLink="/login">Επιστροφή στη σύνδεση</a></p>
           </mat-card-content>
         </mat-card>
+        <app-site-footer />
       </div>
     </div>
   `,

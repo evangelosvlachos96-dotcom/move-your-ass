@@ -20,4 +20,10 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
   </ItemGroup>
 
+  <!-- The refresh cookie's options are an internal detail with an external guarantee; the test
+       project asserts it directly rather than through a host it would otherwise not need. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Mya.Api.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

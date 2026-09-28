@@ -29,6 +29,15 @@ public sealed class AdminVideosController(VideoAdminHandler admin, VideoQueryHan
     [HttpPost("{id:guid}/upload/complete")]
     public async Task<IActionResult> Complete(Guid id, CompleteUploadInput input, CancellationToken ct) =>
         (await admin.CompleteAsync(id, input, ct)).ToActionResult(HttpContext, NoContent);
+    [HttpPost("{id:guid}/cover")]
+    public async Task<IActionResult> CoverUpload(Guid id, CoverRequest input, CancellationToken ct) =>
+        (await admin.CoverUploadAsync(id, input, ct)).ToActionResult(HttpContext, Ok);
+    [HttpPut("{id:guid}/cover")]
+    public async Task<IActionResult> CoverConfirm(Guid id, CoverConfirm input, CancellationToken ct) =>
+        (await admin.CoverConfirmAsync(id, input, ct)).ToActionResult(HttpContext, NoContent);
+    [HttpDelete("{id:guid}/cover")]
+    public async Task<IActionResult> CoverRemove(Guid id, CancellationToken ct) =>
+        (await admin.CoverRemoveAsync(id, ct)).ToActionResult(HttpContext, NoContent);
     [HttpPost("{id:guid}/upload/abort")]
     public async Task<IActionResult> Abort(Guid id, CancellationToken ct) =>
         (await admin.AbortAsync(id, ct)).ToActionResult(HttpContext, NoContent);

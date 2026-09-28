@@ -34,11 +34,23 @@ export default defineConfig({
     video: 'off',
     trace: 'retain-on-failure',
   },
-  projects: VIEWPORTS.map((viewport) => ({
-    name: viewport.name,
-    use: {
-      ...devices['Desktop Chrome'],
-      viewport: { width: viewport.width, height: viewport.height },
-    },
-  })),
+  projects: [
+    ...VIEWPORTS.map((viewport) => ({
+      name: viewport.name,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: viewport.width, height: viewport.height },
+      },
+    })),
+    // Safari's engine, at the two sizes clients actually hold. The trainer's clients are on
+    // iPhones, where every browser is WebKit underneath, so Chromium alone would leave the most
+    // common case untested. Desktop is left to Chromium: the admin screens are used on a laptop.
+    ...VIEWPORTS.filter((viewport) => viewport.name !== 'desktop').map((viewport) => ({
+      name: `${viewport.name}-webkit`,
+      use: {
+        ...devices['Desktop Safari'],
+        viewport: { width: viewport.width, height: viewport.height },
+      },
+    })),
+  ],
 });

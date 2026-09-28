@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { ApiClient } from '../http/api-client.service';
 import {
+  CoverTicket,
   CreatedVideo,
   Playback,
   Tag,
@@ -44,6 +45,15 @@ export class VideosApi {
   }
   abortUpload(id: string) {
     return this.api.post<void>('/admin/videos/' + id + '/upload/abort');
+  }
+  coverTicket(id: string, contentType: string, sizeBytes: number) {
+    return this.api.post<CoverTicket>('/admin/videos/' + id + '/cover', { contentType, sizeBytes });
+  }
+  confirmCover(id: string, objectKey: string) {
+    return this.api.put<void>('/admin/videos/' + id + '/cover', { objectKey });
+  }
+  removeCover(id: string) {
+    return this.api.delete<void>('/admin/videos/' + id + '/cover');
   }
   publish(video: Video) {
     return this.api.post<void>(

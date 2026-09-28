@@ -9,9 +9,12 @@
     </button>
   </header>
   @if (!configured()) {
-    <p role="status">
-      Η μεταφόρτωση βίντεο δεν έχει ενεργοποιηθεί ακόμη. Μπορείς να οργανώσεις τον κατάλογο και τις
-      ετικέτες.
+    <p class="admin-notice" role="status">
+      <strong>Το ανέβασμα βίντεο είναι απενεργοποιημένο.</strong>
+      Ο αποθηκευτικός χώρος βίντεο δεν έχει ρυθμιστεί σε αυτό το περιβάλλον, οπότε δεν μπορούν να
+      εκδοθούν σύνδεσμοι ανεβάσματος. Μπορείς να οργανώσεις τον κατάλογο και τις ετικέτες
+      κανονικά. Ζήτησε από τον διαχειριστή του συστήματος να συμπληρώσει τις ρυθμίσεις
+      <code>Video:S3</code>.
     </p>
   }
   @if (storage(); as used) {
@@ -172,6 +175,13 @@
     }
     @for (video of result.items; track video.id; let index = $index) {
       <article class="admin-row">
+        <div class="admin-row__cover">
+          @if (video.thumbnailUrl) {
+            <img [src]="video.thumbnailUrl" alt="" loading="lazy" />
+          } @else {
+            <span class="admin-row__cover-placeholder" aria-hidden="true">MYA</span>
+          }
+        </div>
         <div class="row-copy">
           <h2>{{ video.title }}</h2>
           <p>
@@ -220,6 +230,24 @@
           >
             ↓ Κάτω
           </button>
+          <label class="admin-row__cover-button" [class.is-busy]="coverBusyId() === video.id">
+            {{ coverBusyId() === video.id ? 'Ανέβασμα…' : video.hasCustomCover ? 'Αλλαγή εικόνας' : 'Προσθήκη εικόνας' }}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              [disabled]="coverBusyId() !== null || busy()"
+              (change)="chooseCover(video, $event)"
+            />
+          </label>
+          @if (video.hasCustomCover) {
+            <button
+              type="button"
+              [disabled]="coverBusyId() !== null || busy()"
+              (click)="removeCover(video)"
+            >
+              Αφαίρεση εικόνας
+            </button>
+          }
           <button class="danger" [disabled]="busy()" (click)="action(video, 'delete')">
             Διαγραφή
           </button>

@@ -7,15 +7,22 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.component';
+import { TokenPageNotice } from '../../../core/auth/token-page-notice.service';
 import { passwordPolicy, passwordsMatch, PASSWORD_MAX_LENGTH } from '../../../shared/forms/password-rules';
 
 @Component({
   selector: 'app-set-password',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
+  imports: [SiteFooterComponent, ReactiveFormsModule, RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <mat-card class="setup" appearance="outlined"><mat-card-content>
       <h1>Δημιουργία κωδικού</h1>
+      @if (signedOutPrevious) {
+        <p role="status" class="setup__notice">
+          Αποσυνδεθήκατε από τον προηγούμενο λογαριασμό για να ορίσετε κωδικό.
+        </p>
+      }
       @if (done()) {
         <p role="status">Ο λογαριασμός σου ενεργοποιήθηκε. Μπορείς να συνδεθείς με τον νέο κωδικό.</p>
         <a mat-flat-button routerLink="/login">Σύνδεση</a>
@@ -39,14 +46,21 @@ import { passwordPolicy, passwordsMatch, PASSWORD_MAX_LENGTH } from '../../../sh
         </form>
       }
     </mat-card-content></mat-card>
+    <app-site-footer />
   `,
-  styles: [`.setup { max-width: 480px; margin: 48px auto; padding: 16px; } form { display: grid; gap: 12px; } @media(max-width: 520px) { .setup { margin: 24px 16px; } }`],
+  styles: [`.setup { max-width: 480px; margin: 48px auto; padding: 16px; } form { display: grid; gap: 12px; } .setup__notice { color: var(--brand-muted); } @media(max-width: 520px) { .setup { margin: 24px 16px; } }`],
 })
 export class SetPasswordComponent {
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   protected readonly token = new URLSearchParams(this.route.snapshot.fragment ?? '').get('token') ?? '';
+
+  /**
+   * True when the guard had to end somebody's session to show this page. Worth saying out loud:
+   * the person following the link is usually not the person who was logged in.
+   */
+  protected readonly signedOutPrevious = inject(TokenPageNotice).consume();
   protected readonly busy = signal(false);
   protected readonly done = signal(false);
   protected readonly form = new FormGroup({

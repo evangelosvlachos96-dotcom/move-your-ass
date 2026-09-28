@@ -181,92 +181,18 @@ button.selected {
   display: block;
 }
 
-// Storage allowance. The bar turns to the warning colour near the cap, and the text says the
-// numbers as well, so the state does not depend on colour alone.
-.storage {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0 24px;
-  padding: 14px 16px;
-  border: 1px solid var(--brand-border);
-  border-radius: 12px;
-  background: var(--brand-surface);
-}
-.storage__text {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  justify-content: space-between;
-  font-size: 0.9rem;
-}
-.storage__bar {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--brand-surface-2);
-  overflow: hidden;
-}
-.storage__bar > span {
-  display: block;
-  height: 100%;
-  background: var(--brand-accent);
-  transition: width 0.2s ease;
-}
-.storage--warning {
-  border-color: var(--brand-danger);
-}
-.storage--warning .storage__bar > span {
-  background: var(--brand-danger);
-}
 .description {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.7;
 }
-.editor {
-  display: grid;
-  gap: 18px;
-}
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-textarea {
-  min-height: 110px;
-  resize: vertical;
-}
-.upload-box {
-  padding: 18px;
-  border: 1px dashed var(--brand-muted);
-  border-radius: 10px;
-}
-progress {
-  width: 100%;
-  height: 20px;
-  accent-color: var(--brand-accent);
-}
-.row-copy {
-  flex: 1;
-  min-width: min(240px, 100%);
-}
-.danger {
-  color: var(--brand-danger);
-}
-.tag-check {
-  display: flex !important;
-  align-items: center;
-}
 @media (max-width: 1000px) {
   .video-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .admin-row {
-    flex-wrap: wrap;
-  }
 }
 @media (max-width: 600px) {
-  .video-grid,
-  .form-grid {
+  .video-grid {
     grid-template-columns: 1fr;
   }
   .video-heading {
@@ -277,14 +203,10 @@ progress {
     flex: 1;
     min-width: 130px;
   }
-  .editor,
   .filters {
     padding: 14px;
   }
   .actions {
-    width: 100%;
-  }
-  input[type='file'] {
     width: 100%;
   }
   .pagination {

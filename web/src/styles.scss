@@ -114,3 +114,57 @@ body {
 .mat-mdc-unelevated-button app-chevron-loader {
   color: inherit;
 }
+
+// Chrome (and every other Chromium browser) paints its own pale background and re-renders the
+// text in its own way when a value comes from autofill. On a dark theme that is a white box with
+// near-invisible text, and it looks like a different font because the colour and weight change.
+//
+// The background cannot be set directly — the UA style wins — so it is painted with a very large
+// inset box-shadow in the field's own colour, which is the long-standing way round it. The text
+// colour needs -webkit-text-fill-color for the same reason. The long background-color transition
+// is the second half of the trick: Chrome animates its highlight, so outlasting the animation
+// stops the yellow flash on selection.
+//
+// :autofill is the standard selector, :-webkit-autofill the one that actually matches today;
+// they are listed separately because a browser that understands neither must not drop both.
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--brand-surface) inset !important;
+  box-shadow: 0 0 0 1000px var(--brand-surface) inset !important;
+  -webkit-text-fill-color: var(--brand-text) !important;
+  caret-color: var(--brand-text);
+  // Inherit rather than restate: whatever the field uses, the autofilled value uses too.
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  letter-spacing: inherit !important;
+  transition: background-color 100000s ease-in-out 0s;
+}
+
+input:autofill,
+textarea:autofill,
+select:autofill {
+  -webkit-text-fill-color: var(--brand-text);
+  caret-color: var(--brand-text);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+// Material's filled and outlined fields paint their own surface behind the input, so the shadow
+// above has to match that rather than the page background.
+.mat-mdc-form-field input:-webkit-autofill,
+.mat-mdc-form-field textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--brand-surface) inset !important;
+  box-shadow: 0 0 0 1000px var(--brand-surface) inset !important;
+}
+
+.snack-success {
+  --mat-snack-bar-container-color: var(--brand-accent);
+  --mat-snack-bar-supporting-text-color: var(--brand-on-accent);
+  --mat-snack-bar-button-color: var(--brand-on-accent);
+}

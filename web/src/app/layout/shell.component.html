@@ -41,8 +41,9 @@
         <h1 class="shell__title">{{ pageTitle() }}</h1>
       }
 
+      <!-- Always the generic account icon, for every user including admins. The trainer photo
+           belongs to the About page and never appears here. -->
       <button
-        matIconButton
         type="button"
         class="shell__user"
         [matMenuTriggerFor]="userMenu"
@@ -77,6 +78,8 @@
     <main class="shell__content">
       <router-outlet />
     </main>
+
+    <app-site-footer />
   </div>
 
   @if (!forced() && isPhone()) {

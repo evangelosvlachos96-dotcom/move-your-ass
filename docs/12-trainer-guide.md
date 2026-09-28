@@ -63,6 +63,57 @@ A new video is private. Clients never see drafts or failed uploads. Metadata edi
 replacing the file. A failed or interrupted draft offers Νέο ανέβασμα αρχείου: select the source
 file again. Ask the operator for help if a draft cannot start an upload at all.
 
+## The picture clients see on a workout
+
+Every workout shows a picture in the library list. It comes from the first of these that exists:
+
+1. **A cover you upload yourself** - always wins.
+2. **A frame the site captured while the video was uploading** - automatic, no work from you.
+3. **The Move Your Ass placeholder** - if neither of the above is available.
+
+To set your own, open the workout in Διαχείριση βίντεο and use Εξώφυλλο: Αλλαγή εξωφύλλου.
+
+- **JPG, PNG or WebP, up to 5 MB.** Anything else is refused with a message.
+- The picture is **shrunk in your browser before it is sent**, so a photo straight off your phone
+  is fine - you do not need to resize it first.
+- **Landscape works best.** The card is wider than it is tall, so a portrait photo gets cropped at
+  the top and bottom.
+- Choose a frame where the movement is recognisable and your face or the equipment is visible.
+  A dark or blurry first frame is the usual reason a workout looks unappealing in the list.
+
+Αφαίρεση εξωφύλλου removes yours and falls back to the captured frame. Replacing a cover deletes
+the old picture straight away, and deleting a workout deletes its cover with it.
+
+**Covers use storage too.** They are small next to video - a few hundred kilobytes against tens of
+megabytes - but they count towards the same allowance shown on the storage bar.
+
+## Your page: "Ο γυμναστής σου"
+
+Every signed-in client has this page in the menu, and only you can edit it. Press Επεξεργασία,
+change what you want, and press Αποθήκευση.
+
+- **Φωτογραφία** - a photo of you. It is shown as a large circle, so put your face near the middle
+  of the picture; the edges are cropped away. Same formats and size limit as a cover.
+- **Όνομα** and **Σύντομη περιγραφή** - your name and a single line under it.
+- **Βιογραφικό** - a few paragraphs about you. You can use `**bold**` for emphasis and lines
+  starting with `- ` for a list. Everything else is shown as plain text, on purpose.
+- **Στοιχεία επικοινωνίας** - email, phone, Instagram, YouTube, TikTok, Facebook, WhatsApp and a
+  website. **Every one is optional.** Fill in only what you want every client to see - whatever
+  you put here is visible to all of them. Links must start with `https://`, or they are refused.
+
+**If you leave the page empty**, clients see an empty page with a working message form. Fill it in
+before you invite anyone.
+
+### Messages from clients
+
+Clients can write to you from that page. The message arrives as an email, with the client's own
+address as the reply address - **press reply in your mail app and it goes to them.** Nothing is
+stored on the site, so there is no inbox to check here; it is ordinary email.
+
+Messages go to the email address you put in Στοιχεία επικοινωνίας. If you leave that blank, they
+go to every admin account instead. A client cannot send the same message twice in a row, and
+cannot send a burst of them.
+
 ## Manage the library
 
 Use search, edit metadata, move a workout up/down within the visible page, or withdraw publication.
@@ -88,5 +139,18 @@ If a video is unavailable, retry or contact the trainer. No booking or payment f
 - Retain source videos and confirm database backup/restore procedures and billing monitoring.
 - Keep technical credentials with the operator. Do not send passwords or keys in messages.
 
-Branded HTML/MJML email redesign is recorded in docs/backlog.md as requested; it is not included
-in this milestone. Self-service forgotten-password recovery and login 2FA remain deferred scope.
+## Checking that email still works
+
+The dashboard has **Αποστολή δοκιμαστικού email**. It sends one short message to your own address
+and nothing else. Use it when you are not sure whether email is working - before inviting a batch
+of clients, or if someone says they never received an invitation. If it arrives, the mail
+provider is fine and the problem is somewhere else (usually the client's spam folder). If it does
+not arrive within a couple of minutes, tell the operator.
+
+It is deliberately limited to a few sends in a row.
+
+Emails are branded and carry the Move Your Ass header. Many mail apps block images by default, so
+the header is written to still read as Move Your Ass with the picture switched off.
+
+Login 2FA remains deferred scope. Forgotten-password recovery is implemented: clients use
+"Ξέχασες τον κωδικό;" on the login page and never need to ask you for a password.

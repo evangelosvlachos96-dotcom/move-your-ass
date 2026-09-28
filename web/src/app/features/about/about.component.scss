@@ -1,0 +1,197 @@
+@use '../../../styles/spacing' as *;
+
+.about {
+  max-inline-size: 760px;
+  margin-inline: auto;
+  display: grid;
+  gap: $space-card-gap;
+}
+
+.about__header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+// The trainer photo, large and circular. This is the only place it appears: the top bar keeps
+// its generic account icon for every user.
+.about__portrait {
+  inline-size: 180px;
+  block-size: 180px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--brand-surface-2);
+  border: 1px solid var(--brand-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about__portrait img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.about__portrait-fallback {
+  font-size: 4rem;
+  font-weight: 700;
+  color: var(--brand-accent);
+  line-height: 1;
+}
+
+.about__identity {
+  flex: 1 1 260px;
+  min-inline-size: 0;
+  display: grid;
+  gap: $space-tight;
+}
+
+.about__identity h1 {
+  margin: 0;
+  font-size: 1.7rem;
+  overflow-wrap: anywhere;
+}
+
+.about__tagline {
+  margin: 0;
+  color: var(--brand-muted);
+  overflow-wrap: anywhere;
+}
+
+.about__admin-actions {
+  margin-block-start: $space-tight;
+}
+
+// A file input styled as a button; the input itself is visually hidden but still reachable.
+.about__photo-button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding-inline: 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.about__photo-button input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.about__photo-button:focus-within {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+.about__section {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.about__bio {
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.about__bio p {
+  margin: 0 0 $space-tight;
+}
+
+.about__bio ul {
+  margin: 0 0 $space-tight;
+  padding-inline-start: 22px;
+}
+
+.about__bio strong {
+  color: var(--brand-text);
+}
+
+.about__links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-tight;
+}
+
+.about__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-block-size: 44px;
+  padding-inline: 14px;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  background: var(--brand-surface);
+  color: var(--brand-accent);
+  text-decoration: none;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.about__link:hover {
+  border-color: var(--brand-accent);
+}
+
+.about__link:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+.about__link span {
+  color: var(--brand-text);
+  font-weight: 500;
+}
+
+.about__editor,
+.about__contact {
+  display: grid;
+  gap: $space-tight;
+}
+
+.about__grid {
+  display: grid;
+  gap: $space-tight;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.about__hint {
+  margin: 0;
+  color: var(--brand-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.about__note {
+  color: var(--brand-muted);
+  font-weight: 400;
+}
+
+.about__sent {
+  margin: 0;
+  color: var(--brand-accent);
+}
+
+@media (max-width: 599px) {
+  .about__portrait {
+    inline-size: 132px;
+    block-size: 132px;
+  }
+
+  .about__portrait-fallback {
+    font-size: 3rem;
+  }
+
+  .about__header {
+    gap: 16px;
+  }
+}

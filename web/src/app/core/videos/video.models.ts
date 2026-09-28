@@ -18,6 +18,8 @@ export interface Video {
   sortOrder: number;
   durationSeconds: number | null;
   thumbnailUrl: string | null;
+  /** True when the trainer uploaded a cover, as opposed to a frame captured at upload. */
+  hasCustomCover: boolean;
   sizeBytes: number | null;
   revision: string;
   tags: Tag[];
@@ -54,6 +56,11 @@ export interface UploadTicket {
 export interface UploadRequest {
   contentType: string;
   sizeBytes: number;
+}
+/** Where to PUT a cover image, and the key to send back once it is stored. */
+export interface CoverTicket {
+  objectKey: string;
+  uploadUrl: string;
 }
 export interface CreatedVideo {
   id: string;

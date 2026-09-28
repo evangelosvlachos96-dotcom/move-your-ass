@@ -11,6 +11,8 @@ $bottom-nav-height: 62px;
   display: flex;
   min-block-size: 100dvh;
   background: var(--brand-bg);
+  // Read by the footer so it can clear the fixed bottom bar; zero wherever there is not one.
+  --app-bottom-inset: 0px;
 }
 
 // --- sidebar -----------------------------------------------------------------------------
@@ -141,15 +143,51 @@ $bottom-nav-height: 62px;
   margin-inline-start: 40px;
 }
 
+// The icon was sitting off-centre because the button carried Material's own padding and line
+// metrics while the glyph kept the icon font's. Both are pinned here: a fixed round box that
+// centres with flex, and an icon whose font-size, box and line-height are the same number, so
+// there is no leading to push it off the middle.
 .shell__user {
   flex: 0 0 auto;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
   color: var(--brand-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  // Suppresses the inline-layout baseline gap the button would otherwise inherit.
+  line-height: 0;
 }
 
+.shell__user:hover {
+  background: var(--brand-surface-2);
+}
+
+.shell__user:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+// Material gives mat-icon its own width, height and line-height, and the icon font adds its own
+// leading on top. Left alone the glyph sits a few pixels off the button's centre — visible at
+// phone size as a lopsided avatar. Every metric is pinned to the same number and the element is
+// made its own flex centre, so there is nothing left to push it around.
 .shell__user-icon {
   font-size: 28px;
   inline-size: 28px;
   block-size: 28px;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }
 
 .shell__menu-header {
@@ -173,22 +211,35 @@ $bottom-nav-height: 62px;
 // --- phone -------------------------------------------------------------------------------
 
 @media (max-width: 599px) {
+  .shell {
+    --app-bottom-inset: #{$bottom-nav-height};
+  }
+
+  .shell--forced {
+    // No bottom bar during a forced password change, so nothing to clear.
+    --app-bottom-inset: 0px;
+  }
+
   .shell__topbar {
     block-size: 60px;
     flex-basis: 60px;
     padding-inline: 16px;
   }
 
+  .shell__user {
+    inline-size: 48px;
+    block-size: 48px;
+  }
+
   .shell__user-icon {
     font-size: 34px;
     inline-size: 34px;
     block-size: 34px;
+    line-height: 1;
   }
 
   .shell__content {
     padding: 16px;
-    // Clear of the bottom bar and the home indicator.
-    padding-block-end: calc(#{$bottom-nav-height} + 20px + env(safe-area-inset-bottom));
   }
 }
 

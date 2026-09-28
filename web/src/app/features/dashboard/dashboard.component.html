@@ -3,25 +3,51 @@
     <h1 class="dashboard__title">Καλώς ήρθες, {{ store.user()?.firstName }}</h1>
     <p class="dashboard__subtitle">{{ store.user()?.role === 'Admin' ? 'Διαχείριση της κοινότητας Move Your Ass' : 'Ο προσωπικός σου χώρος προπόνησης' }}</p>
   </header>
+
+  <!--
+    Every card has the same three parts in the same order: title, body, actions. The spacing
+    between them comes from the shared tokens on .dashboard__card, not from each element's own
+    margins, which is how one card ended up with its stats line pressed against its buttons.
+  -->
   @if (store.user()?.role === 'Admin') {
-    <mat-card appearance="outlined"><mat-card-content>
-      <h2>Εκκρεμείς εγγραφές @if (count() !== null) { ({{ count() }}) }</h2>
-      @if (failed()) { <p role="alert">Δεν ήταν δυνατή η φόρτωση. Άνοιξε τη λίστα χρηστών για ανανέωση.</p> }
-      @else if (count() === null) { <p role="status">Φόρτωση…</p> }
-      @else if (count() === 0) { <p>Δεν υπάρχουν εγγραφές που περιμένουν έγκριση.</p> }
-      @else {
-        <ul>@for (user of pending(); track user.id) { <li>{{ fullName(user) }} — {{ user.email }}</li> }</ul>
-      }
-      <a mat-flat-button routerLink="/admin/users" [queryParams]="{status: 'PendingApproval'}">Έλεγχος εγγραφών</a>
-      <a mat-button routerLink="/admin/users">Όλοι οι χρήστες</a>
+    <mat-card class="dashboard__card" appearance="outlined"><mat-card-content>
+      <h2 class="dashboard__card-title">Εκκρεμείς εγγραφές @if (count() !== null) { ({{ count() }}) }</h2>
+      <div class="dashboard__card-body">
+        @if (failed()) { <p role="alert">Δεν ήταν δυνατή η φόρτωση. Άνοιξε τη λίστα χρηστών για ανανέωση.</p> }
+        @else if (count() === null) { <p role="status">Φόρτωση…</p> }
+        @else if (count() === 0) { <p>Δεν υπάρχουν εγγραφές που περιμένουν έγκριση.</p> }
+        @else {
+          <ul>@for (user of pending(); track user.id) { <li>{{ fullName(user) }} — {{ user.email }}</li> }</ul>
+        }
+      </div>
+      <div class="dashboard__card-actions">
+        <a mat-flat-button routerLink="/admin/users" [queryParams]="{status: 'PendingApproval'}">Έλεγχος εγγραφών</a>
+        <a mat-button routerLink="/admin/users">Όλοι οι χρήστες</a>
+      </div>
     </mat-card-content></mat-card>
-  }
-  @if (store.user()?.role === 'Admin') {
-  <mat-card class="dashboard__card" appearance="outlined"><mat-card-content>
-    <h2>Βιβλιοθήκη βίντεο</h2>
-    <p class="dashboard__muted">@if (summary(); as s) { {{ s.total }} βίντεο · {{ s.published }} δημοσιευμένα · {{ s.processing }} σε επεξεργασία · {{ s.failed }} χρειάζονται έλεγχο }</p>
-    <a mat-flat-button routerLink="/admin/videos">Διαχείριση βίντεο</a>
-    <a mat-button routerLink="/videos">Προβολή βιβλιοθήκης</a>
-  </mat-card-content></mat-card>
+
+    <mat-card class="dashboard__card" appearance="outlined"><mat-card-content>
+      <h2 class="dashboard__card-title">Βιβλιοθήκη βίντεο</h2>
+      <div class="dashboard__card-body">
+        <p class="dashboard__muted">@if (summary(); as s) { {{ s.total }} βίντεο · {{ s.published }} δημοσιευμένα · {{ s.processing }} σε επεξεργασία · {{ s.failed }} χρειάζονται έλεγχο }</p>
+      </div>
+      <div class="dashboard__card-actions">
+        <a mat-flat-button routerLink="/admin/videos">Διαχείριση βίντεο</a>
+        <a mat-button routerLink="/videos">Προβολή βιβλιοθήκης</a>
+      </div>
+    </mat-card-content></mat-card>
+
+    <mat-card class="dashboard__card" appearance="outlined"><mat-card-content>
+      <h2 class="dashboard__card-title">Η σελίδα σου</h2>
+      <div class="dashboard__card-body">
+        <p class="dashboard__muted">Φωτογραφία, κείμενο και στοιχεία επικοινωνίας που βλέπουν οι πελάτες σου.</p>
+      </div>
+      <div class="dashboard__card-actions">
+        <a mat-flat-button routerLink="/about">Ο γυμναστής σου</a>
+        <button mat-button type="button" [disabled]="testEmailBusy()" (click)="sendTestEmail()">
+          {{ testEmailBusy() ? 'Αποστολή…' : 'Αποστολή δοκιμαστικού email' }}
+        </button>
+      </div>
+    </mat-card-content></mat-card>
   } @else { <app-video-library /> }
 </section>

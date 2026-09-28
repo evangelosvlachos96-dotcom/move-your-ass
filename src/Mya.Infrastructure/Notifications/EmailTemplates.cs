@@ -34,6 +34,10 @@ public sealed class EmailTemplates(IConfiguration configuration)
                 EmailOutbox.Deserialize<AccountDeclinedPayload>(message.PayloadJson)),
             OutboxMessageTypes.PasswordReset => PasswordReset(
                 EmailOutbox.Deserialize<PasswordResetPayload>(message.PayloadJson)),
+            OutboxMessageTypes.ContactMessage => ContactMessage(
+                EmailOutbox.Deserialize<ContactMessagePayload>(message.PayloadJson)),
+            OutboxMessageTypes.TestEmail => TestEmail(
+                EmailOutbox.Deserialize<TestEmailPayload>(message.PayloadJson)),
             _ => throw new InvalidOperationException($"No email template for outbox message type '{message.Type}'."),
         };
     }
@@ -76,6 +80,39 @@ public sealed class EmailTemplates(IConfiguration configuration)
                  + "Μετά την επαναφορά θα χρειαστεί να συνδεθείτε ξανά σε όλες τις συσκευές.",
         });
     }
+
+    /// <summary>
+    /// A client's message, forwarded to the trainer. Reply-To is the client, so replying in the
+    /// mail client reaches them without anyone copying an address out of the body — and the body
+    /// is escaped like every other template, because all of it is user-written.
+    /// </summary>
+    private EmailMessage ContactMessage(ContactMessagePayload p)
+    {
+        var built = Build(p.To, $"Μήνυμα από {p.SenderName}: {p.Subject}", new EmailContent(
+            $"Νέο μήνυμα από {p.SenderName}",
+            [
+                $"Από: {p.SenderName} ({p.SenderEmail})",
+                $"Θέμα: {p.Subject}",
+                p.Message,
+            ])
+        {
+            Note = "Απάντησε απευθείας σε αυτό το email και η απάντηση θα φτάσει στον αποστολέα.",
+        });
+
+        return built with { ReplyTo = p.ReplyTo };
+    }
+
+    /// <summary>Proves delivery end to end, on demand, without inventing a fake account event.</summary>
+    private EmailMessage TestEmail(TestEmailPayload p) =>
+        Build(p.To, "Δοκιμαστικό email από το Move Your Ass", new EmailContent(
+            $"Γεια σας {p.FirstName},",
+            [
+                "Αυτό είναι ένα δοκιμαστικό μήνυμα. Αν το διαβάζετε, η αποστολή email λειτουργεί.",
+                "Δεν χρειάζεται καμία ενέργεια.",
+            ])
+        {
+            Cta = Link("/dashboard", "Άνοιγμα πίνακα"),
+        });
 
     private EmailMessage AdminNewRegistration(AdminNewRegistrationPayload p) =>
         Build(p.To, $"Νέα εγγραφή: {p.FirstName} {p.LastName}", new EmailContent(
