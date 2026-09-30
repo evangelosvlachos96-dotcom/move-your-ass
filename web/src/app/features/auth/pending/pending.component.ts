@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { RouterLink } from '@angular/router';
+import { BrandLogoComponent } from '../../../shared/ui/brand-logo/brand-logo.component';
 import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.component';
 
 /**
@@ -10,12 +11,12 @@ import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.
  */
 @Component({
   selector: 'app-pending',
-  imports: [SiteFooterComponent, MatCardModule, MatButtonModule, RouterLink],
+  imports: [SiteFooterComponent, BrandLogoComponent, MatCardModule, MatButtonModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="auth-page">
       <div class="auth-page__panel">
-        <img class="auth-page__logo" src="assets/brand/logo-stacked.svg" alt="MoveYourAss" width="160" height="92" />
+        <app-brand-logo class="auth-page__logo" [phoneCompact]="true" />
 
         <mat-card class="auth-page__card" appearance="outlined">
           <mat-card-header class="auth-page__header">
