@@ -1,6 +1,6 @@
 <div class="auth-page">
   <div class="auth-page__panel">
-    <app-brand-logo class="auth-page__logo" />
+    <app-brand-logo class="auth-page__logo" [phoneCompact]="true" />
 
     <mat-card class="auth-page__card" appearance="outlined">
       <mat-card-header class="auth-page__header">
@@ -69,5 +69,6 @@
         <p class="auth-page__links">Δεν έχεις λογαριασμό; <a routerLink="/register">Εγγραφή</a></p>
       </mat-card-content>
     </mat-card>
+    <app-site-footer />
   </div>
 </div>

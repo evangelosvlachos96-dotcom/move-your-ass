@@ -1,0 +1,21 @@
+// The spacing scale. Cards, forms and page sections all pull from here so that "the gap under a
+// heading" is one decision made once, rather than a margin invented per component — which is how
+// the dashboard ended up with its stats line pressed against its buttons while the card beside it
+// was fine.
+//
+// Import with `@use '../../../styles/spacing' as *;` and use the variables, never a raw px value.
+
+/// Between a card's title and its body text.
+$space-title: 8px;
+
+/// Between related lines inside a block: body text, form fields, hints.
+$space-tight: 12px;
+
+/// Between a card's body and its row of actions. The one the dashboard was missing.
+$space-actions: 20px;
+
+/// Between cards, and between major sections of a page.
+$space-card-gap: 20px;
+
+/// A card's own internal padding.
+$space-card-padding: 22px;

@@ -16,6 +16,7 @@ import { CrossFieldErrorStateMatcher } from '../../../shared/forms/reward-early-
 import { ChevronLoaderComponent } from '../../../shared/ui/chevron-loader/chevron-loader.component';
 import { PasswordChecklistComponent } from '../../../shared/ui/password-checklist/password-checklist.component';
 import { BrandLogoComponent } from '../../../shared/ui/brand-logo/brand-logo.component';
+import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.component';
 
 const NAME_MAX_LENGTH = 80;
 const EMAIL_MAX_LENGTH = 256;
@@ -23,7 +24,7 @@ const EMAIL_MAX_LENGTH = 256;
 /** Self-service registration: lands on /pending, the admin approves from their side. */
 @Component({
   selector: 'app-register',
-  imports: [BrandLogoComponent, 
+  imports: [SiteFooterComponent, BrandLogoComponent, 
     ReactiveFormsModule,
     RouterLink,
     MatCardModule,

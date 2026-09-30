@@ -65,7 +65,11 @@ public sealed class SuspendUserHandler(IUserService users, IAppDbContext db, ICl
 
         await using var transaction = await db.BeginTransactionAsync(cancellationToken);
 
-        await users.SetStatusAsync(user.Id, UserStatus.Suspended, reason, currentUser.UserId, cancellationToken);
+        if (!await users.SetStatusAsync(user.Id, UserStatus.Suspended, reason, currentUser.UserId, cancellationToken))
+        {
+            // Someone else acted on this account between the check above and here.
+            return Result.Failure<UserDto>(Errors.InvalidUserState);
+        }
         await db.RefreshTokens
             .Where(t => t.UserId == user.Id && t.RevokedAtUtc == null)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAtUtc, now), cancellationToken);

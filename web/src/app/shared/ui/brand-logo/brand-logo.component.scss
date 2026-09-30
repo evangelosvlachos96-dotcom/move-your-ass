@@ -1,8 +1,10 @@
-// Option A: lime chevron mark, then "MoveYour" in bone with "Ass" in the accent, on one line.
-// The group is an inline-flex box that centres as a whole, so wherever it is placed it reads as
-// one object rather than a mark with some text trailing off it.
+// Option A: lime chevron mark, then "MoveYour" in bone with "Ass" in the accent, and the credit
+// line beneath, right-aligned to the end of "Ass". The group is an inline-flex box that centres
+// as a whole, so wherever it is placed it reads as one object rather than a mark with some text
+// trailing off it.
 .logo {
   display: inline-flex;
+  // Centre the mark against the wordmark-and-tagline pair, not against the wordmark alone.
   align-items: center;
   gap: 10px;
   line-height: 1;
@@ -30,10 +32,20 @@
   display: block;
 }
 
+// The wordmark and the credit, stacked. `end` alignment is what puts "powered by Tasos" flush
+// with the "s" at the end of "Ass" rather than under the "M".
+.logo__lockup {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: end;
+  gap: 6px;
+}
+
 .logo__word {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.2px;
+  line-height: 1;
   color: var(--brand-text);
 }
 
@@ -42,7 +54,33 @@
   font-weight: 600;
 }
 
+// 7.0:1 against the darkest card surface and 8.2:1 against the page, so it stays legible at
+// 11px despite being decorative.
+.logo__tagline {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--brand-orange);
+}
+
 // Wordmark only. Slightly larger, because it is now carrying the whole identity on its own.
 .logo--compact .logo__word {
   font-size: 19px;
+}
+
+// Phones: the mark is too small to read as a chevron and only costs width, so the wordmark
+// carries the identity and the credit centres under it.
+@media (max-width: 599px) {
+  .logo--phone-compact .logo__mark {
+    display: none;
+  }
+
+  .logo--phone-compact .logo__word {
+    font-size: 19px;
+  }
+
+  .logo--phone-compact .logo__lockup {
+    align-items: center;
+  }
 }

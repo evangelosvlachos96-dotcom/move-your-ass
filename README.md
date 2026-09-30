@@ -1,89 +1,142 @@
 # Move Your Ass
 
-A private workout video platform for one trainer and approved clients. Booking, calendars,
-payments and multiple trainers are outside scope.
+A private workout-video library for **one trainer and their approved clients**, live at
+[moveyourass.gr](https://moveyourass.gr). Clients register, the trainer approves them by hand,
+and approved clients sign in to browse and watch categorised workout videos. The interface is in
+Greek.
 
-## Accounts
+Not a marketplace, not multi-tenant, no booking, no calendars, no payments. One admin, tens to
+low hundreds of clients.
 
-- Clients register with a password. The account stays PendingApproval and an email is queued
-  to the admin. Approval activates it and queues an email to the client; decline also notifies them.
-- Admin can list, search, edit and manage users from the dashboard.
-- Admin-created clients start as Invited. An email contains a single-use password setup link,
-  valid for 24 hours by default. Setting a password activates the account; normal login follows.
-- Admin can resend an invitation. Previous unconsumed links are invalidated.
-- Login is password-only. Approval and invitation emails are onboarding, not login 2FA.
-- JWT access tokens, rotating refresh cookies and one active session per account are implemented.
+**The source is public; the data is not.** See [SECURITY.md](SECURITY.md) for how to report a
+vulnerability and for what this repository deliberately does and does not contain.
 
-## Stack and layout
+## What it does
 
-ASP.NET Core / .NET 10, EF Core and PostgreSQL; Angular standalone components, signals and
-Angular Material. Email goes through the Resend HTTPS API. Video is stored in Backblaze B2 via
-its S3-compatible API, behind a provider-neutral adapter (ADR-019).
+**Accounts.** Clients register with a password; the account sits in `PendingApproval` and the
+admin is emailed. Approving activates it and emails the client; declining also notifies them.
+Admin-created clients start as `Invited` and receive a single-use password-setup link valid for
+24 hours. Login is password-only (ADR-013 defers 2FA), with JWT access tokens, rotating refresh
+cookies with reuse detection, and one active session per account.
 
-Production is one Render web service (Docker, Frankfurt) serving the API and the Angular build
-from the same origin on `https://moveyourass.gr`, with a Neon database and Cloudflare DNS.
-See ADR-017 in docs/05-decisions.md and the runbook in docs/10-production.md.
+**Videos.** The trainer uploads MP4 or MOV straight from the browser to Backblaze B2 as presigned
+multipart parts; the multipart lifecycle is server-side, so the bucket never has to expose `ETag`
+over CORS (ADR-019). A cover image can be uploaded per video — otherwise a frame captured at
+upload is used, and otherwise a branded placeholder. Playback is a short-lived presigned GET.
+Everything stored counts against a configured storage cap, covers included.
 
-- src/Mya.Api: HTTP host, controllers, authorization and middleware
-- src/Mya.Application: use cases, validation, DTOs and external-service interfaces
-- src/Mya.Domain: entities and enums
-- src/Mya.Infrastructure: Identity, EF Core, migrations and transactional email outbox
-- web: Angular app
-- tests: existing settings, persistence and architecture checks
-- docs: product scope and architecture
-- infra: deployment checklist
+**The trainer's page.** `Ο γυμναστής σου` is a page every signed-in user can see and only the
+admin can edit, on a route of its own: photo, name, tagline, a sanitised-markdown biography, and
+whichever social networks she chooses to add, in her own order. Clients can send her a message
+from it — the mail goes out through the transactional outbox with `Reply-To` set to the client —
+and an optional booking link puts a "Κλείσε ραντεβού" button in front of clients in four places.
+Leave the link empty and every one of those buttons is gone.
+
+**Pictures are framed, not guessed at.** Video covers and the trainer's portrait both go through a
+crop dialog (16:9 and a circle), so what is uploaded is what was chosen. Only the cropped, scaled
+bytes leave the browser.
+
+## Stack
+
+ASP.NET Core / .NET 10 and EF Core on PostgreSQL (Neon); Angular standalone components with
+signals and Angular Material. Email through the Resend HTTPS API behind `IEmailSender`. Video in
+Backblaze B2 through its S3-compatible API behind `IVideoStorage`.
+
+Production is **one** Render web service (Docker, Frankfurt, free tier) serving the API and the
+Angular build from the same origin, which is what lets the refresh cookie stay `SameSite=Strict`
+with no CORS at all. DNS is Cloudflare. See ADR-016 and ADR-017 in
+[docs/05-decisions.md](docs/05-decisions.md) and the runbook in
+[docs/10-production.md](docs/10-production.md).
+
+```
+src/Mya.Api             HTTP host, controllers, authorization, middleware
+src/Mya.Application     use cases, validation, DTOs, external-service interfaces
+src/Mya.Domain          entities and enums; references nothing
+src/Mya.Infrastructure  Identity, EF Core, migrations, S3 adapter, email outbox
+web                     Angular app, unit tests and the Playwright suite
+docs                    product scope, decisions, runbooks — the source of truth
+infra                   provider dashboard notes
+```
+
+The layering is enforced by `tests/Mya.ArchitectureTests`, not by convention.
 
 ## Local development
 
-Prerequisites: .NET 10 SDK, Node 22+, a PostgreSQL database and dotnet-ef. The intended local
-database is the Neon `dev` branch; any PostgreSQL instance works.
-Store database, JWT and seed credentials in user-secrets for src/Mya.Api; never commit them.
-See appsettings.json and appsettings.Development.json for configuration keys.
+Prerequisites: .NET 10 SDK, Node 22+, a PostgreSQL database, `dotnet-ef`. The intended local
+database is the Neon `dev` branch; any PostgreSQL instance works. **Never point local development
+at the production database.**
+
+Secrets go in .NET user-secrets for `src/Mya.Api` — never in `appsettings.json`, never in the
+repository. `appsettings.json` and `appsettings.Development.json` list every key.
 
 ```powershell
 dotnet restore
 dotnet ef database update --project src/Mya.Infrastructure --startup-project src/Mya.Api
-dotnet run --project src/Mya.Api
-# Separate terminal
+dotnet run --project src/Mya.Api        # http://localhost:5077, Swagger at /swagger
+
+# separate terminal
 cd web
 npm ci
-npm start
+npm start                               # http://localhost:4200
 ```
 
-Apply migrations explicitly; startup seeds the first admin in Development but does not migrate.
-The local launch profile exposes Swagger at http://localhost:5077/swagger; Angular runs at :4200.
+The Angular dev server proxies `/api` to the API (`web/proxy.conf.json`), so development is
+same-origin exactly like production. Migrations are applied explicitly; startup seeds the first
+admin in Development but never migrates.
+
+## Tests
+
+```powershell
+dotnet build                            # must stay at zero warnings
+dotnet test
+
+cd web
+npm run lint
+npm run test
+npm run build -- --configuration production
+npx playwright test                     # needs both servers running; see web/playwright.config.ts
+```
+
+The Playwright suite runs Chromium at phone, tablet and desktop sizes and **WebKit at phone and
+tablet**, because the trainer's clients are on iPhones, where every browser is WebKit underneath.
+`e2e/overflow.spec.ts` is the one to read first: it asserts that no route scrolls sideways at 375,
+390, 820 or 1440, and that **no control is under 16px on a phone** — which is what makes iOS
+Safari zoom the page in on focus and never zoom back out.
+
+It can run against the dev server or, more cheaply and closer to production, against the API
+serving the production build from its own `wwwroot` (`E2E_BASE_URL=http://localhost:5077`).
+Signed-in projects need `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` and `E2E_CLIENT_EMAIL` /
+`E2E_CLIENT_PASSWORD`; without them those tests skip, so CI without a database still runs the
+public routes.
+
+`docs/07-manual-test-checklist.md` covers what a browser suite cannot.
 
 ## Email
 
-Email:Mode=Console is the Development default. Rendered messages, including invitation links,
-appear in local logs. Treat these logs as sensitive.
+`Email:Mode=Console` is the Development default: rendered messages, invitation links included,
+appear in the local logs. **Treat those logs as sensitive.** `Email:Mode=Resend` sends real mail
+and logs delivery metadata without the body or the token. Production requires Resend mode and
+validates it at startup. There is no SMTP mode — Render blocks outbound SMTP on free web
+services, which is why the provider is reached over HTTPS. See
+[docs/09-email-setup.md](docs/09-email-setup.md).
 
-Email:Mode=Resend sends real mail through Resend's HTTPS API and logs delivery metadata without
-the body or setup token. Configure ApiKey and From in user-secrets or deployment configuration.
-Production requires Resend mode and validates it at startup. There is no SMTP mode: Render blocks
-outbound SMTP ports on free web services, which is why the provider is reached over HTTPS.
-See docs/09-email-setup.md. Code support does not mean a live provider is already configured.
+## Where to start reading
 
-## Validation and milestones
+**[docs/08-milestone-handover.md](docs/08-milestone-handover.md) §"Current state"** — the single
+resume-here document: branch, last commit, what is verified and how, what is not, and the exact
+next step. Everything else hangs off it:
 
-**Start at docs/08-milestone-handover.md §"Current state".** It records the branch, the last
-commit, what is verified and what is not, and the exact next step. The owner commits and pushes
-before further work; the next checkpoint waits for explicit approval.
+- [docs/05-decisions.md](docs/05-decisions.md) — the ADRs, and why each alternative lost
+- [docs/10-production.md](docs/10-production.md) — the production runbook
+- [docs/11-video-operations.md](docs/11-video-operations.md) — B2 setup and acceptance
+- [docs/12-trainer-guide.md](docs/12-trainer-guide.md) — the guide for the trainer, in Greek
+- [CLAUDE.md](CLAUDE.md) — the working rules for this repository
 
-```powershell
-dotnet test -m:1
-cd web
-npm run lint
-npm run build
-```
+## Licence
 
-Run docs/07-manual-test-checklist.md for browser and account-flow verification.
-docs/04-roadmap.md is the single milestone sequence. Videos are designed in docs/06-video-catalogue.md
-and are not implemented yet. Deployment validation precedes video implementation.
+**All rights reserved.** There is deliberately **no `LICENSE` file**: without one, default
+copyright applies and no permission to use, copy, modify or distribute this code is granted.
+It is published so it can be read — as a portfolio piece and so that anyone can check how the
+trainer's clients' data is handled — not so it can be reused.
 
-Private and proprietary. All rights reserved.
-
-Video setup and acceptance: [docs/11-video-operations.md](docs/11-video-operations.md).
-Trainer guide: [docs/12-trainer-guide.md](docs/12-trainer-guide.md).
-Video uploads stay disabled until the `Video:S3:*` settings are supplied. Run backend and
-frontend tests before deployment.
+Created by [Evangelos Vlachos](https://github.com/evangelosvlachos96-dotcom).

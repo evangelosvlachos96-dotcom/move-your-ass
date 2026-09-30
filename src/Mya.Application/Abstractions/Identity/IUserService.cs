@@ -41,7 +41,11 @@ public interface IUserService
 
     public Task SetRoleAsync(string userId, string role, CancellationToken cancellationToken);
 
-    public Task SetStatusAsync(string userId, UserStatus status, string? reason, string? actorUserId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Moves a user to a new status. Returns false when another request changed the same user
+    /// first — the caller should tell the admin to reload rather than pretend it worked.
+    /// </summary>
+    public Task<bool> SetStatusAsync(string userId, UserStatus status, string? reason, string? actorUserId, CancellationToken cancellationToken);
 
     public Task SetMustChangePasswordAsync(string userId, bool mustChangePassword, CancellationToken cancellationToken);
 

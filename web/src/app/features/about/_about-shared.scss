@@ -1,0 +1,72 @@
+@use '../../../styles/spacing' as *;
+
+// The furniture the About page and its editor have in common: the card, the rendered biography,
+// and a row of actions. Included by both component stylesheets rather than written twice, so the
+// two screens cannot drift apart visually — which is the whole point of editing on a page that
+// looks like the page being edited.
+
+@mixin about-shared {
+  :host {
+    display: block;
+  }
+
+  .about-card {
+    display: grid;
+    gap: $space-tight;
+    padding: $space-card-padding;
+    background: var(--brand-surface);
+    border: 1px solid var(--brand-border);
+    border-radius: 16px;
+    min-inline-size: 0;
+  }
+
+  .about-card__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .about__muted {
+    margin: 0;
+    color: var(--brand-muted);
+    line-height: 1.6;
+  }
+
+  .about__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-tight;
+  }
+
+  // The biography, rendered from a whitelist. `anywhere` because the trainer may paste a URL.
+  .about__bio {
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+  }
+
+  .about__bio p {
+    margin: 0 0 $space-tight;
+  }
+
+  .about__bio p:last-child,
+  .about__bio ul:last-child {
+    margin-block-end: 0;
+  }
+
+  .about__bio ul {
+    margin: 0 0 $space-tight;
+    padding-inline-start: 22px;
+  }
+
+  .about__bio strong {
+    color: var(--brand-text);
+  }
+
+  code {
+    padding: 1px 5px;
+    border-radius: 5px;
+    background: var(--brand-surface-2);
+    color: var(--brand-accent);
+    font-size: 0.85em;
+  }
+}

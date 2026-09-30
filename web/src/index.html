@@ -3,7 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      viewport-fit=cover is what makes env(safe-area-inset-*) return anything other than zero on
+      an iPhone. Without it the fixed bottom bar and the footer sit under the home indicator and
+      the notch, and every safe-area rule in the stylesheets is silently a no-op. Because the
+      layout then extends under the insets, the shell pads for them explicitly.
+
+      No maximum-scale and no user-scalable=no: pinch-zoom stays available. The way to stop iOS
+      zooming on focus is a font-size of at least 16px on the control, which styles.scss enforces.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
     <title>MoveYourAss</title>
     <meta name="description" content="Προπόνηση, όποτε θέλεις" />

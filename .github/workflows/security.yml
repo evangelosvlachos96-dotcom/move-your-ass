@@ -1,0 +1,52 @@
+name: security
+
+# Secret scanning on every push and every pull request, including pull requests from forks.
+#
+# THIS REPOSITORY IS PUBLIC. A credential committed here is public the moment it is pushed, and
+# rewriting history afterwards does not un-publish it — the only real remedy is rotating the
+# credential. This job is the cheap check that catches the mistake in the minute it is made
+# rather than in a breach report.
+#
+# It is a second line, not the first: GitHub's own push protection (enable it in the repository
+# settings, see SECURITY.md) refuses the push before it ever lands. This catches what push
+# protection has no pattern for, and it re-checks on every pull request.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  # Manual runs scan the entire history of every branch rather than just the new commits.
+  workflow_dispatch:
+  schedule:
+    # 04:23 UTC on Mondays: a full-history sweep, in case a rule is added that would have caught
+    # something already committed.
+    - cron: '23 4 * * 1'
+
+# Read-only, and nothing else. This workflow runs on pull requests from forks, so it must be
+# incapable of writing anything even if the code it checks out is hostile.
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # fetch-depth: 0 — gitleaks walks history, and a shallow clone would quietly scan one commit
+      # and report success.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for committed secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          # The only variable this job gets. gitleaks-action is free for public repositories and
+          # for individuals; GITLEAKS_LICENSE is required for organization-owned repositories
+          # only, and is deliberately not referenced here so that a fork's pull request cannot
+          # fail for want of a secret it can never have.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # On a manual or scheduled run, scan everything rather than the push range.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+          GITLEAKS_ENABLE_SUMMARY: true

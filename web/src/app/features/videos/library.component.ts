@@ -1,8 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, combineLatest, catchError, map, of, switchMap, tap } from 'rxjs';
+import { AuthStore } from '../../core/auth/auth.store';
+import { SiteContentService } from '../../core/site/site-content.service';
+import { BookingButtonComponent } from '../../shared/ui/booking-button/booking-button.component';
 import { VideosApi } from '../../core/videos/videos.api';
 import {
   AREA_LABELS,
@@ -13,13 +17,24 @@ import {
 } from '../../core/videos/video.models';
 @Component({
   selector: 'app-video-library',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, MatIconModule, BookingButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './library.component.html',
   styleUrl: './videos.scss',
 })
 export class VideoLibraryComponent {
   private readonly api = inject(VideosApi);
+  /**
+   * The trainer browses the same library her clients do, so this is where she notices a title
+   * that needs fixing. The pencil only decides what is drawn: the editor's route is admin-only
+   * and so is every endpoint behind it.
+   */
+  protected readonly isAdmin = inject(AuthStore).isAdmin;
+
+  /** Clients are offered a session here, where they are already thinking about training. */
+  private readonly site = inject(SiteContentService);
+  protected readonly bookingUrl = this.site.bookingUrl;
+  protected readonly showBooking = this.site.showBookingInNav;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   protected readonly page = signal<VideoPage | null>(null);

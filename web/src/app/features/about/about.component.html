@@ -1,0 +1,151 @@
+<section class="about plain-form">
+  @if (loading()) {
+    <p role="status">Φόρτωση…</p>
+  } @else if (failed()) {
+    <div class="about-card" role="alert">
+      <h1>Η σελίδα δεν φορτώθηκε.</h1>
+      <p class="about__muted">Δοκίμασε ξανά σε λίγο.</p>
+      <div class="about__actions">
+        <button type="button" (click)="load()">Επανάληψη</button>
+      </div>
+    </div>
+  } @else if (about(); as page) {
+    <!-- Hero -->
+    <div class="about-card about-hero">
+      <div class="about-hero__portrait">
+        @if (page.photoUrl) {
+          <img [src]="page.photoUrl" [alt]="page.trainerName ?? 'Ο γυμναστής σου'" />
+        } @else if (initials(); as letters) {
+          <span class="about-hero__initials" aria-hidden="true">{{ letters }}</span>
+        } @else {
+          <span class="about-hero__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><path d="M7 3l9 9-9 9" /></svg>
+          </span>
+        }
+      </div>
+
+      <div class="about-hero__identity">
+        <h1>{{ page.trainerName || 'Ο γυμναστής σου' }}</h1>
+        @if (page.tagline) {
+          <p class="about-hero__tagline">{{ page.tagline }}</p>
+        }
+      </div>
+
+      @if (isAdmin()) {
+        <a class="button about-hero__edit" routerLink="/about/edit">
+          <mat-icon aria-hidden="true">edit</mat-icon>
+          <span>Επεξεργασία</span>
+        </a>
+      }
+    </div>
+
+    @if (isEmpty()) {
+      <div class="about-card" role="status">
+        @if (isAdmin()) {
+          <h2 class="about-card__title">Η σελίδα σου είναι άδεια.</h2>
+          <p class="about__muted">
+            Πάτησε «Επεξεργασία» για να προσθέσεις φωτογραφία, το όνομά σου, λίγα λόγια για σένα
+            και τα στοιχεία επικοινωνίας σου. Μέχρι τότε οι πελάτισσές σου βλέπουν αυτή τη σελίδα
+            χωρίς πληροφορίες.
+          </p>
+        } @else {
+          <h2 class="about-card__title">Ο γυμναστής θα προσθέσει σύντομα πληροφορίες.</h2>
+          <p class="about__muted">
+            Μπορείς να στείλεις μήνυμα από τη φόρμα παρακάτω όποτε θέλεις.
+          </p>
+        }
+      </div>
+    }
+
+    @if (bioHtml()) {
+      <div class="about-card">
+        <h2 class="about-card__title">Σχετικά με εμένα</h2>
+        <!-- Escaped first, then reduced to paragraphs, bold and lists; never raw HTML. -->
+        <div class="about__bio" [innerHTML]="bioHtml()"></div>
+      </div>
+    }
+
+    @if (links().length) {
+      <div class="about-card">
+        <h2 class="about-card__title">Στοιχεία επικοινωνίας</h2>
+        <ul class="about__links">
+          @for (link of links(); track link.channel) {
+            <li>
+              <a
+                class="about__link"
+                [href]="link.href"
+                [attr.target]="link.external ? '_blank' : null"
+                [attr.rel]="link.external ? 'noopener noreferrer' : null"
+              >
+                <app-contact-icon [channel]="link.channel" />
+                <span class="about__link-label">{{ link.label }}</span>
+                <span class="about__link-value">{{ link.text }}</span>
+                <mat-icon class="about__link-go" aria-hidden="true">chevron_right</mat-icon>
+              </a>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (page.bookingUrl; as booking) {
+      <div class="about-card about-booking">
+        <h2 class="about-card__title">Κλείσε ραντεβού</h2>
+        <p class="about__muted">
+          @if (isAdmin()) {
+            Αυτό βλέπουν οι πελάτισσές σου. Ο σύνδεσμος ανοίγει τη σελίδα κρατήσεών σου.
+          } @else {
+            Κλείσε μια προσωπική συνάντηση με τον γυμναστή σου.
+          }
+        </p>
+        <app-booking-button [url]="booking" [block]="true" />
+      </div>
+    }
+
+    <!-- Message form. Clients only: an admin writing here would be writing to themselves, and
+         the endpoint refuses it regardless of what is drawn. -->
+    @if (!isAdmin()) {
+    <div class="about-card">
+      <h2 class="about-card__title">Στείλε μήνυμα</h2>
+      @if (sent()) {
+        <p class="about__sent" role="status">
+          Το μήνυμα στάλθηκε. Θα λάβεις απάντηση στο email σου.
+        </p>
+      } @else {
+        <p class="field-hint">
+          Η απάντηση έρχεται στο email με το οποίο συνδέεσαι.
+        </p>
+        <form class="about__form" #contactForm="ngForm" (ngSubmit)="send(contactForm)">
+          <label>
+            Θέμα
+            <input
+              name="subject"
+              [(ngModel)]="subject"
+              required
+              [minlength]="contactMin.subject"
+              maxlength="150"
+              [disabled]="sending()"
+            />
+          </label>
+          <label>
+            Μήνυμα
+            <textarea
+              name="message"
+              [(ngModel)]="message"
+              required
+              [minlength]="contactMin.message"
+              maxlength="4000"
+              [disabled]="sending()"
+            ></textarea>
+          </label>
+          <div class="about__actions">
+            <button type="submit" class="primary" [disabled]="sending()">
+              {{ sending() ? 'Αποστολή…' : 'Αποστολή' }}
+            </button>
+          </div>
+        </form>
+      }
+    </div>
+    }
+  }
+</section>

@@ -14,6 +14,7 @@ public sealed class VideoConfiguration : IEntityTypeConfiguration<Video>
         b.Property(x => x.UploadId).HasMaxLength(200);
         b.Property(x => x.ContentType).HasMaxLength(100);
         b.Property(x => x.ThumbnailObjectKey).HasMaxLength(200);
+        b.Property(x => x.CoverObjectKey).HasMaxLength(200);
         b.Property(x => x.ThumbnailUrl).HasMaxLength(1000);
         b.Property(x => x.CreatedByUserId).HasMaxLength(450).IsRequired();
         b.Property(x => x.CreationKey).HasMaxLength(100).IsRequired();

@@ -34,6 +34,8 @@ public sealed class EmailTemplates(IConfiguration configuration)
                 EmailOutbox.Deserialize<AccountDeclinedPayload>(message.PayloadJson)),
             OutboxMessageTypes.PasswordReset => PasswordReset(
                 EmailOutbox.Deserialize<PasswordResetPayload>(message.PayloadJson)),
+            OutboxMessageTypes.ContactMessage => ContactMessage(
+                EmailOutbox.Deserialize<ContactMessagePayload>(message.PayloadJson)),
             _ => throw new InvalidOperationException($"No email template for outbox message type '{message.Type}'."),
         };
     }
@@ -75,6 +77,27 @@ public sealed class EmailTemplates(IConfiguration configuration)
                  + $"{p.ExpiresAtUtc.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)} UTC. "
                  + "Μετά την επαναφορά θα χρειαστεί να συνδεθείτε ξανά σε όλες τις συσκευές.",
         });
+    }
+
+    /// <summary>
+    /// A client's message, forwarded to the trainer. Reply-To is the client, so replying in the
+    /// mail client reaches them without anyone copying an address out of the body — and the body
+    /// is escaped like every other template, because all of it is user-written.
+    /// </summary>
+    private EmailMessage ContactMessage(ContactMessagePayload p)
+    {
+        var built = Build(p.To, $"Μήνυμα από {p.SenderName}: {p.Subject}", new EmailContent(
+            $"Νέο μήνυμα από {p.SenderName}",
+            [
+                $"Από: {p.SenderName} ({p.SenderEmail})",
+                $"Θέμα: {p.Subject}",
+                p.Message,
+            ])
+        {
+            Note = "Απάντησε απευθείας σε αυτό το email και η απάντηση θα φτάσει στον αποστολέα.",
+        });
+
+        return built with { ReplyTo = p.ReplyTo };
     }
 
     private EmailMessage AdminNewRegistration(AdminNewRegistrationPayload p) =>

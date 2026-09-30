@@ -121,9 +121,105 @@ public sealed class VideoAdminHandler(IAppDbContext db, VideoAccess access, ICur
 
         v.SizeBytes = stored.SizeBytes; v.ContentType = stored.ContentType; v.UploadId = null;
         v.DurationSeconds = input.DurationSeconds;
-        v.ThumbnailObjectKey = input.ThumbnailUploaded ? await VerifyThumbnailAsync(v.Id, ct) : null;
+        var poster = input.ThumbnailUploaded ? await VerifyThumbnailAsync(v.Id, ct) : null;
+        v.ThumbnailObjectKey = poster?.Key;
+        v.ThumbnailSizeBytes = poster?.SizeBytes;
         v.Status = VideoStatus.Ready; v.Revision = Guid.NewGuid(); v.UpdatedAtUtc = clock.UtcNow;
         return await SaveAsync(ct);
+    }
+
+    /// <summary>
+    /// Issues a presigned PUT for a cover image. Type, size and the storage cap are decided here,
+    /// before any URL exists, exactly as they are for the recording itself.
+    /// </summary>
+    public async Task<Result<CoverTicket>> CoverUploadAsync(Guid id, CoverRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!await access.AllowedAsync(true, ct)) return Result.Failure<CoverTicket>(VideoRules.Forbidden);
+        var v = await db.Videos.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (v is null) return Result.Failure<CoverTicket>(VideoRules.Missing);
+        if (!storage.IsConfigured) return Result.Failure<CoverTicket>(VideoRules.Unavailable);
+        if (v.Status == VideoStatus.Deleting) return Result.Failure<CoverTicket>(VideoRules.Conflict);
+
+        if (request.ContentType is null || !VideoRules.CoverContentTypes.Contains(request.ContentType, StringComparer.OrdinalIgnoreCase))
+            return Result.Failure<CoverTicket>(VideoRules.CoverType);
+        if (request.SizeBytes <= 0 || request.SizeBytes > VideoRules.MaxCoverBytes)
+            return Result.Failure<CoverTicket>(VideoRules.CoverTooLarge);
+
+        // The cover replaces whatever is there, so this video's own current cover is excluded.
+        var used = await UsedBytesAsync(v.Id, ct) + (v.SizeBytes ?? 0) + (v.ThumbnailSizeBytes ?? 0);
+        if (used + request.SizeBytes > storage.StorageCapBytes)
+            return Result.Failure<CoverTicket>(VideoRules.StorageFull);
+
+        var key = VideoRules.CoverKey(v.Id, request.ContentType);
+        try { return Result.Success(new CoverTicket(key, storage.PresignPut(key, storage.UploadLifetime))); }
+        catch (VideoStorageException) { return Result.Failure<CoverTicket>(VideoRules.Unavailable); }
+    }
+
+    /// <summary>
+    /// Adopts an uploaded cover once the provider confirms it, and deletes the one it replaces.
+    /// The key has to be one this video could have been issued, so a caller cannot point the row
+    /// at an arbitrary object already in the bucket.
+    /// </summary>
+    public async Task<Result> CoverConfirmAsync(Guid id, CoverConfirm input, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (!await access.AllowedAsync(true, ct)) return Result.Failure(VideoRules.Forbidden);
+        var v = await db.Videos.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (v is null) return Result.Failure(VideoRules.Missing);
+        if (!storage.IsConfigured) return Result.Failure(VideoRules.Unavailable);
+        if (v.Status == VideoStatus.Deleting) return Result.Failure(VideoRules.Conflict);
+        if (!input.ObjectKey.StartsWith($"videos/{v.Id:D}-cover-", StringComparison.Ordinal))
+            return Result.Failure(VideoRules.Invalid);
+
+        StoredObject? stored;
+        try { stored = await storage.HeadAsync(input.ObjectKey, ct); }
+        catch (VideoStorageException) { return Result.Failure(VideoRules.Unavailable); }
+
+        if (stored is null || stored.SizeBytes <= 0 || stored.SizeBytes > VideoRules.MaxCoverBytes)
+            return Result.Failure(VideoRules.CoverTooLarge);
+        if (!VideoRules.CoverContentTypes.Contains(stored.ContentType, StringComparer.OrdinalIgnoreCase))
+        {
+            await ForgetObjectAsync(input.ObjectKey, ct);
+            return Result.Failure(VideoRules.CoverType);
+        }
+
+        var replaced = v.CoverObjectKey;
+        v.CoverObjectKey = input.ObjectKey;
+        v.CoverSizeBytes = stored.SizeBytes;
+        v.Revision = Guid.NewGuid(); v.UpdatedAtUtc = clock.UtcNow;
+        var saved = await SaveAsync(ct);
+        if (saved.IsFailure) return saved;
+
+        // Only once the row points at the new one: a failure here costs an orphan object in the
+        // bucket, not a video whose cover has vanished.
+        if (replaced is not null) await ForgetObjectAsync(replaced, ct);
+        return Result.Success();
+    }
+
+    /// <summary>Removes the cover, falling back to the captured frame and then the placeholder.</summary>
+    public async Task<Result> CoverRemoveAsync(Guid id, CancellationToken ct)
+    {
+        if (!await access.AllowedAsync(true, ct)) return Result.Failure(VideoRules.Forbidden);
+        var v = await db.Videos.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (v is null) return Result.Failure(VideoRules.Missing);
+        if (v.CoverObjectKey is null) return Result.Success();
+
+        var removed = v.CoverObjectKey;
+        v.CoverObjectKey = null; v.CoverSizeBytes = null;
+        v.Revision = Guid.NewGuid(); v.UpdatedAtUtc = clock.UtcNow;
+        var saved = await SaveAsync(ct);
+        if (saved.IsFailure) return saved;
+
+        await ForgetObjectAsync(removed, ct);
+        return Result.Success();
+    }
+
+    /// <summary>Best-effort delete of an object the database no longer references.</summary>
+    private async Task ForgetObjectAsync(string objectKey, CancellationToken ct)
+    {
+        try { await storage.DeleteAsync(objectKey, ct); }
+        catch (VideoStorageException) { /* Orphan in the bucket; the row is already correct. */ }
     }
 
     /// <summary>Abandons an upload in flight so its parts stop occupying the storage allowance.</summary>
@@ -175,6 +271,7 @@ public sealed class VideoAdminHandler(IAppDbContext db, VideoAccess access, ICur
             await DiscardUploadAsync(v, ct);
             if (v.ExternalId is not null) await storage.DeleteAsync(v.ExternalId, ct);
             if (v.ThumbnailObjectKey is not null) await storage.DeleteAsync(v.ThumbnailObjectKey, ct);
+            if (v.CoverObjectKey is not null) await storage.DeleteAsync(v.CoverObjectKey, ct);
         }
         catch (VideoStorageException) { return Result.Failure(VideoRules.Unavailable); }
         db.Videos.Remove(v); return await SaveAsync(ct);
@@ -226,7 +323,8 @@ public sealed class VideoAdminHandler(IAppDbContext db, VideoAccess access, ICur
 
     /// <summary>Bytes counted against the cap, optionally ignoring one row that is being replaced.</summary>
     public Task<long> UsedBytesAsync(Guid? excluding, CancellationToken ct) =>
-        db.Videos.Where(v => excluding == null || v.Id != excluding).SumAsync(v => v.SizeBytes ?? 0L, ct);
+        db.Videos.Where(v => excluding == null || v.Id != excluding)
+            .SumAsync(v => (v.SizeBytes ?? 0L) + (v.ThumbnailSizeBytes ?? 0L) + (v.CoverSizeBytes ?? 0L), ct);
 
     private async Task<Result<UploadTicket>> StartAsync(Video video, CancellationToken ct)
     {
@@ -260,13 +358,13 @@ public sealed class VideoAdminHandler(IAppDbContext db, VideoAccess access, ICur
     }
 
     /// <summary>A poster frame only counts once the provider confirms a plausible object.</summary>
-    private async Task<string?> VerifyThumbnailAsync(Guid id, CancellationToken ct)
+    private async Task<(string Key, long SizeBytes)?> VerifyThumbnailAsync(Guid id, CancellationToken ct)
     {
         var key = VideoRules.ThumbnailKey(id);
         try
         {
             var head = await storage.HeadAsync(key, ct);
-            return head is { SizeBytes: > 0 and <= MaxThumbnailBytes } ? key : null;
+            return head is { SizeBytes: > 0 and <= MaxThumbnailBytes } ? (key, head.SizeBytes) : null;
         }
         catch (VideoStorageException) { return null; }
     }

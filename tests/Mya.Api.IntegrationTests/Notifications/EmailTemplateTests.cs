@@ -34,6 +34,7 @@ public sealed class EmailTemplateTests
         { OutboxMessageTypes.AdminNewRegistration, new AdminNewRegistrationPayload("admin@example.test", "Γιώργος", "Παπαδόπουλος", "g@example.test") },
         { OutboxMessageTypes.AccountApproved, new AccountApprovedPayload("a@example.test", "Μαρία") },
         { OutboxMessageTypes.AccountDeclined, new AccountDeclinedPayload("a@example.test", "Μαρία", "Διπλή εγγραφή") },
+        { OutboxMessageTypes.ContactMessage, new ContactMessagePayload("coach@example.test", "m@example.test", "Μαρία Παπά", "m@example.test", "Ερώτηση", "Το μήνυμά μου.") },
     };
 
     [Theory]
@@ -58,9 +59,28 @@ public sealed class EmailTemplateTests
         message.Html.ShouldContain("#f5f5f0");
         message.Html.ShouldContain("Move Your Ass");
 
+        // "powered by Tasos" is real text in the header, not baked into the PNG, so it is crisp
+        // and still there when the client blocks images.
+        message.Html.ShouldContain("powered by Tasos");
+        message.Html.ShouldContain("#ff8a3d");
+
         message.Text.ShouldNotBeNullOrWhiteSpace();
         message.Text.ShouldNotContain("<");
         message.Text.ShouldContain("Move Your Ass");
+        // The plain-text version says the same thing rather than quietly dropping the credit.
+        message.Text.ShouldContain("MoveYourAss · powered by Tasos");
+    }
+
+    [Theory]
+    [MemberData(nameof(AllTemplates))]
+    public void The_header_still_reads_as_the_brand_with_images_blocked(string type, object payload)
+    {
+        var message = Templates().Render(Message(type, payload));
+
+        // Everything a client shows when it refuses to load the PNG: the alt text and the credit
+        // beneath it, both as text in the document.
+        message.Html.ShouldContain("alt=\"Move Your Ass\"");
+        message.Html.ShouldContain(">powered by Tasos<");
     }
 
     [Theory]
@@ -122,6 +142,33 @@ public sealed class EmailTemplateTests
         // Repeated in plain sight, not only inside the anchor.
         message.Html.ShouldContain($">{Origin}/login</p>");
         message.Text.ShouldContain($"{Origin}/login");
+    }
+
+    [Fact]
+    public void The_contact_message_replies_to_the_client_and_escapes_what_they_wrote()
+    {
+        var message = Templates().Render(Message(OutboxMessageTypes.ContactMessage,
+            new ContactMessagePayload("coach@example.test", "m@example.test", "Μαρία", "m@example.test",
+                "<b>Θέμα</b>", "<script>alert(1)</script> γεια")));
+
+        // Replying in the mail client reaches the client, not the no-reply sender.
+        message.ReplyTo.ShouldBe("m@example.test");
+        message.To.ShouldBe("coach@example.test");
+        message.Subject.ShouldContain("Μαρία");
+
+        // Every part of this is written by a stranger on the internet.
+        message.Html.ShouldNotContain("<script>");
+        message.Html.ShouldContain("&lt;script&gt;");
+        message.Html.ShouldContain("&lt;b&gt;Θέμα&lt;/b&gt;");
+    }
+
+    [Fact]
+    public void Only_the_contact_message_sets_a_reply_to()
+    {
+        Templates().Render(Message(OutboxMessageTypes.AccountDeclined, new AccountDeclinedPayload("a@example.test", "Μαρία", null)))
+            .ReplyTo.ShouldBeNull();
+        Templates().Render(Message(OutboxMessageTypes.AccountApproved, new AccountApprovedPayload("a@example.test", "Μαρία")))
+            .ReplyTo.ShouldBeNull();
     }
 
     [Fact]

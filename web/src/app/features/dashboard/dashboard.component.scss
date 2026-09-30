@@ -1,7 +1,9 @@
+@use '../../../styles/spacing' as *;
+
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: $space-card-gap;
 }
 
 .dashboard__title {
@@ -28,7 +30,51 @@
   border-color: var(--brand-border);
 }
 
+// One rhythm for every card: title, body, actions. Nothing here is a per-card margin, so a card
+// added later cannot be spaced differently by accident.
+.dashboard__card mat-card-content {
+  display: grid;
+  gap: 0;
+  padding: $space-card-padding;
+}
+
+.dashboard__card-title {
+  margin: 0 0 $space-title;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.dashboard__card-body {
+  margin: 0 0 $space-actions;
+  color: var(--brand-text);
+}
+
+.dashboard__card-body > :first-child {
+  margin-block-start: 0;
+}
+
+.dashboard__card-body > :last-child {
+  margin-block-end: 0;
+}
+
+.dashboard__card-body ul {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 4px;
+}
+
+// Wraps rather than overflowing when two buttons do not fit a phone.
+.dashboard__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-tight;
+}
+
 .dashboard__muted {
   margin: 0;
   color: var(--brand-muted);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }

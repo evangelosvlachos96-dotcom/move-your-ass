@@ -1,19 +1,25 @@
-<section class="video-page">
+<section class="video-page plain-form">
   <header class="video-heading">
     <div>
       <h1>Οι προπονήσεις σου</h1>
       <p>Ανέβασε, οργάνωσε και δημοσίευσε το πρόγραμμά σου.</p>
     </div>
-    <button class="primary" [disabled]="uploading() || paused() || !configured()" (click)="open()">
-      + Νέο βίντεο
-    </button>
+    <a class="button primary" routerLink="/admin/videos/new" [class.is-disabled]="!configured()">
+      <mat-icon aria-hidden="true">add</mat-icon>
+      <span>Νέο βίντεο</span>
+    </a>
   </header>
+
   @if (!configured()) {
-    <p role="status">
-      Η μεταφόρτωση βίντεο δεν έχει ενεργοποιηθεί ακόμη. Μπορείς να οργανώσεις τον κατάλογο και τις
-      ετικέτες.
+    <p class="admin-notice" role="status">
+      <strong>Το ανέβασμα βίντεο είναι απενεργοποιημένο.</strong>
+      Ο αποθηκευτικός χώρος βίντεο δεν έχει ρυθμιστεί σε αυτό το περιβάλλον, οπότε δεν μπορούν να
+      εκδοθούν σύνδεσμοι ανεβάσματος. Μπορείς να οργανώσεις τον κατάλογο και τις ετικέτες
+      κανονικά. Ζήτησε από τον διαχειριστή του συστήματος να συμπληρώσει τις ρυθμίσεις
+      <code>Video:S3</code>.
     </p>
   }
+
   @if (storage(); as used) {
     <div class="storage" [class.storage--warning]="storageNearlyFull">
       <div class="storage__text">
@@ -37,128 +43,20 @@
       }
     </div>
   }
+
   @if (note()) {
     <p role="status">{{ note() }}</p>
   }
-  @if (editor()) {
-    <form class="editor" #form="ngForm" (ngSubmit)="save(form)">
-      <h2>{{ editing ? 'Επεξεργασία βίντεο' : 'Νέα προπόνηση' }}</h2>
-      <fieldset
-        [disabled]="busy() || uploading() || paused()"
-        style="border: 0; padding: 0; min-width: 0; display: grid; gap: 18px"
-      >
-        <label>Τίτλος<input name="title" [(ngModel)]="title" required maxlength="200" /></label>
-        <label
-          >Περιγραφή<textarea
-            name="description"
-            [(ngModel)]="description"
-            maxlength="2000"
-          ></textarea>
-        </label>
-        <div class="form-grid">
-          <label
-            >Κοινό<select name="audience" [(ngModel)]="audience" required>
-              <option value="" disabled>Επίλεξε</option>
-              <option value="Male">Άντρες</option>
-              <option value="Female">Γυναίκες</option>
-              <option value="Both">Όλοι</option>
-            </select></label
-          >
-          <label
-            >Περιοχή σώματος<select name="bodyArea" [(ngModel)]="bodyArea" required>
-              <option value="" disabled>Επίλεξε</option>
-              <option value="FullBody">Όλο το σώμα</option>
-              <option value="UpperBody">Πάνω μέρος</option>
-              <option value="LowerBody">Κάτω μέρος</option>
-            </select></label
-          >
-          <label
-            >Εξοπλισμός<select name="equipment" [(ngModel)]="equipment" required>
-              <option [ngValue]="null" disabled>Επίλεξε</option>
-              <option [ngValue]="false">Χωρίς εξοπλισμό</option>
-              <option [ngValue]="true">Με εξοπλισμό</option>
-            </select></label
-          >
-        </div>
-        <div>
-          <strong>Ετικέτες</strong>
-          <div class="chips">
-            @for (tag of tags(); track tag.id) {
-              <label class="tag-check"
-                ><input
-                  type="checkbox"
-                  [checked]="tagIds.includes(tag.id)"
-                  (change)="toggleTag(tag.id)"
-                />{{ tag.name }}</label
-              >
-            }
-          </div>
-          <div class="actions">
-            <input
-              name="newTag"
-              aria-label="Νέα ετικέτα"
-              [(ngModel)]="newTag"
-              maxlength="60"
-              placeholder="Νέα ετικέτα"
-            /><button type="button" (click)="addTag()" [disabled]="!newTag.trim()">
-              Προσθήκη ετικέτας
-            </button>
-          </div>
-        </div>
-        @if (!editing || recovering) {
-          <div class="upload-box">
-            <label
-              >Αρχείο βίντεο<input
-                type="file"
-                accept="video/mp4,video/quicktime,.mp4,.mov"
-                (change)="choose($event)"
-            /></label>
-            <p>
-              MP4 ή MOV, έως {{ size(storage()?.maxFileBytes ?? null) }}. Το αρχείο ανεβαίνει
-              απευθείας στον αποθηκευτικό χώρο, όχι μέσω του site.
-            </p>
-            @if (file) {
-              <p>{{ file.name }} — {{ size(file.size) }}</p>
-            }
-          </div>
-        }
-      </fieldset>
-      @if (progress() !== null) {
-        <div class="upload-box">
-          <progress max="100" [value]="progress()" aria-label="Πρόοδος ανεβάσματος"></progress>
-          <p role="status">{{ progress() }}% {{ paused() ? '— Σε παύση' : '' }}</p>
-        </div>
-      }
-      <div class="actions">
-        @if (uploading()) {
-          <button type="button" (click)="pause()">Παύση</button>
-        } @else if (paused()) {
-          <button type="button" class="primary" [disabled]="busy()" (click)="resume()">
-            {{ busy() ? 'Συνέχιση…' : 'Συνέχεια' }}
-          </button>
-        } @else {
-          <button
-            class="primary"
-            type="submit"
-            [disabled]="busy() || form.invalid || ((!editing || recovering) && !file)"
-          >
-            {{
-              busy() ? 'Αποθήκευση…' : editing && !recovering ? 'Αποθήκευση' : 'Ανέβασμα βίντεο'
-            }}</button
-          ><button type="button" (click)="close()" [disabled]="busy()">Ακύρωση</button>
-        }
-        @if (uploading() || paused()) {
-          <button type="button" (click)="cancelUpload()">Διακοπή</button>
-        }
-      </div>
-    </form>
-  }
+
   <form class="filters" (ngSubmit)="load(1)">
-    <label class="search"
-      >Αναζήτηση<input name="search" [(ngModel)]="search" maxlength="200" /></label
-    ><button type="submit">Αναζήτηση</button
-    ><button type="button" (click)="load()">Ανανέωση λίστας</button>
+    <label class="search">
+      Αναζήτηση
+      <input name="search" [(ngModel)]="search" maxlength="200" />
+    </label>
+    <button type="submit">Αναζήτηση</button>
+    <button type="button" (click)="load()">Ανανέωση λίστας</button>
   </form>
+
   @if (loading()) {
     <p role="status">Φόρτωση…</p>
   } @else if (failed()) {
@@ -170,73 +68,141 @@
         <p>Τα νέα βίντεο παραμένουν ιδιωτικά μέχρι να τα δημοσιεύσεις.</p>
       </div>
     }
-    @for (video of result.items; track video.id; let index = $index) {
-      <article class="admin-row">
-        <div class="row-copy">
-          <h2>{{ video.title }}</h2>
-          <p>
-            <span class="status">{{ status[video.status] }}</span> ·
-            {{ video.isPublished ? 'Δημοσιευμένο' : 'Ιδιωτικό' }}
-          </p>
-          <div class="tags">
-            @for (tag of video.tags; track tag.id) {
-              <span>{{ tag.name }}</span>
+
+    <ul class="vcards">
+      @for (video of result.items; track video.id; let index = $index) {
+        <li class="vcard">
+          <div class="vcard__cover">
+            @if (video.thumbnailUrl) {
+              <img [src]="video.thumbnailUrl" alt="" loading="lazy" />
+            } @else {
+              <span class="vcard__cover-placeholder" aria-hidden="true">MYA</span>
             }
           </div>
-        </div>
-        <div class="actions">
-          <button [disabled]="busy() || uploading() || paused()" (click)="open(video)">
-            Επεξεργασία
-          </button>
-          @if (video.status === 'Uploading' || video.status === 'Failed') {
+
+          <div class="vcard__body">
+            <h2 class="vcard__title">{{ video.title }}</h2>
+
+            <p class="vcard__badges">
+              <span
+                class="badge"
+                [class.badge--live]="video.isPublished"
+                [class.badge--draft]="!video.isPublished"
+                >{{ video.isPublished ? 'Δημοσιευμένο' : 'Ιδιωτικό' }}</span
+              >
+              <span
+                class="badge"
+                [class.badge--ready]="video.status === 'Ready'"
+                [class.badge--working]="video.status === 'Uploading'"
+                [class.badge--failed]="video.status === 'Failed'"
+                >{{ status[video.status] }}</span
+              >
+            </p>
+
+            <p class="vcard__meta">{{ meta(video) }}</p>
+
+            @if (video.tags.length) {
+              <p class="vcard__tags">
+                @for (tag of video.tags; track tag.id) {
+                  <span>{{ tag.name }}</span>
+                }
+              </p>
+            }
+          </div>
+
+          <div class="vcard__actions">
+            <!-- One primary action per card: what the trainer came here to do. -->
+            @if (video.status === 'Ready') {
+              <button
+                type="button"
+                class="vcard__primary"
+                [class.primary]="!video.isPublished"
+                [disabled]="busy()"
+                (click)="action(video, 'publish')"
+              >
+                <mat-icon aria-hidden="true">{{
+                  video.isPublished ? 'visibility_off' : 'public'
+                }}</mat-icon>
+                <span>{{ video.isPublished ? 'Απόσυρση' : 'Δημοσίευση' }}</span>
+              </button>
+            } @else {
+              <a
+                class="button vcard__primary primary"
+                [routerLink]="['/admin/videos', video.id, 'edit']"
+                [queryParams]="{ upload: 1 }"
+              >
+                <mat-icon aria-hidden="true">upload</mat-icon>
+                <span>Νέο ανέβασμα αρχείου</span>
+              </a>
+            }
+
             <button
-              [disabled]="busy() || uploading() || paused() || !configured()"
-              (click)="recover(video)"
+              type="button"
+              class="vcard__more"
+              [matMenuTriggerFor]="menu"
+              [attr.aria-label]="'Ενέργειες για ' + video.title"
             >
-              Νέο ανέβασμα αρχείου
+              <mat-icon aria-hidden="true">more_vert</mat-icon>
             </button>
-          }
-          @if (video.status === 'Ready') {
-            <a class="button" [routerLink]="['/admin/videos', video.id]">Προεπισκόπηση</a
-            ><button [disabled]="busy()" (click)="action(video, 'publish')">
-              {{ video.isPublished ? 'Απόσυρση' : 'Δημοσίευση' }}
-            </button>
-          }
-          <button [disabled]="busy() || !configured()" (click)="action(video, 'refresh')">
-            Έλεγχος
-          </button>
-          <button
-            [disabled]="busy() || index === 0"
-            (click)="move(video, -1)"
-            [attr.aria-label]="'Μετακίνηση πιο πάνω στη σειρά: ' + video.title"
-            title="Μετακίνηση πιο πάνω στη σειρά εμφάνισης"
-          >
-            ↑ Πάνω</button
-          ><button
-            [disabled]="busy() || index === result.items.length - 1"
-            (click)="move(video, 1)"
-            [attr.aria-label]="'Μετακίνηση πιο κάτω στη σειρά: ' + video.title"
-            title="Μετακίνηση πιο κάτω στη σειρά εμφάνισης"
-          >
-            ↓ Κάτω
-          </button>
-          <button class="danger" [disabled]="busy()" (click)="action(video, 'delete')">
-            Διαγραφή
-          </button>
-        </div>
-      </article>
-    }
+
+            <mat-menu #menu="matMenu" class="vcard-menu">
+              <a mat-menu-item [routerLink]="['/admin/videos', video.id, 'edit']">
+                <mat-icon>edit</mat-icon>
+                <span>Επεξεργασία</span>
+              </a>
+              @if (video.status === 'Ready') {
+                <a mat-menu-item [routerLink]="['/admin/videos', video.id]">
+                  <mat-icon>play_circle</mat-icon>
+                  <span>Προεπισκόπηση</span>
+                </a>
+              }
+              <button mat-menu-item [disabled]="busy() || index === 0" (click)="move(video, -1)">
+                <mat-icon>arrow_upward</mat-icon>
+                <span>Μετακίνηση πάνω</span>
+              </button>
+              <button
+                mat-menu-item
+                [disabled]="busy() || index === result.items.length - 1"
+                (click)="move(video, 1)"
+              >
+                <mat-icon>arrow_downward</mat-icon>
+                <span>Μετακίνηση κάτω</span>
+              </button>
+              <button
+                mat-menu-item
+                [disabled]="busy() || !configured()"
+                (click)="action(video, 'refresh')"
+              >
+                <mat-icon>refresh</mat-icon>
+                <span>Έλεγχος κατάστασης</span>
+              </button>
+              <button
+                mat-menu-item
+                class="vcard-menu__danger"
+                [disabled]="busy()"
+                (click)="action(video, 'delete')"
+              >
+                <mat-icon>delete</mat-icon>
+                <span>Διαγραφή</span>
+              </button>
+            </mat-menu>
+          </div>
+        </li>
+      }
+    </ul>
+
     @if (result.totalPages > 1) {
       <nav class="pagination" aria-label="Σελίδες">
-        <button [disabled]="result.page <= 1" (click)="load(result.page - 1)">Προηγούμενη</button
-        ><span>{{ result.page }} / {{ result.totalPages }}</span
-        ><button [disabled]="result.page >= result.totalPages" (click)="load(result.page + 1)">
+        <button [disabled]="result.page <= 1" (click)="load(result.page - 1)">Προηγούμενη</button>
+        <span>{{ result.page }} / {{ result.totalPages }}</span>
+        <button [disabled]="result.page >= result.totalPages" (click)="load(result.page + 1)">
           Επόμενη
         </button>
       </nav>
     }
   }
-  <details style="margin-top: 32px">
+
+  <details class="tag-manager">
     <summary>Διαχείριση ετικετών</summary>
     <div class="chips">
       @for (tag of tags(); track tag.id) {

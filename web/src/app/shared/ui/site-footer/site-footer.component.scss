@@ -1,0 +1,34 @@
+.site-footer {
+  padding: 20px 16px;
+  text-align: center;
+  color: var(--brand-muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.site-footer a {
+  color: var(--brand-muted);
+  text-decoration: underline;
+}
+
+.site-footer a:hover,
+.site-footer a:focus-visible {
+  color: var(--brand-accent);
+}
+
+.site-footer a:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+// On a phone the bottom navigation is fixed over the page, so the credit line has to clear both
+// it and the home indicator — otherwise it sits underneath the bar, unreadable and untappable.
+// The shell sets --app-bottom-inset to the bar's height where there is one, and to zero
+// elsewhere. The margin (rather than padding) keeps the footer's own box above the bar too, so
+// nothing of it is ever behind the navigation.
+@media (max-width: 599px) {
+  .site-footer {
+    margin-block-end: calc(var(--app-bottom-inset, 0px) + env(safe-area-inset-bottom));
+  }
+}

@@ -13,10 +13,11 @@ import { ErrorCodes, problemCode } from '../../../core/http/problem-details';
 import { focusControl, focusFirstInvalid } from '../../../shared/forms/focus-first-invalid';
 import { ChevronLoaderComponent } from '../../../shared/ui/chevron-loader/chevron-loader.component';
 import { BrandLogoComponent } from '../../../shared/ui/brand-logo/brand-logo.component';
+import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.component';
 
 @Component({
   selector: 'app-login',
-  imports: [BrandLogoComponent, 
+  imports: [SiteFooterComponent, BrandLogoComponent, 
     ReactiveFormsModule,
     RouterLink,
     MatCardModule,

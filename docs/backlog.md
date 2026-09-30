@@ -48,12 +48,49 @@ Future improvements, none of them blocking:
 
 ## Polish
 
-- Password reset by email (self-service; admin reset exists)
 - Email 2FA (ADR-013 — `TwoFactorTicket` is in the schema, unused)
 - Extend regression coverage as new behavior is introduced; initial video suites now exist
 - Admin dashboard: recent uploads (pending registrations count is implemented)
 - i18n extraction (currently hardcoded Greek)
-- Branded, structured HTML email templates (owner request 2026-09-26): evaluate MJML or hand-authored email-safe HTML; use Move Your Ass logo/brand imagery, clear headings and CTA buttons, responsive layout, accessible alt text and a plain-text fallback. Verify Outlook/Hotmail and mobile rendering; keep setup credentials out of logs.
+
+## Carried out of the final round (2026-09-28)
+
+Operational, not code. Each one is a thing the owner does in somebody's dashboard.
+
+- **Rotate the Resend API key.** Outstanding since 2026-09-26. Update `Email__ApiKey` on Render
+  afterwards.
+- **Remove `http://localhost:4200` from the Backblaze B2 CORS rule** once local video testing is
+  finished, leaving only `https://moveyourass.gr`. The procedure is docs/11 section 3; the web
+  console cannot do it, so it is the `aws s3api put-bucket-cors` route with a rule file.
+- **`AUTOMAPPER_LICENSE_KEY` as a Render environment variable**, or every deploy's startup logs
+  fill with licence warnings. docs/10 section "AutoMapper licence".
+- **`BACKUP_DATABASE_URL` and `BACKUP_PASSPHRASE` as GitHub secrets, then a real restore test.**
+  The workflow is written, pinned and encrypts before anything is written to disk, but it has
+  never run. An untested backup is a guess.
+- **Delete `playwright-admin@localhost.test` and `playwright-client@localhost.test`** from the
+  Neon dev branch. Their refresh-token cookies are in the public git history (`cc9cabe`);
+  deleting the accounts is what makes those tokens worthless. See docs/08.
+
+## Known, accepted, and worth revisiting
+
+- **Presigned playback URLs work until they expire** (up to two hours), whether or not the holder
+  is still signed in. Accepted in ADR-019 - the alternative is proxying every byte through the
+  single free Render instance. Revisit if the library is ever shared beyond the trainer's own
+  clients.
+- **Development rate limits are raised in `appsettings.Development.json`** (60 sign-ins, 40
+  per-user writes) because five browser projects times two roles cannot sign in inside a limit of
+  five. Production keeps the defaults of five and five, and the limiter itself is covered by
+  backend tests. Worth re-checking if the suite ever runs against a deployed instance.
+- **Development rate limits are far above production's** (`appsettings.Development.json`: 300
+  sign-ins per (email, IP), 500 per email per hour, 100 per-user writes). Production keeps 5, 50
+  and 5. The suite signs in roughly forty times per run across five browser projects, and the
+  limits exist to stop guessing, not to stop a test — the limiter itself is covered by backend
+  tests. Worth re-checking if the suite is ever pointed at a deployed instance.
+- **`ngx-image-cropper` is a new runtime dependency** (MIT, 9.x). It is the only third-party UI
+  library in the app besides Angular Material. If it ever goes unmaintained, the crop dialog is
+  one component and the shapes it exports are two constants.
+- **No LICENSE file, deliberately** - all rights reserved. If the repository is ever meant to be
+  reusable, that is the decision to revisit first.
 
 ## Deferred / maybe never
 

@@ -6,6 +6,7 @@ import { handles, silent } from '../http/http-context';
 import { ErrorCodes } from '../http/problem-details';
 import { NotifyService } from '../ui/notify.service';
 import { AuthStore } from './auth.store';
+import { SiteContentService } from '../site/site-content.service';
 import { SessionSyncService } from './session-sync.service';
 import {
   ChangePasswordRequest,
@@ -25,6 +26,19 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly notify = inject(NotifyService);
   private readonly sessionSync = inject(SessionSyncService);
+  private readonly siteContent = inject(SiteContentService);
+
+  constructor() {
+    // A sign-out in any tab ends the session in all of them. Without this, a second tab keeps
+    // rendering a signed-in shell until its next request fails, which looks like a bug and lets
+    // somebody act on a page they no longer have access to.
+    this.sessionSync.whenSignedOutElsewhere(() => {
+      if (this.store.isAuthenticated() || this.store.user()) {
+        this.store.clear();
+        void this.router.navigate(['/login']);
+      }
+    });
+  }
 
   /** The one shared refresh call while it is in flight. See refresh(). */
   private refreshInFlight$: Observable<void> | null = null;
@@ -136,13 +150,38 @@ export class AuthService {
     );
   }
 
+  /**
+   * Ends the session server-side without leaving the current page. The refresh cookie is revoked
+   * by the endpoint, so a token page cannot be completed while an old session is still alive.
+   */
+  logoutQuietly(): Observable<void> {
+    return this.api.post<void>('/auth/logout', undefined, { context: silent() }).pipe(
+      catchError(() => of(undefined)),
+      map(() => undefined),
+      finalize(() => this.clearSession()),
+    );
+  }
+
   /** Drops the session locally and returns to the login page, optionally telling the user why. */
   forceLogout(message?: string): void {
     const wasAuthenticated = this.store.isAuthenticated();
-    this.store.clear();
+    this.clearSession();
     if (message && wasAuthenticated) {
       this.notify.error(message);
     }
     void this.router.navigate(['/login']);
+  }
+
+  /**
+   * Drops the session without navigating anywhere.
+   *
+   * Used where the destination is already decided — the password-token pages sign the previous
+   * user out and then show themselves, and sending them to /login first would defeat the point.
+   */
+  clearSession(): void {
+    this.store.clear();
+    // The trainer's page is cached for the session; the next person may be somebody else.
+    this.siteContent.clear();
+    this.sessionSync.announceSignOut();
   }
 }

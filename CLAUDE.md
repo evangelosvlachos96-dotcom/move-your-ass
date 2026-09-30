@@ -99,9 +99,14 @@ production, not a demo.
 API and the Angular build, Neon PostgreSQL, Resend, Cloudflare DNS (ADR-017). Phase 4 is done;
 the runbook is `docs/10-production.md`.
 
-Current work is `feature/b2-video-and-polish`, in four parts: **A** Backblaze B2 video, **B**
-cleanup (branded emails, log noise, dead code), **D** authentication and robustness, **C** logo,
-navigation and a responsive pass. `docs/08` §"Current state" says which part is where.
+Current work is `feature/final-polish`, the last round: custom video covers, the
+"Ο γυμναστής σου" page with a client contact form, a site-wide footer, UI and responsive fixes
+including WebKit coverage, live email verification, public-repository hardening, and handover.
+`docs/08` §"Current state" says which item is where.
+
+**The repository is public.** No credential may reach it, in any form, including in a test
+fixture or a documentation example. `SECURITY.md` records what that means in practice; a gitleaks
+job runs on every push and pull request.
 
 **Documentation-first handover is a standing rule.** Update `docs/08` at the end of every
 checkpoint and after every meaningful step inside one. A new agent must be able to continue from

@@ -10,7 +10,10 @@ import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
 import { AuthStore } from '../core/auth/auth.store';
 import { PendingRegistrationsService } from '../core/admin/pending-registrations.service';
+import { SiteContentService } from '../core/site/site-content.service';
+import { BookingButtonComponent } from '../shared/ui/booking-button/booking-button.component';
 import { BrandLogoComponent } from '../shared/ui/brand-logo/brand-logo.component';
+import { SiteFooterComponent } from '../shared/ui/site-footer/site-footer.component';
 import { ConfirmDialogService } from '../shared/ui/confirm-dialog/confirm-dialog.service';
 
 interface NavItem {
@@ -36,6 +39,7 @@ interface NavItem {
 @Component({
   selector: 'app-shell',
   imports: [
+    BookingButtonComponent,
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
@@ -44,6 +48,7 @@ interface NavItem {
     MatMenuModule,
     MatDividerModule,
     BrandLogoComponent,
+    SiteFooterComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './shell.component.html',
@@ -57,6 +62,16 @@ export class ShellComponent {
 
   protected readonly store = inject(AuthStore);
   protected readonly pending = inject(PendingRegistrationsService);
+  private readonly site = inject(SiteContentService);
+
+  /**
+   * The trainer's booking link, and whether this viewer should be offered it. Clients only: the
+   * trainer does not book sessions with herself, so an orange button she can never use would be
+   * noise on every screen she opens.
+   */
+  protected readonly bookingUrl = this.site.bookingUrl;
+  protected readonly showBooking = this.site.showBookingInNav;
+
   protected readonly forced = this.store.mustChangePassword;
 
   /** Below 600px the sidebar is replaced by the bottom bar. */
@@ -68,6 +83,9 @@ export class ShellComponent {
   protected readonly navItems = computed<readonly NavItem[]>(() => [
     { label: 'Πίνακας', short: 'Πίνακας', icon: 'dashboard', link: '/dashboard' },
     { label: 'Προπονήσεις', short: 'Προπονήσεις', icon: 'play_circle', link: '/videos' },
+    // The trainer's page is for everyone. Its bottom-bar label is shortened, because five items
+    // across a 390px screen leaves about 70px each and "Ο γυμναστής σου" does not fit.
+    { label: 'Ο γυμναστής σου', short: 'Γυμναστής', icon: 'person', link: '/about' },
     ...(this.store.user()?.role === 'Admin'
       ? [
           { label: 'Βίντεο', short: 'Βίντεο', icon: 'video_library', link: '/admin/videos' },
@@ -90,6 +108,7 @@ export class ShellComponent {
   );
 
   constructor() {
+    this.site.ensureLoaded();
     effect(() => {
       if (this.store.user()?.role === 'Admin' && !this.forced()) this.pending.refresh();
       else this.pending.clear();
@@ -116,6 +135,7 @@ const TITLES: Record<string, string> = {
   '/admin/users': 'Χρήστες',
   '/profile': 'Προφίλ',
   '/change-password': 'Αλλαγή κωδικού',
+  '/about': 'Ο γυμναστής σου',
 };
 
 /** `/admin/users?status=...` is still the users page. Sub-routes fall back to the brand name. */

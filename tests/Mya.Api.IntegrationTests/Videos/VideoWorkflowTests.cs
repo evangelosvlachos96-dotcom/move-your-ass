@@ -306,6 +306,45 @@ public sealed class VideoWorkflowTests : IAsyncLifetime
         summary.Total.ShouldBe(2);
     }
 
+    [Fact] public async Task An_admin_created_after_startup_can_upload_immediately()
+    {
+        // Provider availability is a configuration fact, not something computed per account at
+        // startup, so an admin invited later must see the same thing the seeded one sees.
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var later = new AppUser
+        {
+            Id = "later-admin", UserName = "later@example.test", Email = "later@example.test",
+            Status = UserStatus.Active, FirstName = "Νέα", LastName = "Διαχειρίστρια",
+        };
+        (await users.CreateAsync(later)).Succeeded.ShouldBeTrue();
+        (await users.AddToRoleAsync(later, Roles.Admin)).Succeeded.ShouldBeTrue();
+
+        caller.UserId = later.Id;
+
+        var summary = await query.SummaryAsync(Ct);
+        summary.IsSuccess.ShouldBeTrue();
+        summary.Value.ProviderConfigured.ShouldBeTrue();
+
+        // And they can actually start an upload, not merely see the button enabled.
+        (await admin.CreateAsync(Create(), "later-admin-upload", Ct)).IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact] public async Task An_admin_who_must_change_their_password_is_not_offered_uploads()
+    {
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var invited = new AppUser
+        {
+            Id = "fresh-admin", UserName = "fresh@example.test", Email = "fresh@example.test",
+            Status = UserStatus.Active, FirstName = "Νέος", LastName = "Διαχειριστής",
+            MustChangePassword = true,
+        };
+        (await users.CreateAsync(invited)).Succeeded.ShouldBeTrue();
+        (await users.AddToRoleAsync(invited, Roles.Admin)).Succeeded.ShouldBeTrue();
+
+        caller.UserId = invited.Id;
+        (await query.SummaryAsync(Ct)).Error!.Code.ShouldBe("FORBIDDEN");
+    }
+
     [Fact] public async Task Nothing_can_be_uploaded_while_storage_is_unconfigured()
     {
         storage.IsConfigured = false;

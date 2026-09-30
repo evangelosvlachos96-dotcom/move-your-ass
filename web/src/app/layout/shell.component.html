@@ -24,6 +24,14 @@
           </a>
         }
       </nav>
+
+      @if (showBooking() && bookingUrl(); as booking) {
+        <!-- Pinned below the menu, not inside it: booking is not a page of this app, so it is
+             never a nav item and never shows as the active one. -->
+        <div class="shell__booking">
+          <app-booking-button [url]="booking" [block]="true" />
+        </div>
+      }
     </aside>
   }
 
@@ -41,8 +49,9 @@
         <h1 class="shell__title">{{ pageTitle() }}</h1>
       }
 
+      <!-- Always the generic account icon, for every user including admins. The trainer photo
+           belongs to the About page and never appears here. -->
       <button
-        matIconButton
         type="button"
         class="shell__user"
         [matMenuTriggerFor]="userMenu"
@@ -77,6 +86,8 @@
     <main class="shell__content">
       <router-outlet />
     </main>
+
+    <app-site-footer />
   </div>
 
   @if (!forced() && isPhone()) {
@@ -98,6 +109,20 @@
             }
           </span>
           <span class="shell__bottom-label">{{ item.short }}</span>
+        </a>
+      }
+
+      @if (showBooking() && bookingUrl(); as booking) {
+        <a
+          class="shell__bottom-item shell__bottom-item--booking"
+          [href]="booking"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span class="shell__bottom-icon">
+            <mat-icon>event_available</mat-icon>
+          </span>
+          <span class="shell__bottom-label">Ραντεβού</span>
         </a>
       }
     </nav>

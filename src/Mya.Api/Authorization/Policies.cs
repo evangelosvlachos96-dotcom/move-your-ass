@@ -9,6 +9,12 @@ public static class RateLimitPolicies
 {
     /// <summary>5 attempts per (email, IP) per 15 minutes on the credential endpoints.</summary>
     public const string AuthPerEmail = "auth-per-email";
+
+    /// <summary>
+    /// Outbound actions a signed-in user can repeat: the contact form and the admin test email.
+    /// Keyed by account rather than address, so a household behind one IP is not one allowance.
+    /// </summary>
+    public const string PerUserWrite = "per-user-write";
 }
 
 /// <summary>

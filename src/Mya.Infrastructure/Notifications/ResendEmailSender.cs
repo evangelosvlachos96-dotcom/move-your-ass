@@ -33,6 +33,7 @@ public sealed class ResendEmailSender(
             subject = message.Subject,
             text = message.Text,
             html = message.Html,
+            reply_to = message.ReplyTo,
         });
 
         using var response = await SendRequestAsync(request, cancellationToken);

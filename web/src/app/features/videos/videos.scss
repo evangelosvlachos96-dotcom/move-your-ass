@@ -1,3 +1,6 @@
+// Shared by the library, the player and the admin list: the page frame, filters, cards and
+// pagination they have in common. The admin screen's own furniture lives in admin-videos.scss.
+
 :host {
   display: block;
 }
@@ -6,8 +9,7 @@
   margin: auto;
   padding-bottom: 40px;
 }
-.video-heading,
-.admin-row {
+.video-heading {
   display: flex;
   justify-content: space-between;
   gap: 20px;
@@ -20,8 +22,7 @@ h1 {
 }
 .video-heading p,
 .result-count,
-.card-copy p,
-.admin-row p {
+.card-copy p {
   color: var(--brand-muted);
 }
 .eyebrow {
@@ -29,7 +30,6 @@ h1 {
   letter-spacing: 0.1em;
 }
 .filters,
-.editor,
 .empty {
   padding: 20px;
   background: var(--brand-surface);
@@ -54,41 +54,14 @@ h1 {
 .filters {
   align-items: end;
 }
-label {
-  display: grid;
-  gap: 8px;
-  font-size: 0.85rem;
-}
 .search {
-  flex: 1;
-  min-width: 160px;
+  flex: 1 1 160px;
+  min-inline-size: 0;
 }
-input,
-select,
-textarea,
-button,
-.button {
-  font: inherit;
-  border: 1px solid var(--brand-border);
-  border-radius: 8px;
-  padding: 10px 14px;
-  background: var(--brand-surface-2);
-  color: var(--brand-text);
-  box-sizing: border-box;
-  min-width: 0;
-}
-button,
-.button {
-  cursor: pointer;
-  text-decoration: none;
-}
-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.primary,
+
 button.selected {
   background: var(--brand-accent);
+  border-color: var(--brand-accent);
   color: var(--brand-on-accent);
 }
 .chips button,
@@ -108,15 +81,50 @@ button.selected {
   gap: 20px;
 }
 .video-card {
+  position: relative;
+  min-inline-size: 0;
   color: var(--brand-text);
-  text-decoration: none;
   border: 1px solid var(--brand-border);
   border-radius: 12px;
   overflow: hidden;
   background: var(--brand-surface);
 }
+.video-card__link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
 .video-card:hover {
   border-color: var(--brand-muted);
+}
+
+// Admin only: a pencil over the card's own corner. It is the one icon-only control in the
+// library, so it carries the video's title in its accessible name rather than just "edit".
+.video-card__edit {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  z-index: 1;
+  inline-size: 40px;
+  block-size: 40px;
+  min-block-size: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--brand-border);
+  background: var(--brand-bg);
+  color: var(--brand-text);
+  text-decoration: none;
+}
+.video-card__edit:hover {
+  border-color: var(--brand-accent);
+  color: var(--brand-accent);
+}
+.video-card__edit:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
 }
 .thumbnail {
   aspect-ratio: 16/10;
@@ -155,8 +163,7 @@ button.selected {
 .card-copy {
   padding: 18px;
 }
-.card-copy h2,
-.admin-row h2 {
+.card-copy h2 {
   font-size: 1.15rem;
   overflow-wrap: anywhere;
 }
@@ -181,92 +188,18 @@ button.selected {
   display: block;
 }
 
-// Storage allowance. The bar turns to the warning colour near the cap, and the text says the
-// numbers as well, so the state does not depend on colour alone.
-.storage {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0 24px;
-  padding: 14px 16px;
-  border: 1px solid var(--brand-border);
-  border-radius: 12px;
-  background: var(--brand-surface);
-}
-.storage__text {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  justify-content: space-between;
-  font-size: 0.9rem;
-}
-.storage__bar {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--brand-surface-2);
-  overflow: hidden;
-}
-.storage__bar > span {
-  display: block;
-  height: 100%;
-  background: var(--brand-accent);
-  transition: width 0.2s ease;
-}
-.storage--warning {
-  border-color: var(--brand-danger);
-}
-.storage--warning .storage__bar > span {
-  background: var(--brand-danger);
-}
 .description {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.7;
 }
-.editor {
-  display: grid;
-  gap: 18px;
-}
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-textarea {
-  min-height: 110px;
-  resize: vertical;
-}
-.upload-box {
-  padding: 18px;
-  border: 1px dashed var(--brand-muted);
-  border-radius: 10px;
-}
-progress {
-  width: 100%;
-  height: 20px;
-  accent-color: var(--brand-accent);
-}
-.row-copy {
-  flex: 1;
-  min-width: min(240px, 100%);
-}
-.danger {
-  color: var(--brand-danger);
-}
-.tag-check {
-  display: flex !important;
-  align-items: center;
-}
 @media (max-width: 1000px) {
   .video-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .admin-row {
-    flex-wrap: wrap;
-  }
 }
 @media (max-width: 600px) {
-  .video-grid,
-  .form-grid {
+  .video-grid {
     grid-template-columns: 1fr;
   }
   .video-heading {
@@ -274,20 +207,44 @@ progress {
     flex-direction: column;
   }
   .filters label {
-    flex: 1;
-    min-width: 130px;
+    flex: 1 1 130px;
+    min-inline-size: 0;
   }
-  .editor,
   .filters {
     padding: 14px;
   }
   .actions {
     width: 100%;
   }
-  input[type='file'] {
-    width: 100%;
-  }
   .pagination {
     gap: 8px;
+  }
+}
+
+// A slim invitation at the top of the client library. Orange, because it leaves the app; wrapping
+// rather than shrinking, because at 375px a row of text and a button has to become two rows.
+.booking-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--brand-orange);
+  border-radius: 12px;
+  background: var(--brand-surface);
+}
+
+.booking-banner__text {
+  margin: 0;
+  font-weight: 600;
+  min-inline-size: 0;
+}
+
+@media (max-width: 599px) {
+  .booking-banner app-booking-button,
+  .booking-banner a {
+    inline-size: 100%;
   }
 }

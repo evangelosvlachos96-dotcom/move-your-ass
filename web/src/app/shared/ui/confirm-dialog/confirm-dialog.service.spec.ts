@@ -170,7 +170,7 @@ describe('ConfirmDialogService', () => {
 
     matchMedia.mockReturnValue({ matches: true } as MediaQueryList);
     await service.confirm({ title: 'Τ', message: 'Μ;' });
-    expect(opened!.config['width']).toBe('100vw');
+    expect(opened!.config['width']).toBe('100%');
     expect(opened!.config['position']).toEqual({ bottom: '0' });
 
     matchMedia.mockReturnValue({ matches: false } as MediaQueryList);

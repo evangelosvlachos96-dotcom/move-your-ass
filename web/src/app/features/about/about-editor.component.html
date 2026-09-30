@@ -1,0 +1,270 @@
+<section class="about-editor plain-form">
+  <header class="about-editor__header">
+    <button type="button" class="about-editor__back" (click)="cancel()">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      <span>Πίσω</span>
+    </button>
+    <h1>Επεξεργασία σελίδας</h1>
+  </header>
+
+  @if (loading()) {
+    <p role="status">Φόρτωση…</p>
+  } @else if (failed()) {
+    <p class="about-card" role="alert">Η σελίδα δεν φορτώθηκε. Γύρνα πίσω και δοκίμασε ξανά.</p>
+  } @else {
+    <form class="about-editor__form" #aboutForm="ngForm" (ngSubmit)="save(aboutForm)">
+      <!-- Φωτογραφία -->
+      <section class="about-card">
+        <h2 class="about-card__title">Φωτογραφία</h2>
+        <div class="about-editor__photo">
+          <div class="about-editor__portrait">
+            @if (about()?.photoUrl; as url) {
+              <img [src]="url" alt="Η φωτογραφία σου" />
+            } @else {
+              <span class="about-editor__mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M7 3l9 9-9 9" /></svg>
+              </span>
+            }
+          </div>
+          <div class="about-editor__photo-side">
+            <div class="about__actions">
+              <label class="about-editor__filebutton" [class.is-busy]="photoBusy()">
+                <mat-icon aria-hidden="true">photo_camera</mat-icon>
+                <span>{{ about()?.photoUrl ? 'Αλλαγή φωτογραφίας' : 'Ανέβασμα φωτογραφίας' }}</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  [disabled]="photoBusy()"
+                  (change)="choosePhoto($event)"
+                />
+              </label>
+              @if (about()?.photoUrl) {
+                <button type="button" [disabled]="photoBusy()" (click)="removePhoto()">
+                  <mat-icon aria-hidden="true">delete_outline</mat-icon>
+                  <span>Αφαίρεση</span>
+                </button>
+              }
+            </div>
+            <p class="field-hint">
+              JPG, PNG ή WebP, έως 5 MB. Κόβεται σε κύκλο, οπότε βάλε το πρόσωπό σου στο κέντρο.
+              Η φωτογραφία αποθηκεύεται αμέσως, χωρίς να πατήσεις «Αποθήκευση».
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Βασικά στοιχεία -->
+      <section class="about-card">
+        <h2 class="about-card__title">Βασικά στοιχεία</h2>
+        <label>
+          Όνομα
+          <input
+            name="trainerName"
+            [(ngModel)]="form.trainerName"
+            [maxlength]="limits.trainerName"
+            placeholder="π.χ. Μαρία Παπαδοπούλου"
+          />
+        </label>
+        <label>
+          Σύντομη περιγραφή
+          <input
+            name="tagline"
+            [(ngModel)]="form.tagline"
+            [maxlength]="limits.tagline"
+            placeholder="π.χ. Προπονήτρια ενδυνάμωσης"
+          />
+        </label>
+        <p class="field-hint">Εμφανίζονται κάτω από τη φωτογραφία σου, στην κορυφή της σελίδας.</p>
+      </section>
+
+      <!-- Σχετικά με εμένα -->
+      <section class="about-card">
+        <h2 class="about-card__title">Σχετικά με εμένα</h2>
+        <label>
+          Βιογραφικό
+          <textarea
+            name="aboutMarkdown"
+            [ngModel]="bio()"
+            (ngModelChange)="bio.set($event)"
+            [maxlength]="limits.aboutMarkdown"
+            rows="8"
+          ></textarea>
+        </label>
+        <p class="field-hint">
+          Άφησε κενή γραμμή ανάμεσα στις παραγράφους. Γράψε <code>**έντονα**</code> για έμφαση και
+          ξεκίνα μια γραμμή με <code>-</code> για λίστα. Οτιδήποτε άλλο εμφανίζεται ως απλό κείμενο.
+        </p>
+
+        @if (preview()) {
+          <div class="about-editor__preview">
+            <h3 class="about-editor__preview-title">Προεπισκόπηση</h3>
+            <div class="about__bio" [innerHTML]="preview()"></div>
+          </div>
+        }
+      </section>
+
+      <!-- Στοιχεία επικοινωνίας -->
+      <section class="about-card">
+        <h2 class="about-card__title">Στοιχεία επικοινωνίας</h2>
+
+        <div class="about-editor__grid">
+          <div class="about-editor__field">
+            <label>
+              <span class="about-editor__field-label">
+                <app-contact-icon channel="email" />
+                Email
+              </span>
+              <input
+                name="contactEmail"
+                type="email"
+                [(ngModel)]="form.contactEmail"
+                [maxlength]="limits.contactEmail"
+                placeholder="name@example.com"
+              />
+            </label>
+            <p class="field-hint">
+              Εδώ έρχονται τα μηνύματα των πελατών. Αν το αφήσεις κενό, πάνε σε όλους τους
+              διαχειριστές.
+            </p>
+          </div>
+
+          <div class="about-editor__field">
+            <label>
+              <span class="about-editor__field-label">
+                <app-contact-icon channel="phone" />
+                Τηλέφωνο
+              </span>
+              <input
+                name="phone"
+                type="tel"
+                [(ngModel)]="form.phone"
+                [maxlength]="limits.phone"
+                placeholder="69XXXXXXXX"
+              />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ραντεβού -->
+      <section class="about-card">
+        <h2 class="about-card__title">Ραντεβού</h2>
+        <label>
+          Σύνδεσμος κράτησης ραντεβού
+          <input
+            name="bookingUrl"
+            type="url"
+            [(ngModel)]="form.bookingUrl"
+            [maxlength]="limits.link"
+            placeholder="https://…"
+          />
+        </label>
+        <p class="field-hint">
+          Προαιρετικό. Βάλε τη σελίδα όπου κλείνεις ραντεβού και οι πελάτισσές σου θα βλέπουν ένα
+          πορτοκαλί κουμπί «Κλείσε ραντεβού» στο μενού, στις Προπονήσεις και σε αυτή τη σελίδα.
+          Άφησέ το κενό και δεν εμφανίζεται πουθενά. Πρέπει να ξεκινά με <code>https://</code>.
+        </p>
+      </section>
+
+      <!-- Κοινωνικά δίκτυα -->
+      <section class="about-card">
+        <h2 class="about-card__title">Κοινωνικά δίκτυα</h2>
+        <p class="field-hint">
+          Πρόσθεσε μόνο όσα θέλεις να βλέπουν οι πελάτισσές σου. Οι σύνδεσμοι πρέπει να ξεκινούν
+          με <code>https://</code>.
+        </p>
+
+        @if (links().length) {
+          <ul class="about-editor__links">
+            @for (link of links(); track link.network; let i = $index) {
+              <li class="about-editor__link">
+                <span class="about-editor__link-name">
+                  <app-contact-icon [channel]="link.network" />
+                  {{ networkInfo[link.network].label }}
+                </span>
+
+                <label class="about-editor__link-field">
+                  <span class="visually-hidden">{{ networkInfo[link.network].label }}</span>
+                  <!-- [name] feeds NgModel's own input and never reaches the DOM, so the
+                       attribute is set explicitly too: browsers use it for autofill, and it is
+                       what makes the field addressable at all. -->
+                  <input
+                    [name]="'link-' + link.network"
+                    [attr.name]="'link-' + link.network"
+                    [type]="link.network === whatsApp ? 'tel' : 'url'"
+                    [ngModel]="link.value"
+                    (ngModelChange)="setLinkValue(i, $event)"
+                    [maxlength]="limits.link"
+                    [placeholder]="networkInfo[link.network].placeholder"
+                  />
+                </label>
+
+                <span class="about-editor__link-actions">
+                  <button
+                    type="button"
+                    class="about-editor__icon-button"
+                    [disabled]="i === 0"
+                    [attr.aria-label]="'Μετακίνηση πάνω: ' + networkInfo[link.network].label"
+                    (click)="moveLink(i, -1)"
+                  >
+                    <mat-icon aria-hidden="true">arrow_upward</mat-icon>
+                  </button>
+                  <button
+                    type="button"
+                    class="about-editor__icon-button"
+                    [disabled]="i === links().length - 1"
+                    [attr.aria-label]="'Μετακίνηση κάτω: ' + networkInfo[link.network].label"
+                    (click)="moveLink(i, 1)"
+                  >
+                    <mat-icon aria-hidden="true">arrow_downward</mat-icon>
+                  </button>
+                  <button
+                    type="button"
+                    class="about-editor__icon-button"
+                    [attr.aria-label]="'Αφαίρεση: ' + networkInfo[link.network].label"
+                    (click)="removeLink(i)"
+                  >
+                    <mat-icon aria-hidden="true">close</mat-icon>
+                  </button>
+                </span>
+
+                @if (networkInfo[link.network].hint; as hint) {
+                  <p class="field-hint about-editor__link-hint">{{ hint }}</p>
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="about__muted">Δεν έχεις προσθέσει ακόμη κανένα κοινωνικό δίκτυο.</p>
+        }
+
+        @if (available().length) {
+          <div class="about-editor__add">
+            <label class="about-editor__add-field">
+              Δίκτυο
+              <select name="pendingNetwork" [(ngModel)]="pendingNetwork">
+                <option value="">Επίλεξε δίκτυο</option>
+                @for (network of available(); track network) {
+                  <option [value]="network">{{ networkInfo[network].label }}</option>
+                }
+              </select>
+            </label>
+            <button type="button" [disabled]="!pendingNetwork" (click)="addLink()">
+              <mat-icon aria-hidden="true">add</mat-icon>
+              <span>Προσθήκη κοινωνικού δικτύου</span>
+            </button>
+          </div>
+        } @else {
+          <p class="field-hint">Έχεις προσθέσει όλα τα διαθέσιμα δίκτυα.</p>
+        }
+      </section>
+
+      <div class="about-editor__actions">
+        <button type="submit" class="primary" [disabled]="saving()">
+          {{ saving() ? 'Αποθήκευση…' : 'Αποθήκευση' }}
+        </button>
+        <button type="button" [disabled]="saving()" (click)="cancel()">Ακύρωση</button>
+      </div>
+    </form>
+  }
+</section>

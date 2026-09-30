@@ -2,8 +2,11 @@
 
 # Current state
 
-Updated 2026-09-27. Branch: **feature/b2-video-and-polish**, cut from `main` at **0100606**.
-Nothing on this branch is committed yet; the owner reviews and commits at each PART boundary.
+Updated 2026-09-30. Branch: **feature/final-polish**, cut from `main` at **8fa9b53** (the
+B2/auth/UI merge). Nothing on this branch is committed yet.
+
+The previous round (B2 video, branded emails, auth hardening, shell and navigation) is merged
+and described further down; this section now tracks the final round.
 
 **The app is live at https://moveyourass.gr.** An earlier version of this section said deployment
 had not started; that was stale. See "Production, as deployed" below.
@@ -15,9 +18,375 @@ had not started; that was stale. See "Production, as deployed" below.
 | D — auth and robustness | **Done** |
 | C — logo, navigation, confirm dialog, responsive check | **Done** |
 
-**Regression at this point:** `dotnet build -c Release` 0 warnings / 0 errors · `dotnet test`
-**89 passed** · `npm run lint` clean · `npm test` **24 passed** · production `npm run build`
-succeeds · Playwright `npm run e2e` **66 passed** across three viewports and both roles.
+Since then, eight further rounds of owner-reported fixes (A–H below): no horizontal scrolling on
+a real iPhone, the admin video list and editor, the About page, a regression pass, image
+cropping, social links as a list, form-field heights, the user list, "powered by Tasos", and the
+booking link. All done and green; the only thing still needing the owner is the live email send.
+
+**Regression as of 2026-09-30:** `dotnet build -c Release` **0 warnings / 0 errors** ·
+`dotnet test` **156 passed** (16 unit, 3 architecture, 137 integration) · `npm run lint` clean ·
+`npm test` **33 passed** · production `npm run build` succeeds, no budget warnings · Playwright
+**306 passed, 0 failed** across all five projects — desktop 56, tablet 56, phone 69,
+phone-webkit 69, tablet-webkit 56. The skips are conditional: tests that need a video in the
+library, and the width-driven overflow tests, which run once per engine rather than once per
+project.
+
+**How the end-to-end suite is run now.** Against the API serving the production build from its
+own `wwwroot` (`E2E_BASE_URL=http://localhost:5077`), not the Angular dev server. It is the same
+origin as production, it is what the client will actually get, and it uses a fraction of the
+memory — the dev server was being killed repeatedly on a 7 GB machine, which is what most of the
+"flaky" WebKit failures turned out to be. Copy `web/dist/mya-web/browser/*` into
+`src/Mya.Api/wwwroot/` (gitignored) and run the API.
+
+**On WebKit timings.** WebKit on Windows is roughly three times slower than Chromium at the same
+work, so its projects get a 90-second test timeout, the overflow tests size their own allowance
+to the number of routes they walk, and sign-in waits are 45 seconds rather than 20. Every one of
+those numbers replaced a guess that a loaded machine outgrew; none of them weakens an assertion.
+
+## FINAL ROUND scope (owner, 2026-09-28) — branch `feature/final-polish`
+
+Recorded so another agent can resume from the repo alone.
+
+1. **Custom video cover** — admin uploads JPG/PNG/WebP up to 5 MB, resized client-side to 1280px,
+   presigned PUT to B2, HEAD-verified. Priority **cover > auto-captured frame > placeholder**.
+   Old objects deleted on replace and on video delete. Thumbnails count towards the storage cap.
+2. **About / contact page "Ο γυμναστής σου"** — nav item for every signed-in user; admin-editable
+   in place. Trainer photo, name, tagline, restricted-markdown bio, and optional contact methods
+   (email, phone, Instagram, YouTube, TikTok, Facebook, WhatsApp, website) each with an SVG icon.
+   Client contact form emailing the trainer via the outbox with Reply-To set to the client.
+   Single-row settings table with optimistic concurrency.
+3. **Footer** on every page including auth: "Created by Evangelos Vlachos" linking to the GitHub
+   profile in a new tab with `rel="noopener noreferrer"`, plus the year. Above the phone bottom
+   bar, never behind it, safe-area aware.
+4. **UI fixes** — equal internal spacing on every dashboard card via shared tokens; upload
+   availability for an admin created after startup; a WebKit Playwright project at phone and
+   tablet; a full responsive re-review.
+   - **4A Chrome autofill styling.** Picking an email from Chrome's autofill gives the input a
+     light background and a different-looking font. Override `:-webkit-autofill` / `:autofill`
+     app-wide with an inset box-shadow in the field's own background, matching
+     `-webkit-text-fill-color`, `caret-color`, font family/size/weight, and a long
+     `background-color` transition to suppress the flash. Verify in Chromium **and** WebKit.
+   - **4B Token links while another session is active.** Reported: signed in as admin, opened an
+     invitation link in the same browser, set the client password, pressed login — and landed in
+     the **admin** dashboard. Opening `/set-password` or `/reset-password` with any active session
+     must first sign that session out server-side (revoking the refresh cookie), clear client
+     state, tell other tabs over the existing BroadcastChannel, and show a short Greek notice.
+     After success it must never resume the earlier session. Tested end to end.
+   - **Profile button icon** must be exactly centred in its circular button at every viewport, and
+     **always the generic account icon** — never the trainer photo. The trainer photo appears only
+     on the About page, as a large circle.
+5. **Email live verification** — a live send of every template from the owner's machine with
+   `Email:Mode=Resend`. (The admin-only test-email button that was part of this item was built and
+   then removed at the owner's request; see the round notes below.)
+6. **Public-repo hardening** — gitleaks over full history plus a CI job, workflow audit, actions
+   pinned to SHAs, SECURITY.md, no LICENSE (all rights reserved, stated in the README).
+7. **Final handover** — README, trainer guide additions, ordered owner steps, backlog, one commit
+   message.
+
+## FINAL ROUND progress (2026-09-28)
+
+Items 1, 2, 3, 4 and 6 are **done**. Item 5 is built but needs the owner for the live half.
+Item 7 is this section plus the README, SECURITY.md and the trainer guide.
+
+### 1 - Custom video cover - done
+
+`Video` gained `CoverObjectKey` / `CoverSizeBytes` and `ThumbnailSizeBytes` (migration
+`VideoCoverAndSiteContent`). The admin uploads JPG, PNG or WebP up to 5 MB; the browser resizes
+to 1280px on the long edge before the presigned PUT, and the server HEAD-verifies the object
+before recording it. The object key carries a random suffix, so replacing a cover can never be
+served from a cached URL. Resolution order is **cover -> frame captured at upload -> branded
+placeholder**, decided in one place (`VideoContracts.Map`). Replacing or removing a cover, and
+deleting a video, delete the old objects. Every byte - video, frame and cover - counts against
+the storage cap. 19 tests in `tests/Mya.Api.IntegrationTests/Videos/VideoCoverTests.cs`, which
+include the two rules that are easy to get wrong: a confirm naming another video's object key is
+refused, and an object whose verified content type is wrong is deleted rather than adopted.
+
+### 2 - "Ο γυμναστής σου" - done
+
+A single-row `SiteContent` table with a fixed id and a `Revision` concurrency token, so two admin
+tabs cannot silently overwrite each other. Every signed-in user can read it; only an admin can
+write it. Reading does **not** create the row.
+
+The biography is markdown, rendered by `web/src/app/shared/text/safe-markdown.ts`, which escapes
+first and then applies a whitelist (paragraphs, `**bold**`, `- ` lists). No markdown library is
+used: they all support raw HTML, and this field is rendered to every client. Contact links are
+validated https-only, server-side, and drawn with inline SVG rather than emoji so they stay crisp
+and keep an accessible label.
+
+The contact form queues one outbox message per recipient - the configured contact address, or
+every admin if none is set - with `Reply-To` set to the client, so the trainer just presses reply.
+It is rate-limited per user and rejects a duplicate of the same subject and body within ten
+minutes (a SHA-256 fingerprint stored on the outbox row). 22 tests in
+`tests/Mya.Api.IntegrationTests/Site/SiteContentTests.cs`.
+
+### 3 - Footer - done
+
+`app-site-footer` renders after `<main>` on every page, auth pages included. On phones the shell
+publishes the bottom bar's height as `--app-bottom-inset` and the footer takes it as a *margin*,
+not padding, so the footer's own box ends above the bar rather than merely its text. The
+safe-area inset is added on top. Asserted at phone size in both engines, after scrolling to the
+bottom - measuring it unscrolled proves nothing, since the footer is simply below the fold.
+
+### 4 - UI fixes - done
+
+- **Card spacing** now comes from `web/src/styles/_spacing.scss` tokens, with every dashboard card
+  restructured as title / body / actions. The original bug was a `margin: 0` on one card's text.
+- **`videos.scss` split.** One stylesheet was shared by the library, the player and the admin
+  screen, and the cover editor pushed it past Angular's component-style budget - charging all
+  three components for CSS only one of them renders. The admin-only rules moved to
+  `admin-videos.scss`; the shared file is back under budget and the production build is warning
+  free again.
+- **Upload availability** - an admin created after startup can upload immediately, and an admin
+  who must change their password is told why in Greek rather than shown a dead button. Both are
+  tested (`VideoWorkflowTests`).
+- **Autofill (4A)** - `:-webkit-autofill` / `:autofill` overridden app-wide in `styles.scss` with
+  an inset box-shadow in the field's own background colour, matching `-webkit-text-fill-color`
+  and `caret-color`, inherited font metrics, and a `background-color` transition long enough to
+  suppress the flash. `web/e2e/autofill.spec.ts` checks the computed style in both engines and
+  asserts the rule is actually present in the stylesheet.
+- **Token links (4B)** - `signOutForTokenGuard` runs before `/set-password` and `/reset-password`,
+  calls `logoutQuietly()` (which revokes the refresh cookie server-side), clears client state,
+  announces the sign-out over the BroadcastChannel so other tabs return to login, and raises a
+  short Greek notice on the page. `web/e2e/token-links.spec.ts` asserts the old session is gone
+  by checking `/api/auth/refresh` returns **401**, not merely that the page looks logged out.
+- **Profile button** - pinned to a 44px circle (48px on phones) with the icon as its own flex
+  centre and every Material metric fixed to one number. Measured at 4x zoom: gaps are 7px on all
+  four sides at phone size and 8px on all four at tablet and desktop. It always shows the generic
+  account icon; the trainer photo appears only on the About page.
+
+### 4 - WebKit, and the bug it found
+
+Adding WebKit projects paid for itself on the first run. Seven tests failed with the app sitting
+on `/login` while the server still considered the session valid.
+
+**The cause was `RefreshCookie`: `Secure = true` unconditionally.** Chromium exempts
+`http://localhost` from the Secure-cookie rule and sends the cookie anyway; **WebKit does not.**
+It stored the cookie and then never sent it back, so every refresh returned 401 and the app
+signed itself out on the next page load - in Safari, and only in Safari. `Secure` now mirrors the
+request scheme **in Development only**, and is unconditionally true everywhere else, so a
+forwarded-headers mistake behind Render's load balancer still cannot put the session token on the
+wire in the clear. `tests/Mya.Api.IntegrationTests/Auth/RefreshCookieTests.cs` pins all of it,
+including `HttpOnly`, `SameSite=Strict` and the `/api/auth` path.
+
+**This was a development-only defect.** Production is https, so no real client was ever affected.
+Two false starts on the way, recorded because they cost time: it is *not* a cross-origin or
+`SameSite` problem (development now proxies `/api` through the Angular dev server, which is right
+for other reasons but changed nothing here), and it is *not* `navigator.locks` or
+`BroadcastChannel` behaving differently in WebKit.
+
+### 6 - Public-repository hardening - done
+
+- **gitleaks over the full history of every branch: 18 commits, ~1.38 MB, no leaks.** Re-run at
+  the end of this round.
+- **A working-tree scan finds two hits, both in `.vs/`** - Visual Studio's local IIS Express
+  `sessionKey`s. `.vs/` is gitignored (`.gitignore:71`) and has never been tracked.
+- **`.github/workflows/security.yml`** runs gitleaks on every push, every pull request (forks
+  included), weekly, and on demand, with `fetch-depth: 0` so it walks history rather than a single
+  commit.
+- **Every third-party action is pinned to a commit SHA** with the tag in a trailing comment,
+  across all five workflows.
+- **Every workflow now declares `permissions: contents: read`.** `api.yml` and `web.yml` had no
+  block at all and were inheriting the repository default.
+- **No workflow uses `pull_request_target`**, so no fork pull request can reach a secret or write
+  to the repository. The only secret referenced under a `pull_request` trigger is
+  `AUTOMAPPER_LICENSE_KEY`, which GitHub does not supply to fork pull requests; the build simply
+  runs without it.
+- **`backup.yml` was already correct** - it pipes `pg_dump` straight into `gpg`, so no plaintext
+  dump ever exists on the runner, and it refuses to upload an implausibly small file.
+- **`SECURITY.md` added**: how to report privately, what is in and out of scope, what this
+  repository deliberately does not contain, and the two accepted risks (presigned playback URLs
+  work until they expire; two end-to-end refresh cookies remain in history).
+- **No `LICENSE` file, deliberately** - all rights reserved, stated in the README.
+
+### 5 - Email - half done
+
+The contact-message template is covered by `EmailTemplateTests`, including `Reply-To` and the
+escaping of a subject and body the client wrote. The email header logo points at
+`https://moveyourass.gr` and carries alt text, so a client who blocks images still sees the brand
+name rather than a broken box.
+
+**The "Αποστολή δοκιμαστικού email" button was built and then removed** at the owner's request
+(2026-09-28), along with its endpoint, outbox type and template — a route nothing calls is a route
+nobody maintains. If delivery ever needs proving again, resending an invitation from a user's
+menu does the same job with a real message.
+
+**Not done, and only the owner can do it:** an actual send through Resend, and looking at the
+result in a real inbox. See the owner steps below.
+
+## iPhone round (2026-09-28) — reported from a real device
+
+Seven separate reports, worked as A–G. Everything below is done unless it says otherwise.
+
+### A — nothing scrolls sideways
+
+**The cause was not what an emulator shows.** Playwright's WebKit at 375 and 390 found no
+overflow on any route: `scrollWidth` equalled `clientWidth` everywhere. The actual cause is a
+mobile-Safari behaviour no engine emulates — **iOS zooms the page in when a control with a
+computed font-size under 16px is focused, and never zooms back out.** After that the page is
+wider than the screen and has to be dragged sideways, which is exactly what was reported.
+
+The login page was the one page that looked right because every Material field is already 16px.
+`/videos` and `/admin/videos` used plain controls at **13.6px** and the About form at **13px**,
+inheriting their label's size through `font: inherit`.
+
+Fixed at the cause:
+
+- `web/src/styles/_form-control.scss` — one definition of what a native control looks like, with
+  `font-size: 1rem` and no `font: inherit`. Screens opt in with `class="plain-form"`.
+- `styles.scss` — a backstop under 600px, deliberately heavier in specificity than a component's
+  own `input[_ngcontent-x]`, so a control that slips through still cannot be under 16px.
+- `100vw` removed everywhere (only the confirm dialog used it, for a full-width sheet). With
+  `viewport-fit=cover` on iOS, 100vw *includes* the safe areas and overflows the page behind it.
+- `viewport-fit=cover` added to the viewport meta — without it `env(safe-area-inset-*)` returns
+  zero and every safe-area rule already in the stylesheets was silently a no-op. The shell now
+  pads for the insets explicitly (one `--shell-gutter` custom property, not four copies).
+- `min-inline-size: 0` on the flex and grid children that needed it, `overflow-wrap: anywhere` on
+  the strings that do not break (emails, titles, file names, pasted URLs), `max-inline-size: 100%`
+  on all media, and `overflow-x: clip` on `html, body` as the **last** line — `clip` rather than
+  `hidden`, because `hidden` on the root turns every `position: sticky` descendant into a scroll
+  container and would have broken the sticky top bar.
+
+`web/e2e/overflow.spec.ts` asserts both halves on every route, both roles, at 375, 390, 820 and
+1440, in both engines, with a dialog open, with the editor open, and with deliberately awkward
+content (a 42-character email, a 103-character Greek title, a 74-character file name). The
+16px assertion **failed on the code that produced the report**; that is the one that matters,
+since the overflow assertion never could.
+
+### B — the admin video list and editor
+
+The list was ten buttons in a row under each title, which on a phone wrapped into a block with no
+visible boundary between one workout and the next.
+
+- `admin-videos.component` is now a list of cards: cover, title, a published badge and a status
+  badge, a line of metadata (length, size, date), one primary action — Δημοσίευση or Απόσυρση —
+  and a "⋮" menu holding Επεξεργασία, Προεπισκόπηση, Μετακίνηση πάνω/κάτω, Έλεγχος and Διαγραφή.
+  Every menu item is an icon **and** a label; the only icon-only control is the "⋮" itself, whose
+  accessible name is "Ενέργειες για «<title>»".
+- **`admin-video-editor.component` is a page of its own** at `/admin/videos/new` and
+  `/admin/videos/:id/edit`, in four sections (Βασικά στοιχεία, Κατηγοριοποίηση, Εξώφυλλο, Αρχείο
+  βίντεο) with one Save and one Cancel in a bar pinned to the bottom. The unsaved-changes guard
+  moved here with it and now covers edited fields, not only an upload in flight.
+- `VideoDto` gained `CreatedAtUtc` so the card can say when a workout was added.
+
+### C — the About page
+
+- `/about` is read-only for everyone: a hero card (photo, name, tagline, and for an admin an
+  Επεξεργασία button), an "about me" card, contact rows with an SVG icon, a label and a tappable
+  value, and the message form. The empty state says something different to a client than to the
+  admin.
+- **`/about/edit` is a separate route** with a back button, a page title, the app's own fields,
+  a live preview of the biography rendered by the very same whitelist the page uses, and a sticky
+  Αποθήκευση / Ακύρωση bar. Leaving with changes asks in the shared dialog.
+- The portrait falls back to the trainer's initials on the accent, then to the brand chevron —
+  never a bare letter on a grey circle.
+
+### D — regression pass
+
+Reported as a table in the round's final report. One regression found and fixed: the profile-icon
+test measured two centre points, which hid a rounding artefact; it now measures the four gaps
+between the glyph and its circle and prints them when it fails.
+
+### E — smaller reports
+
+1. **Upload wording.** "Το αρχείο ανεβαίνει απευθείας στον αποθηκευτικό χώρο, όχι μέσω του site"
+   is gone. It now reads "MP4 ή MOV, έως N. Κράτα τη σελίδα ανοιχτή μέχρι να ολοκληρωθεί το
+   ανέβασμα." A test asserts the old sentence is absent.
+2. **The cover was unfindable.** There is now an Εξώφυλλο section in **both** the create and the
+   edit flow, with the current cover previewed and labelled as which of the three it is — δική σου
+   εικόνα, καρέ από το βίντεο, or χωρίς εικόνα — and Ανέβασμα / Αλλαγή / Αφαίρεση. Choosing a
+   cover while creating holds it and sends it the moment the upload completes, so it is one job
+   rather than two.
+3. **Editing from the client-facing pages.** Admins get a pencil on each library card and an
+   Επεξεργασία button on the player; both carry a `returnUrl` and come back to where they were
+   pressed. Clients see neither, the routes refuse them, and the test checks the server refuses
+   too rather than only that the button is absent.
+
+### F — the second batch
+
+1. **Cropping.** Both picture uploads open a crop dialog (`ngx-image-cropper`, MIT, pinned in
+   `package.json`) wearing the confirmation dialog's clothes: 16:9 for a cover, a circle for the
+   portrait, drag and pinch on touch plus a zoom slider for everything else, and a live preview of
+   the result. Only the cropped, scaled, WebP-or-JPEG bytes are uploaded. `resizeImage` and
+   `resizeSquare` are gone — the cropper does that work now, and blind centre-cropping was the
+   thing being complained about.
+2. **Social links are a list, not a column each.** `SiteContent.SocialLinksJson` holds
+   `[{network, value}]` in the trainer's own order; the editor adds one from a dropdown that
+   excludes what is already there, and each row can be removed or moved. Email and phone stay as
+   their own fields. Migration `SiteSocialLinks` is additive: it adds the column and **copies the
+   six old columns into it in SQL**, leaving them in place so a rollback loses nothing. Links are
+   re-validated on the way **out** as well as in, because stored text outlives the rules that
+   wrote it.
+3. **Field heights.** Every single-line control is 44px, with the padding moved to the sides only
+   and `align-self: start` so a grid row cannot stretch one. A hint or an error under a field no
+   longer changes the field. Asserted in `design.spec.ts`.
+4. **The user list** is one row per person — avatar, name and email, a role badge, a status badge
+   in one of three tones, the registration date, and a "⋮" menu — collapsing to a card on a phone.
+   Pending registrations got a banner that doubles as the filter, so the one thing waiting for an
+   answer is not a value in a dropdown.
+5. **Clean compile.** The `TS2339: Property 'trainerName' does not exist on type 'NgForm'` was a
+   template reference named `#form` shadowing the component's own `form` object; it is `#aboutForm`
+   now, and a production build is warning-free.
+
+### G — "powered by Tasos"
+
+In `BrandLogoComponent` and nowhere else, so every appearance is identical:
+
+- `powered by Tasos`, 11px, weight 500, letter-spacing 0.02em, line-height 1, in `--brand-orange`
+  (`#ff8a3d`), 6px under the wordmark and right-aligned to the end of "Ass".
+- **Contrast measured, not assumed:** 8.22:1 on the page background, 7.63:1 on the card surface,
+  7.00:1 on the lightest surface. AAA on all three, so 11px is safe.
+- Sidebar, all auth pages, and the phone top bar. **It does fit the phone bar** — 19px wordmark
+  plus 6px plus 11px is 36px inside a 60px bar — and a test asserts the bar has not grown.
+- Auth pages drop the chevron below 600px and centre the credit under the wordmark; that is a
+  media query inside the logo component, because view encapsulation means a parent cannot hide
+  the mark itself.
+- Emails carry it as **real HTML text** in the header, right-aligned under the PNG, so it is crisp
+  and still readable when images are blocked; the plain-text version reads
+  `MoveYourAss · powered by Tasos`. Two template tests cover it, one of them specifically for the
+  images-blocked case.
+
+### H — booking link, and who the contact form is for
+
+1. **The contact form is for clients.** It writes to the trainer, so an admin using it is writing
+   to themselves. Hidden on the page and **refused by the endpoint** — the second half is the one
+   that matters, and it is what the test asserts.
+2. **"Κλείσε ραντεβού".** `SiteContent.BookingUrl` (migration `SiteBookingUrl`, additive) is an
+   optional https address the admin sets on the About edit page. While it is empty **every**
+   booking button in the app is absent: an orange call to action that leads nowhere is worse than
+   no button at all.
+   - One `BookingButtonComponent` defines it once — orange `--brand-orange` with dark text
+     (about 8.2:1; white on that orange would be about 2.5:1 and fail at any size), a calendar
+     icon, a label, at least 44px, `target="_blank"` with `rel="noopener noreferrer"`.
+   - **Clients only in the navigation.** The trainer does not book sessions with herself, so an
+     orange button she can never use would be noise on every screen she opens. She sees it on the
+     About page, labelled as what the client sees.
+   - Four placements: the foot of the sidebar (a button, never a nav item, never "active"), a
+     fourth bottom-bar item on phones, a slim banner at the top of the client library, and a card
+     at the end of the trainer's page after the contact details.
+   - `SiteContentService` holds one shared copy of the page so the shell and the About page cannot
+     disagree, and it is cleared on sign-out.
+   - `web/e2e/booking.spec.ts` covers all four placements plus the negatives: nothing when no link
+     is set, nothing in the navigation for an admin, a non-https link refused with a 400, the
+     colours, the 44px, and that pressing it opens a tab instead of navigating away.
+
+**The real link is `https://reply-now.com/book/tasos__ch`.** It is nowhere in the code or the
+configuration — it is a setting, and the app reads it from the database. It is pinned in a backend
+test because the **double underscore** in the path is exactly the sort of thing URI handling
+rewrites, and a link that comes back one character different is a link that 404s. Verified locally
+end to end on the Neon dev branch: typed into the editor, stored byte-identical, and opened
+unchanged from all four placements.
+
+### Two bugs these rounds turned up on their own
+
+- **A race in the admin handlers.** `Approving_and_declining_the_same_registration_at_once` began
+  failing consistently. Identity guards each user row with a concurrency stamp, and the loser of
+  that race was surfacing as an `InvalidOperationException` instead of a result. `SetStatusAsync`
+  now returns false for a lost race — and still throws for every other Identity failure, which
+  really would be a bug — and the four admin handlers turn that into the `InvalidUserState`
+  conflict they already had a name for.
+- **A false unsaved-changes prompt.** Pressing Back before an editor had finished loading compared
+  the form against an empty baseline and warned about changes nobody had made. Both editors now
+  treat "not loaded yet" as not dirty.
 
 ## Production, as deployed (owner-verified)
 
@@ -470,8 +839,16 @@ and after PART B.
    `AUTOMAPPER_LICENSE_KEY` (docs/10 §"AutoMapper licence"). **Do not add
    `ASPNETCORE_ENVIRONMENT`.**
 5. **Apply the migrations to the Neon production branch**, using the **direct** string, *before*
-   the new code is deployed. Four additive migrations are pending: `VideoObjectStorage`,
-   `PasswordCredentialPurpose`, `OutboxSubjectUser`, `RefreshTokenHashIndex`.
+   the new code is deployed. **Five** additive migrations are pending, in order:
+   `VideoObjectStorage`, `PasswordCredentialPurpose`, `OutboxSubjectUser`,
+   `RefreshTokenHashIndex`, `VideoCoverAndSiteContent`, `SiteSocialLinks`, `SiteBookingUrl`. The
+   last three are new:
+   `VideoCoverAndSiteContent` adds `CoverObjectKey`, `CoverSizeBytes` and `ThumbnailSizeBytes` to
+   `Video` and creates the `SiteContent` table; `SiteSocialLinks` adds `SocialLinksJson` to
+   `SiteContent` **and copies the six existing per-network columns into it**. All six are
+   additive - nothing is dropped or renamed, and the old columns are deliberately left in place
+   so `SiteSocialLinks` can be rolled back without losing anything. `SiteBookingUrl` adds one
+   nullable column and nothing else.
    ```powershell
    $env:ConnectionStrings__Default = "<Neon production DIRECT string>"
    dotnet ef database update --project src/Mya.Infrastructure --startup-project src/Mya.Api
@@ -487,6 +864,66 @@ and after PART B.
    checking spam placement.
 10. **cron-job.org keep-alive**: `https://moveyourass.gr/health`, every 10 minutes, 06:00–23:00
     Europe/Athens, failure alerts on (docs/10 §7).
+11. **Fill in "Ο γυμναστής σου"** once deployed: photo, name, tagline, biography and whichever
+    contact methods should be public. Until it is filled in, clients see an empty page with a
+    working contact form. Instructions are in docs/12.
+12. **Set the booking link.** Ο γυμναστής σου → **Επεξεργασία** → Σύνδεσμος κράτησης ραντεβού =
+    `https://reply-now.com/book/tasos__ch` → **Αποθήκευση**. Then sign in as a client (or ask one)
+    and check the orange "Κλείσε ραντεβού" button appears in **all four** places: the foot of the
+    sidebar on a laptop, the fourth item in the bottom bar on a phone, the banner at the top of
+    Προπονήσεις, and the card at the end of Ο γυμναστής σου. Each must open that exact address —
+    with **both** underscores in `tasos__ch` — in a new tab. Leaving the field empty hides all of
+    them again, which is the intended way to turn the feature off.
+
+### Email live verification - the half of item 5 that needs you
+
+Run this **locally**, not in production, so nothing depends on a deploy.
+
+1. Confirm the Resend API key in local user-secrets is current. If it was rotated (owner step 1),
+   set the new one:
+   ```powershell
+   dotnet user-secrets set "Email:ApiKey" "<Resend API key>" --project src/Mya.Api
+   dotnet user-secrets set "Email:Mode" "Resend" --project src/Mya.Api
+   dotnet user-secrets set "Email:From" "Move Your Ass <noreply@moveyourass.gr>" --project src/Mya.Api
+   ```
+2. Start the API and the Angular app, sign in as the admin, and trigger one of each on the dev
+   database, all addressed to **your own** inbox:
+   - **Invitation resend** - Όλοι οι χρήστες, an invited user's ⋮ menu, Νέα πρόσκληση.
+   - **Invitation** - create a client with your address, then delete it afterwards.
+   - **Approval / decline** - register with your address, then approve it (and repeat, declining).
+   - **Admin notification** - the same registration produces it.
+   - **Forgotten password** - the login page's "Ξέχασες τον κωδικό;".
+   - **Contact message** - sign in as the client and send one from "Ο γυμναστής σου".
+3. Then check, and tell the next session: did each arrive; **inbox or spam**; does the header
+   render with the logo, and does it still read as Move Your Ass with images blocked; are the
+   Greek characters correct; does replying to the contact message go to the client's address.
+4. Put `Email:Mode` back to `Console` locally afterwards, so development stops sending real mail.
+
+### GitHub settings to switch on (repository -> Settings)
+
+The workflows are in the repository; these are dashboard clicks only you can make.
+
+| Where | Setting | Why |
+|---|---|---|
+| Settings -> Code security | **Secret scanning** | GitHub's own scan of the history |
+| Settings -> Code security | **Push protection** | refuses a push containing a credential, before it is public |
+| Settings -> Code security | **Dependabot alerts** and **security updates** | notice when a dependency has a known hole |
+| Settings -> Code security | **Private vulnerability reporting** | this is what SECURITY.md tells people to use |
+| Settings -> Actions -> General | **Workflow permissions: read repository contents** | defence in depth; the workflows already pin themselves to read |
+| Settings -> Actions -> General | **Require approval for all outside collaborators** | a fork pull request cannot run a workflow unreviewed |
+| Settings -> Rules -> Rulesets | **Protect `main`**: require a pull request, require the `api`, `web`, `container` and `security` checks, block force pushes, no deletions | `main` is what Render deploys |
+
+### Delete the two local test accounts
+
+`playwright-admin@localhost.test` and `playwright-client@localhost.test` exist on the **Neon dev
+branch** only. Delete both when you are finished running the suite locally.
+
+This is not only tidiness. `web/e2e/.auth/admin.json` and `client.json` were committed in
+`cc9cabe` and untracked again in `6484c5b` - which means they are in the public history
+permanently, and each holds a refresh-token cookie for one of these two accounts. gitleaks does
+not flag them (they match no credential pattern), so a clean scan is **not** evidence that those
+two sessions are safe. Deleting the accounts is what makes the tokens worthless. The directory is
+now in `.gitignore`, so it cannot happen again.
 
 ### Local test accounts created during this work
 

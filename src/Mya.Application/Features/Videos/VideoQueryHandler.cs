@@ -74,6 +74,12 @@ public sealed class VideoQueryHandler(IAppDbContext db, VideoAccess access, IVid
             await db.Videos.CountAsync(v => v.Status == VideoStatus.Uploading || v.Status == VideoStatus.Processing, ct),
             await db.Videos.CountAsync(v => v.Status == VideoStatus.Failed, ct),
             storage.IsConfigured,
-            new StorageUsage(await db.Videos.SumAsync(v => v.SizeBytes ?? 0L, ct), storage.StorageCapBytes, storage.MaxFileBytes)));
+            new StorageUsage(
+                // Recordings, poster frames, covers and the trainer photo all live in the same
+                // bucket, so the bar has to count all of them or it understates what is used.
+                await db.Videos.SumAsync(v => (v.SizeBytes ?? 0L) + (v.ThumbnailSizeBytes ?? 0L) + (v.CoverSizeBytes ?? 0L), ct)
+                    + await db.SiteContent.SumAsync(x => x.PhotoSizeBytes ?? 0L, ct),
+                storage.StorageCapBytes,
+                storage.MaxFileBytes)));
     }
 }

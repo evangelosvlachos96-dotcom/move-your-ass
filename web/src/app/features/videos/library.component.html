@@ -1,10 +1,17 @@
-<section class="video-page">
+<section class="video-page plain-form">
   <header class="video-heading">
     <div>
       <h1>Βρες την επόμενη προπόνησή σου</h1>
       <p>Διάλεξε αυτό που ταιριάζει στη σημερινή σου ενέργεια.</p>
     </div>
   </header>
+  @if (showBooking() && bookingUrl(); as booking) {
+    <aside class="booking-banner">
+      <p class="booking-banner__text">Θέλεις προσωπική προπόνηση;</p>
+      <app-booking-button [url]="booking" />
+    </aside>
+  }
+
   <form class="filters" (ngSubmit)="apply()">
     <label class="search"
       >Αναζήτηση<input
@@ -70,7 +77,21 @@
     }
     <div class="video-grid">
       @for (video of result.items; track video.id) {
-        <a class="video-card" [routerLink]="['/videos', video.id]">
+        <div class="video-card">
+          <!-- The edit control is a sibling of the card link, not a child: a link inside a link
+               is invalid, and browsers resolve it by ignoring one of them. -->
+          @if (isAdmin()) {
+            <a
+              class="video-card__edit"
+              [routerLink]="['/admin/videos', video.id, 'edit']"
+              [queryParams]="{ returnUrl: '/videos' }"
+              [attr.aria-label]="'Επεξεργασία: ' + video.title"
+              [attr.title]="'Επεξεργασία: ' + video.title"
+            >
+              <mat-icon aria-hidden="true">edit</mat-icon>
+            </a>
+          }
+          <a class="video-card__link" [routerLink]="['/videos', video.id]">
           <div class="thumbnail">
             @if (video.thumbnailUrl) {
               <img [src]="video.thumbnailUrl" alt="" loading="lazy" />
@@ -93,7 +114,8 @@
               }
             </div>
           </div>
-        </a>
+          </a>
+        </div>
       }
     </div>
     @if (result.totalPages > 1) {

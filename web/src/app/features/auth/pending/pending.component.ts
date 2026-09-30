@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { RouterLink } from '@angular/router';
+import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.component';
 
 /**
  * Landing after registration and for ACCOUNT_PENDING on login. Nothing to poll and nothing to
@@ -9,7 +10,7 @@ import { RouterLink } from '@angular/router';
  */
 @Component({
   selector: 'app-pending',
-  imports: [MatCardModule, MatButtonModule, RouterLink],
+  imports: [SiteFooterComponent, MatCardModule, MatButtonModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="auth-page">
@@ -30,6 +31,7 @@ import { RouterLink } from '@angular/router';
             <a matButton routerLink="/login">Επιστροφή στη σύνδεση</a>
           </mat-card-actions>
         </mat-card>
+        <app-site-footer />
       </div>
     </div>
   `,
