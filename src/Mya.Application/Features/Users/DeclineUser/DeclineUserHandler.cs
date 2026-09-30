@@ -53,7 +53,11 @@ public sealed class DeclineUserHandler(IUserService users, IAppDbContext db, ICl
 
         await using var transaction = await db.BeginTransactionAsync(cancellationToken);
 
-        await users.SetStatusAsync(user.Id, UserStatus.Declined, reason, currentUser.UserId, cancellationToken);
+        if (!await users.SetStatusAsync(user.Id, UserStatus.Declined, reason, currentUser.UserId, cancellationToken))
+        {
+            // Someone else acted on this account between the check above and here.
+            return Result.Failure<UserDto>(Errors.InvalidUserState);
+        }
         db.OutboxMessages.Add(EmailOutbox.AccountDeclined(user, reason, clock.UtcNow));
         await db.SaveChangesAsync(cancellationToken);
 

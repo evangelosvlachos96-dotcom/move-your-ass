@@ -6,6 +6,7 @@ import { handles, silent } from '../http/http-context';
 import { ErrorCodes } from '../http/problem-details';
 import { NotifyService } from '../ui/notify.service';
 import { AuthStore } from './auth.store';
+import { SiteContentService } from '../site/site-content.service';
 import { SessionSyncService } from './session-sync.service';
 import {
   ChangePasswordRequest,
@@ -25,6 +26,7 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly notify = inject(NotifyService);
   private readonly sessionSync = inject(SessionSyncService);
+  private readonly siteContent = inject(SiteContentService);
 
   constructor() {
     // A sign-out in any tab ends the session in all of them. Without this, a second tab keeps
@@ -178,6 +180,8 @@ export class AuthService {
    */
   clearSession(): void {
     this.store.clear();
+    // The trainer's page is cached for the session; the next person may be somebody else.
+    this.siteContent.clear();
     this.sessionSync.announceSignOut();
   }
 }

@@ -39,17 +39,44 @@ public sealed class SiteContent
 
     public string? Phone { get; set; }
 
+    /// <summary>
+    /// Where a client goes to book a session: the trainer's own scheduling page, whatever she
+    /// uses. Optional, and every booking button in the app is hidden while it is empty — an
+    /// orange call to action that leads nowhere is worse than no button.
+    /// </summary>
+    public string? BookingUrl { get; set; }
+
+    /// <summary>
+    /// The social networks the trainer chose to show, in the order she put them, as a JSON array
+    /// of <c>{"network":"instagram","value":"https://…"}</c>.
+    ///
+    /// A list rather than a column per network: the set of networks is the trainer's decision and
+    /// it changes, and a fixed column each meant an editor with eight always-present fields, of
+    /// which she filled in two. Adding a network is now data, not a migration.
+    ///
+    /// JSON in one column rather than a child table because it is read and written whole, always
+    /// with its parent row, and is never queried by network. The columns below are the ones this
+    /// replaced; they are kept, unused, so the migration that fills the list can be rolled back
+    /// without losing anything.
+    /// </summary>
+    public string? SocialLinksJson { get; set; }
+
+    /// <summary>Superseded by <see cref="SocialLinksJson"/>. Never read; kept so nothing is lost.</summary>
     public string? Instagram { get; set; }
 
+    /// <inheritdoc cref="Instagram"/>
     public string? YouTube { get; set; }
 
+    /// <inheritdoc cref="Instagram"/>
     public string? TikTok { get; set; }
 
+    /// <inheritdoc cref="Instagram"/>
     public string? Facebook { get; set; }
 
-    /// <summary>Digits only, in international form; rendered as a wa.me link.</summary>
+    /// <inheritdoc cref="Instagram"/>
     public string? WhatsApp { get; set; }
 
+    /// <inheritdoc cref="Instagram"/>
     public string? Website { get; set; }
 
     public DateTime? UpdatedAtUtc { get; set; }

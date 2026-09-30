@@ -1,6 +1,12 @@
 // The shell frame. Sidebar and top bar share ONE surface and ONE border colour, so they form a
 // continuous L rather than two panels with a seam between them. Nothing in this file invents a
 // shade: every colour is a brand token.
+//
+// Safe areas: index.html sets viewport-fit=cover, so on an iPhone the layout extends under the
+// notch and the home indicator and env(safe-area-inset-*) finally returns something. Everything
+// that touches an edge therefore adds the inset to its own padding rather than assuming the
+// viewport is the safe area. In portrait the side insets are zero and these all collapse to the
+// plain value; in landscape they are what keeps text off the notch.
 
 $frame-border: 1px solid var(--brand-border);
 $topbar-height: 68px;
@@ -13,6 +19,17 @@ $bottom-nav-height: 62px;
   background: var(--brand-bg);
   // Read by the footer so it can clear the fixed bottom bar; zero wherever there is not one.
   --app-bottom-inset: 0px;
+  // The gap between the frame's edge and its content, before safe areas. One number, changed
+  // per breakpoint below, so the two elements that use it can never drift apart.
+  --shell-gutter: 24px;
+}
+
+// Side padding that clears the notch in landscape. In portrait the insets are zero and this is
+// just the gutter.
+.shell__topbar,
+.shell__content {
+  padding-inline: calc(var(--shell-gutter) + env(safe-area-inset-left))
+    calc(var(--shell-gutter) + env(safe-area-inset-right));
 }
 
 // --- sidebar -----------------------------------------------------------------------------
@@ -99,6 +116,13 @@ $bottom-nav-height: 62px;
   text-align: center;
 }
 
+// Booking sits at the foot of the sidebar, separated from the menu by the space above it rather
+// than by a rule: one more line in this frame would be one line too many.
+.shell__booking {
+  margin-block-start: auto;
+  padding: 14px 12px calc(18px + env(safe-area-inset-bottom));
+}
+
 // --- main column -------------------------------------------------------------------------
 
 .shell__main {
@@ -114,7 +138,6 @@ $bottom-nav-height: 62px;
   gap: 12px;
   block-size: $topbar-height;
   flex: 0 0 $topbar-height;
-  padding-inline: 24px;
   background: var(--brand-surface);
   border-block-end: $frame-border;
   position: sticky;
@@ -203,8 +226,10 @@ $bottom-nav-height: 62px;
 
 .shell__content {
   flex: 1 1 auto;
+  // Without this a wide child (a table, a long word) can push the whole column past the viewport:
+  // a flex item's default minimum size is its content, not zero.
   min-inline-size: 0;
-  padding: 24px;
+  padding-block: 24px;
   background: var(--brand-bg);
 }
 
@@ -212,7 +237,10 @@ $bottom-nav-height: 62px;
 
 @media (max-width: 599px) {
   .shell {
-    --app-bottom-inset: #{$bottom-nav-height};
+    // The bar is its own height plus whatever the home indicator takes, which is only non-zero
+    // now that viewport-fit=cover is set. The footer reads this to stay above it.
+    --app-bottom-inset: calc(#{$bottom-nav-height} + env(safe-area-inset-bottom));
+    --shell-gutter: 16px;
   }
 
   .shell--forced {
@@ -223,7 +251,6 @@ $bottom-nav-height: 62px;
   .shell__topbar {
     block-size: 60px;
     flex-basis: 60px;
-    padding-inline: 16px;
   }
 
   .shell__user {
@@ -239,7 +266,7 @@ $bottom-nav-height: 62px;
   }
 
   .shell__content {
-    padding: 16px;
+    padding-block: 16px;
   }
 }
 
@@ -257,8 +284,8 @@ $bottom-nav-height: 62px;
     padding-inline: 16px;
   }
 
-  .shell__content {
-    padding: 20px;
+  .shell {
+    --shell-gutter: 20px;
   }
 }
 
@@ -268,9 +295,14 @@ $bottom-nav-height: 62px;
   inset-block-end: 0;
   z-index: 10;
   display: flex;
+  // A fixed element is laid out against the viewport, not the scrolling box, so it is the one
+  // thing that can widen the page without belonging to it. Bounded explicitly.
+  max-inline-size: 100%;
+  box-sizing: border-box;
   background: var(--brand-surface);
   border-block-start: $frame-border;
   padding-block-end: env(safe-area-inset-bottom);
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
 }
 
 .shell__bottom-item {
@@ -289,6 +321,12 @@ $bottom-nav-height: 62px;
 
 .shell__bottom-item--active {
   color: var(--brand-accent);
+}
+
+// The fourth item leaves the app, so it is orange rather than lime and never shows as active.
+// It shares the bar's flex sizing, so adding it cannot make the bar wider than the screen.
+.shell__bottom-item--booking {
+  color: var(--brand-orange);
 }
 
 .shell__bottom-item:focus-visible {

@@ -1,0 +1,48 @@
+// Orange on dark text. The orange is the brand's own token, the same one the "powered by Tasos"
+// credit uses, and dark-on-orange is what keeps it readable: #0e0e10 on #ff8a3d is about 8.2:1,
+// where white on the same orange would be about 2.5:1 and fail at any size.
+.booking {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  // Comfortably over the 44px minimum target, on every one of the four screens it appears on.
+  min-block-size: 44px;
+  padding-inline: 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--brand-orange);
+  color: var(--brand-bg);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.booking--block {
+  display: flex;
+  inline-size: 100%;
+}
+
+.booking:hover {
+  filter: brightness(1.08);
+}
+
+.booking:focus-visible {
+  outline: 2px solid var(--brand-text);
+  outline-offset: 2px;
+}
+
+.booking__icon {
+  // Pinned the same way the profile icon is: Material's own box plus the icon font's leading
+  // would otherwise sit the glyph a pixel or two off the label's centre.
+  font-size: 20px;
+  inline-size: 20px;
+  block-size: 20px;
+  line-height: 1;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

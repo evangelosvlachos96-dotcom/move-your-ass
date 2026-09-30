@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Mya.Application.Abstractions.Media;
 using Mya.Application.Abstractions.Persistence;
@@ -42,12 +43,8 @@ public sealed class SiteContentHandler(IAppDbContext db, VideoAccess access, ICl
         row.AboutMarkdown = SiteRules.SanitizeMarkdown(input.AboutMarkdown);
         row.ContactEmail = SiteRules.Clean(input.ContactEmail);
         row.Phone = SiteRules.Clean(input.Phone);
-        row.Instagram = SiteRules.Clean(input.Instagram);
-        row.YouTube = SiteRules.Clean(input.YouTube);
-        row.TikTok = SiteRules.Clean(input.TikTok);
-        row.Facebook = SiteRules.Clean(input.Facebook);
-        row.WhatsApp = SiteRules.Clean(input.WhatsApp);
-        row.Website = SiteRules.Clean(input.Website);
+        row.BookingUrl = SiteRules.Clean(input.BookingUrl);
+        row.SocialLinksJson = SerializeLinks(SiteRules.CleanLinks(input.SocialLinks));
         row.UpdatedAtUtc = clock.UtcNow;
         row.Revision = Guid.NewGuid();
 
@@ -132,16 +129,48 @@ public sealed class SiteContentHandler(IAppDbContext db, VideoAccess access, ICl
     {
         if (row is null)
         {
-            return new AboutDto(null, null, null, null, null, null, null, null, null, null, null, null, Guid.Empty);
+            return new AboutDto(null, null, null, null, null, null, null, [], Guid.Empty);
         }
 
         return new AboutDto(
             Photo(row.PhotoObjectKey),
             row.TrainerName, row.Tagline, row.AboutMarkdown,
-            row.ContactEmail, row.Phone, row.Instagram, row.YouTube,
-            row.TikTok, row.Facebook, row.WhatsApp, row.Website,
+            row.ContactEmail, row.Phone,
+            // Re-checked on the way out for the same reason the social links are: a value that
+            // predates the rule must not become an href on the strength of having been stored.
+            SiteRules.IsSafeUrl(row.BookingUrl) ? row.BookingUrl : null,
+            DeserializeLinks(row.SocialLinksJson),
             row.Revision);
     }
+
+    /// <summary>Null rather than "[]" for an empty list, so "none" reads the same as "never set".</summary>
+    private static string? SerializeLinks(IReadOnlyList<SocialLink> links) =>
+        links.Count == 0 ? null : JsonSerializer.Serialize(links, LinkJson);
+
+    /// <summary>
+    /// Re-validates on the way out, not only on the way in.
+    ///
+    /// The column is text, and text in a database outlives the code that wrote it: a value that
+    /// predates a rule, or one a migration copied across, must not become an href on the strength
+    /// of having been stored once. Anything that no longer passes is dropped rather than shown.
+    /// </summary>
+    private static IReadOnlyList<SocialLink> DeserializeLinks(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+
+        try
+        {
+            var links = JsonSerializer.Deserialize<List<SocialLink>>(json, LinkJson) ?? [];
+            return SiteRules.CleanLinks(links).Where(SiteRules.IsValidLink).ToList();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static readonly JsonSerializerOptions LinkJson =
+        new(JsonSerializerDefaults.Web) { WriteIndented = false };
 
     private string? Photo(string? key)
     {

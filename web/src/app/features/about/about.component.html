@@ -1,206 +1,151 @@
-<section class="about">
+<section class="about plain-form">
   @if (loading()) {
     <p role="status">Φόρτωση…</p>
   } @else if (failed()) {
-    <div class="empty" role="alert">
+    <div class="about-card" role="alert">
       <h1>Η σελίδα δεν φορτώθηκε.</h1>
-      <button type="button" class="primary" (click)="load()">Δοκίμασε ξανά</button>
+      <p class="about__muted">Δοκίμασε ξανά σε λίγο.</p>
+      <div class="about__actions">
+        <button type="button" (click)="load()">Επανάληψη</button>
+      </div>
     </div>
-  } @else if (editing()) {
-    <form class="about__editor" #editor="ngForm" (ngSubmit)="save(editor)" novalidate>
-      <h1>Επεξεργασία σελίδας</h1>
-
-      <label>
-        Όνομα
-        <input name="trainerName" [(ngModel)]="form.trainerName" [maxlength]="limits.trainerName" />
-      </label>
-
-      <label>
-        Τίτλος / σύντομη περιγραφή
-        <input name="tagline" [(ngModel)]="form.tagline" [maxlength]="limits.tagline" />
-      </label>
-
-      <label>
-        Λίγα λόγια για σένα
-        <textarea
-          name="aboutMarkdown"
-          rows="8"
-          [(ngModel)]="form.aboutMarkdown"
-          [maxlength]="limits.aboutMarkdown"
-        ></textarea>
-      </label>
-      <p class="about__hint">
-        Άφησε μια κενή γραμμή ανάμεσα στις παραγράφους. Για έντονα γράμματα γράψε
-        <code>**έτσι**</code>. Για λίστα ξεκίνα κάθε γραμμή με <code>-</code>.
-      </p>
-
-      <h2>Στοιχεία επικοινωνίας</h2>
-      <p class="about__hint">Όσα αφήσεις κενά δεν εμφανίζονται πουθενά.</p>
-
-      <div class="about__grid">
-        <label>
-          Email
-          <input
-            name="contactEmail"
-            type="email"
-            email
-            [(ngModel)]="form.contactEmail"
-            [maxlength]="limits.contactEmail"
-          />
-        </label>
-        <label>
-          Τηλέφωνο
-          <input name="phone" type="tel" [(ngModel)]="form.phone" [maxlength]="limits.phone" />
-        </label>
-        <label>
-          WhatsApp <span class="about__note">(μόνο αριθμοί, π.χ. 30691…)</span>
-          <input
-            name="whatsApp"
-            inputmode="numeric"
-            pattern="[0-9]{6,20}"
-            [(ngModel)]="form.whatsApp"
-            [maxlength]="limits.whatsApp"
-          />
-        </label>
-        <label>
-          Instagram
-          <input name="instagram" type="url" [(ngModel)]="form.instagram" [maxlength]="limits.link" placeholder="https://" />
-        </label>
-        <label>
-          YouTube
-          <input name="youTube" type="url" [(ngModel)]="form.youTube" [maxlength]="limits.link" placeholder="https://" />
-        </label>
-        <label>
-          TikTok
-          <input name="tikTok" type="url" [(ngModel)]="form.tikTok" [maxlength]="limits.link" placeholder="https://" />
-        </label>
-        <label>
-          Facebook
-          <input name="facebook" type="url" [(ngModel)]="form.facebook" [maxlength]="limits.link" placeholder="https://" />
-        </label>
-        <label>
-          Ιστοσελίδα
-          <input name="website" type="url" [(ngModel)]="form.website" [maxlength]="limits.link" placeholder="https://" />
-        </label>
-      </div>
-      <p class="about__hint">Οι σύνδεσμοι πρέπει να ξεκινούν με <code>https://</code>.</p>
-
-      <div class="actions">
-        <button class="primary" type="submit" [disabled]="saving()">
-          {{ saving() ? 'Αποθήκευση…' : 'Αποθήκευση' }}
-        </button>
-        <button type="button" (click)="cancelEditing()" [disabled]="saving()">Ακύρωση</button>
-      </div>
-    </form>
-  } @else if (about(); as content) {
-    <header class="about__header">
-      <!-- The trainer photo lives here and only here. The top bar always keeps its generic icon. -->
-      <div class="about__portrait">
-        @if (content.photoUrl) {
-          <img [src]="content.photoUrl" alt="" />
+  } @else if (about(); as page) {
+    <!-- Hero -->
+    <div class="about-card about-hero">
+      <div class="about-hero__portrait">
+        @if (page.photoUrl) {
+          <img [src]="page.photoUrl" [alt]="page.trainerName ?? 'Ο γυμναστής σου'" />
+        } @else if (initials(); as letters) {
+          <span class="about-hero__initials" aria-hidden="true">{{ letters }}</span>
         } @else {
-          <span class="about__portrait-fallback" aria-hidden="true">
-            {{ (content.trainerName || 'MYA')[0] }}
+          <span class="about-hero__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><path d="M7 3l9 9-9 9" /></svg>
           </span>
         }
       </div>
 
-      <div class="about__identity">
-        <h1>{{ content.trainerName || 'Ο γυμναστής σου' }}</h1>
-        @if (content.tagline) {
-          <p class="about__tagline">{{ content.tagline }}</p>
-        }
-        @if (isAdmin()) {
-          <div class="actions about__admin-actions">
-            <button type="button" (click)="startEditing()">Επεξεργασία</button>
-            <label class="about__photo-button">
-              {{ photoBusy() ? 'Ανέβασμα…' : 'Αλλαγή φωτογραφίας' }}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                [disabled]="photoBusy()"
-                (change)="choosePhoto($event)"
-              />
-            </label>
-            @if (content.photoUrl) {
-              <button type="button" class="danger" [disabled]="photoBusy()" (click)="removePhoto()">
-                Αφαίρεση φωτογραφίας
-              </button>
-            }
-          </div>
+      <div class="about-hero__identity">
+        <h1>{{ page.trainerName || 'Ο γυμναστής σου' }}</h1>
+        @if (page.tagline) {
+          <p class="about-hero__tagline">{{ page.tagline }}</p>
         }
       </div>
-    </header>
 
-    @if (isEmpty() && isAdmin()) {
-      <p class="about__hint" role="status">
-        Η σελίδα είναι ακόμη άδεια. Πάτησε «Επεξεργασία» για να τη συμπληρώσεις.
-      </p>
+      @if (isAdmin()) {
+        <a class="button about-hero__edit" routerLink="/about/edit">
+          <mat-icon aria-hidden="true">edit</mat-icon>
+          <span>Επεξεργασία</span>
+        </a>
+      }
+    </div>
+
+    @if (isEmpty()) {
+      <div class="about-card" role="status">
+        @if (isAdmin()) {
+          <h2 class="about-card__title">Η σελίδα σου είναι άδεια.</h2>
+          <p class="about__muted">
+            Πάτησε «Επεξεργασία» για να προσθέσεις φωτογραφία, το όνομά σου, λίγα λόγια για σένα
+            και τα στοιχεία επικοινωνίας σου. Μέχρι τότε οι πελάτισσές σου βλέπουν αυτή τη σελίδα
+            χωρίς πληροφορίες.
+          </p>
+        } @else {
+          <h2 class="about-card__title">Ο γυμναστής θα προσθέσει σύντομα πληροφορίες.</h2>
+          <p class="about__muted">
+            Μπορείς να στείλεις μήνυμα από τη φόρμα παρακάτω όποτε θέλεις.
+          </p>
+        }
+      </div>
     }
 
-    @if (content.aboutMarkdown) {
-      <!-- Escaped and reduced to a known tag set before it gets here; see renderSafeMarkdown. -->
-      <div class="about__bio" [innerHTML]="bioHtml()"></div>
+    @if (bioHtml()) {
+      <div class="about-card">
+        <h2 class="about-card__title">Σχετικά με εμένα</h2>
+        <!-- Escaped first, then reduced to paragraphs, bold and lists; never raw HTML. -->
+        <div class="about__bio" [innerHTML]="bioHtml()"></div>
+      </div>
     }
 
     @if (links().length) {
-      <h2 class="about__section">Επικοινωνία</h2>
-      <ul class="about__links">
-        @for (link of links(); track link.channel) {
-          <li>
-            <a
-              class="about__link"
-              [href]="link.href"
-              [attr.target]="link.href.startsWith('https://') ? '_blank' : null"
-              [attr.rel]="link.href.startsWith('https://') ? 'noopener noreferrer' : null"
-              [attr.aria-label]="link.label"
-            >
-              <app-contact-icon [channel]="link.channel" />
-              <span>{{ link.text }}</span>
-            </a>
-          </li>
-        }
-      </ul>
+      <div class="about-card">
+        <h2 class="about-card__title">Στοιχεία επικοινωνίας</h2>
+        <ul class="about__links">
+          @for (link of links(); track link.channel) {
+            <li>
+              <a
+                class="about__link"
+                [href]="link.href"
+                [attr.target]="link.external ? '_blank' : null"
+                [attr.rel]="link.external ? 'noopener noreferrer' : null"
+              >
+                <app-contact-icon [channel]="link.channel" />
+                <span class="about__link-label">{{ link.label }}</span>
+                <span class="about__link-value">{{ link.text }}</span>
+                <mat-icon class="about__link-go" aria-hidden="true">chevron_right</mat-icon>
+              </a>
+            </li>
+          }
+        </ul>
+      </div>
     }
 
-    <h2 class="about__section">Στείλε μήνυμα</h2>
-    @if (sent()) {
-      <p class="about__sent" role="status">
-        Το μήνυμα στάλθηκε. Θα λάβεις απάντηση στο email σου.
-      </p>
-      <button type="button" (click)="sent.set(false)">Νέο μήνυμα</button>
-    } @else {
-      <form class="about__contact" #contactForm="ngForm" (ngSubmit)="send(contactForm)" novalidate>
-        <label>
-          Θέμα
-          <input
-            name="subject"
-            required
-            [minlength]="contactMin.subject"
-            [maxlength]="limits.subject"
-            [(ngModel)]="subject"
-          />
-        </label>
-        <label>
-          Μήνυμα
-          <textarea
-            name="message"
-            rows="6"
-            required
-            [minlength]="contactMin.message"
-            [maxlength]="limits.message"
-            [(ngModel)]="message"
-          ></textarea>
-        </label>
-        @if (contactForm.submitted && contactForm.invalid) {
-          <p role="alert">Συμπλήρωσε θέμα και μήνυμα.</p>
-        }
-        <div class="actions">
-          <button class="primary" type="submit" [disabled]="sending()">
-            {{ sending() ? 'Αποστολή…' : 'Αποστολή' }}
-          </button>
-        </div>
-      </form>
+    @if (page.bookingUrl; as booking) {
+      <div class="about-card about-booking">
+        <h2 class="about-card__title">Κλείσε ραντεβού</h2>
+        <p class="about__muted">
+          @if (isAdmin()) {
+            Αυτό βλέπουν οι πελάτισσές σου. Ο σύνδεσμος ανοίγει τη σελίδα κρατήσεών σου.
+          } @else {
+            Κλείσε μια προσωπική συνάντηση με τον γυμναστή σου.
+          }
+        </p>
+        <app-booking-button [url]="booking" [block]="true" />
+      </div>
+    }
+
+    <!-- Message form. Clients only: an admin writing here would be writing to themselves, and
+         the endpoint refuses it regardless of what is drawn. -->
+    @if (!isAdmin()) {
+    <div class="about-card">
+      <h2 class="about-card__title">Στείλε μήνυμα</h2>
+      @if (sent()) {
+        <p class="about__sent" role="status">
+          Το μήνυμα στάλθηκε. Θα λάβεις απάντηση στο email σου.
+        </p>
+      } @else {
+        <p class="field-hint">
+          Η απάντηση έρχεται στο email με το οποίο συνδέεσαι.
+        </p>
+        <form class="about__form" #contactForm="ngForm" (ngSubmit)="send(contactForm)">
+          <label>
+            Θέμα
+            <input
+              name="subject"
+              [(ngModel)]="subject"
+              required
+              [minlength]="contactMin.subject"
+              maxlength="150"
+              [disabled]="sending()"
+            />
+          </label>
+          <label>
+            Μήνυμα
+            <textarea
+              name="message"
+              [(ngModel)]="message"
+              required
+              [minlength]="contactMin.message"
+              maxlength="4000"
+              [disabled]="sending()"
+            ></textarea>
+          </label>
+          <div class="about__actions">
+            <button type="submit" class="primary" [disabled]="sending()">
+              {{ sending() ? 'Αποστολή…' : 'Αποστολή' }}
+            </button>
+          </div>
+        </form>
+      }
+    </div>
     }
   }
 </section>

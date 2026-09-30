@@ -1,6 +1,7 @@
 @use '@angular/material' as mat;
 @use 'styles/brand';
 @use 'styles/auth-page';
+@use 'styles/form-control';
 
 html {
   height: 100%;
@@ -74,6 +75,53 @@ body {
   color: var(--brand-text);
   font: var(--mat-sys-body-medium);
   -webkit-font-smoothing: antialiased;
+}
+
+// --- nothing scrolls sideways, ever ------------------------------------------------------------
+//
+// This block is the safety net, not the fix. Every cause found so far is fixed where it lives:
+// the 16px control floor below, the dialog that asked for 100vw, long strings that would not
+// wrap, and flex children without min-inline-size. `clip` is here so that a future mistake is a
+// clipped pixel rather than a page the user has to drag around on a phone.
+//
+// `clip` rather than `hidden` on purpose: `overflow: hidden` on the root turns every
+// `position: sticky` descendant into a scroll-container child and quietly breaks the sticky top
+// bar. `clip` does not create a scroll container, so the sticky frame keeps working.
+html,
+body {
+  max-inline-size: 100%;
+  overflow-x: clip;
+}
+
+// Media never widens its container. An <img> with no attributes is its intrinsic width, and one
+// photo off a phone camera is several thousand pixels of it.
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-inline-size: 100%;
+}
+
+img,
+video {
+  block-size: auto;
+}
+
+// **iOS Safari zooms the page in when a control with a computed font-size under 16px is
+// focused**, and never zooms back out. The page is then wider than the screen and scrolls
+// sideways — which is what "the content is cut off and I have to scroll sideways" turned out to
+// be on a real iPhone. Material's fields were already 16px, which is exactly why the login page
+// was the one page that looked right.
+//
+// Components style their own controls (styles/_form-control.scss), and this is the backstop for
+// anything that slips through. The selector is deliberately heavier than a component's
+// `input[_ngcontent-x]`, or the component's own smaller size would win and the zoom would come
+// back.
+@media (max-width: 599px) {
+  html body :is(input, select, textarea):not([type='checkbox']):not([type='radio']) {
+    font-size: max(16px, 1em);
+  }
 }
 
 :focus-visible {
@@ -167,4 +215,19 @@ select:autofill {
   --mat-snack-bar-container-color: var(--brand-accent);
   --mat-snack-bar-supporting-text-color: var(--brand-on-accent);
   --mat-snack-bar-button-color: var(--brand-on-accent);
+}
+
+// Text only a screen reader reads: a label for a control whose purpose is obvious on screen from
+// its neighbour, but which would otherwise be announced as nothing at all. Not `display: none`,
+// which removes it from the accessibility tree as well as from the page.
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

@@ -47,6 +47,11 @@ export default defineConfig({
     // common case untested. Desktop is left to Chromium: the admin screens are used on a laptop.
     ...VIEWPORTS.filter((viewport) => viewport.name !== 'desktop').map((viewport) => ({
       name: `${viewport.name}-webkit`,
+      // WebKit on Windows is materially slower than Chromium at the same work — a run takes
+      // roughly three times as long — and these tests measure layout, so a truncated one reports
+      // a page that was still settling rather than a page that is wrong. The extra allowance
+      // costs nothing when a test passes.
+      timeout: 90_000,
       use: {
         ...devices['Desktop Safari'],
         viewport: { width: viewport.width, height: viewport.height },

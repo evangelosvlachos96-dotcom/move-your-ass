@@ -26,9 +26,15 @@ upload is used, and otherwise a branded placeholder. Playback is a short-lived p
 Everything stored counts against a configured storage cap, covers included.
 
 **The trainer's page.** `Ο γυμναστής σου` is a page every signed-in user can see and only the
-admin can edit in place: photo, name, tagline, a sanitised-markdown biography, and optional
-contact links. Clients can send the trainer a message from it; the mail goes out through the
-transactional outbox with `Reply-To` set to the client.
+admin can edit, on a route of its own: photo, name, tagline, a sanitised-markdown biography, and
+whichever social networks she chooses to add, in her own order. Clients can send her a message
+from it — the mail goes out through the transactional outbox with `Reply-To` set to the client —
+and an optional booking link puts a "Κλείσε ραντεβού" button in front of clients in four places.
+Leave the link empty and every one of those buttons is gone.
+
+**Pictures are framed, not guessed at.** Video covers and the trainer's portrait both go through a
+crop dialog (16:9 and a circle), so what is uploaded is what was chosen. Only the cropped, scaled
+bytes leave the browser.
 
 ## Stack
 
@@ -93,6 +99,12 @@ npx playwright test                     # needs both servers running; see web/pl
 
 The Playwright suite runs Chromium at phone, tablet and desktop sizes and **WebKit at phone and
 tablet**, because the trainer's clients are on iPhones, where every browser is WebKit underneath.
+`e2e/overflow.spec.ts` is the one to read first: it asserts that no route scrolls sideways at 375,
+390, 820 or 1440, and that **no control is under 16px on a phone** — which is what makes iOS
+Safari zoom the page in on focus and never zoom back out.
+
+It can run against the dev server or, more cheaply and closer to production, against the API
+serving the production build from its own `wwwroot` (`E2E_BASE_URL=http://localhost:5077`).
 Signed-in projects need `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` and `E2E_CLIENT_EMAIL` /
 `E2E_CLIENT_PASSWORD`; without them those tests skip, so CI without a database still runs the
 public routes.

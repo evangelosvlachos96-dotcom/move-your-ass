@@ -30,7 +30,4 @@ export class SiteApi {
     return this.api.delete<void>('/admin/site/about/photo');
   }
 
-  sendTestEmail() {
-    return this.api.post<void>('/admin/site/test-email');
-  }
 }

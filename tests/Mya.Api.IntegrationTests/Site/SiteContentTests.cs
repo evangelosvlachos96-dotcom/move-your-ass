@@ -76,9 +76,16 @@ public sealed class SiteContentTests : IAsyncLifetime
         await connection.DisposeAsync();
     }
 
+    private static readonly SocialLink[] Links =
+    [
+        new("instagram", "https://instagram.com/coach"),
+        new("whatsapp", "306912345678"),
+        new("website", "https://example.test"),
+    ];
+
     private static AboutInput Input(Guid revision) => new(
         "Τάσος Παπαδόπουλος", "Προπονητής", "Γεια σου!", "coach@example.test", "+30 210 1234567",
-        "https://instagram.com/coach", null, null, null, "306912345678", "https://example.test", revision);
+        "https://booking.example.test/coach", Links, revision);
 
     private async Task<Guid> SeedAsync()
     {
@@ -158,11 +165,138 @@ public sealed class SiteContentTests : IAsyncLifetime
         var ok = Input(Guid.Empty);
 
         validator.Validate(ok).IsValid.ShouldBeTrue();
-        validator.Validate(ok with { Instagram = "javascript:alert(1)" }).IsValid.ShouldBeFalse();
-        validator.Validate(ok with { Website = "http://example.test" }).IsValid.ShouldBeFalse();
         validator.Validate(ok with { ContactEmail = "not-an-email" }).IsValid.ShouldBeFalse();
         validator.Validate(ok with { Phone = "<script>" }).IsValid.ShouldBeFalse();
-        validator.Validate(ok with { WhatsApp = "+30 691" }).IsValid.ShouldBeFalse();
+
+        // Every link goes into an href, so a scheme other than https is refused rather than
+        // upgraded, and a network nobody defined is refused outright.
+        Refuse(validator, ok, new SocialLink("instagram", "javascript:alert(1)"));
+        Refuse(validator, ok, new SocialLink("website", "http://example.test"));
+        Refuse(validator, ok, new SocialLink("myspace", "https://example.test"));
+        // WhatsApp becomes a wa.me path, so it is digits or nothing.
+        Refuse(validator, ok, new SocialLink("whatsapp", "+30 691"));
+        Refuse(validator, ok, new SocialLink("whatsapp", "https://example.test"));
+    }
+
+    private static void Refuse(AboutInputValidator validator, AboutInput ok, SocialLink link) =>
+        validator.Validate(ok with { SocialLinks = [link] }).IsValid.ShouldBeFalse(
+            $"{link.Network} = {link.Value} should have been refused");
+
+    [Fact]
+    public void The_validator_refuses_a_booking_link_that_is_not_https()
+    {
+        var validator = new AboutInputValidator();
+        var ok = Input(Guid.Empty);
+
+        validator.Validate(ok with { BookingUrl = "http://booking.example.test" }).IsValid.ShouldBeFalse();
+        validator.Validate(ok with { BookingUrl = "javascript:alert(1)" }).IsValid.ShouldBeFalse();
+        validator.Validate(ok with { BookingUrl = "calendly.com/coach" }).IsValid.ShouldBeFalse();
+        // Empty is the normal state: no link, no buttons anywhere.
+        validator.Validate(ok with { BookingUrl = null }).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task The_real_booking_link_survives_validation_and_storage_unchanged()
+    {
+        // The trainer's actual scheduling page. The double underscore in the path is the reason
+        // this is pinned: URI parsing normalises plenty of things, and a link that comes back
+        // one character different is a link that 404s.
+        const string url = "https://reply-now.com/book/tasos__ch";
+
+        SiteRules.IsSafeUrl(url).ShouldBeTrue();
+        new AboutInputValidator().Validate(Input(Guid.Empty) with { BookingUrl = url }).IsValid.ShouldBeTrue();
+
+        caller.UserId = Roles.Admin;
+        var revision = (await site.GetAsync(Ct)).Value.Revision;
+        (await site.UpdateAsync(Input(revision) with { BookingUrl = url }, Ct)).IsSuccess.ShouldBeTrue();
+
+        (await site.GetAsync(Ct)).Value.BookingUrl.ShouldBe(url);
+    }
+
+    [Fact]
+    public async Task A_booking_link_that_no_longer_passes_the_rules_is_dropped_on_the_way_out()
+    {
+        caller.UserId = Roles.Admin;
+        await SeedAsync();
+
+        var row = await db.SiteContent.SingleAsync(Ct);
+        row.BookingUrl = "http://insecure.example";
+        await db.SaveChangesAsync(Ct);
+
+        (await site.GetAsync(Ct)).Value.BookingUrl.ShouldBeNull();
+    }
+
+    [Fact]
+    public void The_validator_refuses_the_same_network_twice()
+    {
+        var validator = new AboutInputValidator();
+        var twice = Input(Guid.Empty) with
+        {
+            SocialLinks =
+            [
+                new("instagram", "https://instagram.com/one"),
+                new("instagram", "https://instagram.com/two"),
+            ],
+        };
+
+        validator.Validate(twice).IsValid.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Only_the_networks_that_were_added_come_back_and_in_the_order_they_were_added()
+    {
+        caller.UserId = Roles.Admin;
+        var revision = (await site.GetAsync(Ct)).Value.Revision;
+
+        (await site.UpdateAsync(Input(revision), Ct)).IsSuccess.ShouldBeTrue();
+
+        var read = (await site.GetAsync(Ct)).Value.SocialLinks;
+        read.Select(l => l.Network).ShouldBe(["instagram", "whatsapp", "website"]);
+        read[0].Value.ShouldBe("https://instagram.com/coach");
+        // The five networks that were not added are simply absent, not empty.
+        read.Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task Removing_every_network_leaves_none_rather_than_empty_rows()
+    {
+        caller.UserId = Roles.Admin;
+        var revision = await SeedAsync();
+
+        (await site.UpdateAsync(Input(revision) with { SocialLinks = [] }, Ct)).IsSuccess.ShouldBeTrue();
+
+        (await site.GetAsync(Ct)).Value.SocialLinks.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_link_that_no_longer_passes_the_rules_is_dropped_on_the_way_out()
+    {
+        caller.UserId = Roles.Admin;
+        await SeedAsync();
+
+        // Straight into the column, the way a migration or an older version of the rules could
+        // have left it. Stored text outlives the code that wrote it.
+        var row = await db.SiteContent.SingleAsync(Ct);
+        row.SocialLinksJson =
+            "[{\"network\":\"instagram\",\"value\":\"http://insecure.example\"},"
+            + "{\"network\":\"website\",\"value\":\"https://good.example\"}]";
+        await db.SaveChangesAsync(Ct);
+
+        var read = (await site.GetAsync(Ct)).Value.SocialLinks;
+        read.Select(l => l.Network).ShouldBe(["website"]);
+    }
+
+    [Fact]
+    public async Task Nonsense_in_the_column_reads_as_no_links_rather_than_throwing()
+    {
+        caller.UserId = Roles.Admin;
+        await SeedAsync();
+
+        var row = await db.SiteContent.SingleAsync(Ct);
+        row.SocialLinksJson = "not json at all";
+        await db.SaveChangesAsync(Ct);
+
+        (await site.GetAsync(Ct)).Value.SocialLinks.ShouldBeEmpty();
     }
 
     [Fact]
@@ -197,11 +331,13 @@ public sealed class SiteContentTests : IAsyncLifetime
         caller.UserId = Roles.Admin;
         var revision = (await site.GetAsync(Ct)).Value.Revision;
 
-        (await site.UpdateAsync(Input(revision) with { Tagline = "   ", Website = "" }, Ct)).IsSuccess.ShouldBeTrue();
+        (await site.UpdateAsync(
+            Input(revision) with { Tagline = "   ", SocialLinks = [new SocialLink("website", "  ")] },
+            Ct)).IsSuccess.ShouldBeTrue();
 
         var read = (await site.GetAsync(Ct)).Value;
         read.Tagline.ShouldBeNull();
-        read.Website.ShouldBeNull();
+        read.SocialLinks.ShouldBeEmpty();
     }
 
     // --- photo -----------------------------------------------------------------------------
@@ -304,16 +440,16 @@ public sealed class SiteContentTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Only_an_admin_can_send_the_delivery_test()
+    public async Task An_admin_cannot_use_the_contact_form()
     {
-        caller.UserId = Roles.Client;
-        (await contact.SendTestAsync(Ct)).Error!.Code.ShouldBe("FORBIDDEN");
-
+        await SeedAsync();
         caller.UserId = Roles.Admin;
-        (await contact.SendTestAsync(Ct)).IsSuccess.ShouldBeTrue();
 
-        var queued = await db.OutboxMessages.SingleAsync(m => m.Type == OutboxMessageTypes.TestEmail, Ct);
-        EmailOutbox.Deserialize<TestEmailPayload>(queued.PayloadJson).To.ShouldBe("Admin@example.test");
+        // The form writes to the trainer, so an admin using it is writing to themselves. The UI
+        // hides it; this is the half that matters, because the endpoint is the control.
+        (await contact.SendAsync(new ContactInput("Ερώτηση", "Θέλω να ρωτήσω κάτι."), Ct))
+            .Error!.Code.ShouldBe("FORBIDDEN");
+        (await db.OutboxMessages.CountAsync(m => m.Type == OutboxMessageTypes.ContactMessage, Ct)).ShouldBe(0);
     }
 
     private sealed class Caller : ICurrentUser

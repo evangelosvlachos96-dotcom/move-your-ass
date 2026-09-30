@@ -32,7 +32,7 @@ public sealed class SiteController(SiteContentHandler content, ContactHandler co
 
 [ApiController, Authorize(Policy = Policies.AdminOnly), Route("api/admin/site")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class AdminSiteController(SiteContentHandler content, ContactHandler contact) : ControllerBase
+public sealed class AdminSiteController(SiteContentHandler content) : ControllerBase
 {
     [HttpPut("about")]
     public async Task<IActionResult> Update(AboutInput input, CancellationToken ct) =>
@@ -49,10 +49,4 @@ public sealed class AdminSiteController(SiteContentHandler content, ContactHandl
     [HttpDelete("about/photo")]
     public async Task<IActionResult> PhotoRemove(CancellationToken ct) =>
         (await content.PhotoRemoveAsync(ct)).ToActionResult(HttpContext, NoContent);
-
-    /// <summary>Proves delivery works, on demand. Throttled so it cannot become a sending loop.</summary>
-    [HttpPost("test-email")]
-    [EnableRateLimiting(RateLimitPolicies.PerUserWrite)]
-    public async Task<IActionResult> TestEmail(CancellationToken ct) =>
-        (await contact.SendTestAsync(ct)).ToActionResult(HttpContext, NoContent);
 }

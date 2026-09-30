@@ -356,6 +356,10 @@ namespace Mya.Infrastructure.Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
+                    b.Property<string>("BookingUrl")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("ContactEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -382,6 +386,10 @@ namespace Mya.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Revision")
                         .IsConcurrencyToken()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("SocialLinksJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
 
                     b.Property<string>("Tagline")
                         .HasMaxLength(200)

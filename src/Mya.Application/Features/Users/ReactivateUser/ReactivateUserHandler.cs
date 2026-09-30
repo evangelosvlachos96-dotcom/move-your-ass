@@ -31,7 +31,11 @@ public sealed class ReactivateUserHandler(IUserService users, ICurrentUser curre
             return Result.Success(mapper.Map<UserDto>(user));
         }
 
-        await users.SetStatusAsync(user.Id, UserStatus.Active, reason: null, currentUser.UserId, cancellationToken);
+        if (!await users.SetStatusAsync(user.Id, UserStatus.Active, reason: null, currentUser.UserId, cancellationToken))
+        {
+            // Someone else acted on this account between the check above and here.
+            return Result.Failure<UserDto>(Errors.InvalidUserState);
+        }
 
         var updated = await users.FindByIdAsync(user.Id, cancellationToken);
         return Result.Success(mapper.Map<UserDto>(updated));

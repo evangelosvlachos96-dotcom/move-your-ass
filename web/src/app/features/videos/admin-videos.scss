@@ -1,9 +1,12 @@
+@use '../../../styles/spacing' as *;
+
 // Styles for the admin management screen only.
 //
 // The library, the player and this screen share videos.scss for the frame they have in common —
-// page, headings, filters, chips, pagination. Everything below is used by this screen alone, and
-// lived in the shared file until it pushed every one of the three components past the component
-// style budget. A component should not carry the CSS of a screen it does not render.
+// page, headings, filters, chips, pagination. Everything below is used by this screen alone.
+//
+// The shape is one card per workout with a visible boundary, because the previous flat row of
+// ten buttons gave no answer to "where does this video end and the next one begin".
 
 // Storage allowance. The bar turns to the warning colour near the cap, and the text says the
 // numbers as well, so the state does not depend on colour alone.
@@ -16,6 +19,7 @@
   border-radius: 12px;
   background: var(--brand-surface);
 }
+
 .storage__text {
   display: flex;
   flex-wrap: wrap;
@@ -23,67 +27,56 @@
   justify-content: space-between;
   font-size: 0.9rem;
 }
+
 .storage__bar {
   height: 8px;
   border-radius: 999px;
   background: var(--brand-surface-2);
   overflow: hidden;
 }
+
 .storage__bar > span {
   display: block;
   height: 100%;
   background: var(--brand-accent);
   transition: width 0.2s ease;
 }
+
 .storage--warning {
   border-color: var(--brand-danger);
 }
+
 .storage--warning .storage__bar > span {
   background: var(--brand-danger);
 }
 
-.editor {
+// --- the cards -------------------------------------------------------------------------------
+
+.vcards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  gap: 18px;
-}
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-textarea {
-  min-height: 110px;
-  resize: vertical;
-}
-.upload-box {
-  padding: 18px;
-  border: 1px dashed var(--brand-muted);
-  border-radius: 10px;
-}
-progress {
-  width: 100%;
-  height: 20px;
-  accent-color: var(--brand-accent);
-}
-.row-copy {
-  flex: 1;
-  min-width: min(240px, 100%);
-}
-.danger {
-  color: var(--brand-danger);
-}
-.tag-check {
-  display: flex !important;
-  align-items: center;
+  gap: $space-card-gap;
 }
 
-// Cover thumbnail on an admin row, so the trainer can see what a card will look like without
-// opening the library.
-.admin-row__cover {
-  inline-size: 96px;
-  block-size: 60px;
-  flex: 0 0 auto;
-  border-radius: 8px;
+.vcard {
+  display: grid;
+  // Cover, then everything else, then the actions column. On a phone this collapses to one
+  // column (below), which is why nothing here has a fixed width.
+  grid-template-columns: 160px minmax(0, 1fr) auto;
+  gap: $space-tight;
+  align-items: start;
+  padding: $space-card-padding;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: 14px;
+}
+
+.vcard__cover {
+  inline-size: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 10px;
   overflow: hidden;
   background: var(--brand-surface-2);
   display: flex;
@@ -91,58 +84,157 @@ progress {
   justify-content: center;
 }
 
-.admin-row__cover img {
+.vcard__cover img {
   inline-size: 100%;
   block-size: 100%;
   object-fit: cover;
   display: block;
 }
 
-.admin-row__cover-placeholder {
-  font-size: 0.7rem;
+.vcard__cover-placeholder {
+  font-size: 0.75rem;
   font-weight: 800;
+  letter-spacing: 0.1em;
   color: var(--brand-muted);
-  letter-spacing: 0.08em;
 }
 
-// A file input dressed as a button: the control itself is off-screen but still focusable, so
-// keyboard users reach it the same way.
-.admin-row__cover-button {
+.vcard__body {
+  min-inline-size: 0;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.vcard__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+  // A title the trainer typed as one long word must wrap, not widen the card.
+  overflow-wrap: anywhere;
+}
+
+.vcard__badges,
+.vcard__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--brand-border);
+  background: var(--brand-surface-2);
+  color: var(--brand-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+// Published and ready are the states worth spotting from across the room; the rest stay quiet.
+.badge--live,
+.badge--ready {
+  border-color: var(--brand-accent);
+  color: var(--brand-accent);
+}
+
+.badge--failed {
+  border-color: var(--brand-danger);
+  color: var(--brand-danger);
+}
+
+.vcard__meta {
+  margin: 0;
+  color: var(--brand-muted);
+  font-size: 0.85rem;
+}
+
+.vcard__tags span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--brand-surface-2);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.vcard__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-inline-size: 0;
+}
+
+.vcard__primary {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-block-size: 44px;
   padding-inline: 14px;
   border: 1px solid var(--brand-border);
   border-radius: 10px;
-  cursor: pointer;
+  background: var(--brand-surface-2);
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 0.9rem;
   font-weight: 600;
-  font-size: 0.875rem;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.admin-row__cover-button.is-busy {
-  opacity: 0.6;
+.vcard__primary.primary {
+  background: var(--brand-accent);
+  border-color: var(--brand-accent);
+  color: var(--brand-on-accent);
+}
+
+.vcard__primary:disabled {
+  opacity: 0.45;
   cursor: default;
 }
 
-.admin-row__cover-button input {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  opacity: 0;
-  pointer-events: none;
+// The one control that is icon-only. It carries an aria-label naming its video, because "⋮" on
+// its own tells a screen reader nothing about which workout it acts on.
+.vcard__more {
+  flex: 0 0 auto;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  background: var(--brand-surface-2);
+  color: var(--brand-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
-.admin-row__cover-button:focus-within {
+.vcard__more:hover {
+  border-color: var(--brand-accent);
+}
+
+.vcard__more:focus-visible,
+.vcard__primary:focus-visible {
   outline: 2px solid var(--brand-accent);
   outline-offset: 2px;
 }
 
-@media (max-width: 599px) {
-  .admin-row__cover {
-    inline-size: 72px;
-    block-size: 46px;
-  }
+.tag-manager {
+  margin-block-start: 32px;
 }
+
+// A router link cannot be disabled the way a button can; this is the visual half, and the
+// route itself refuses the upload when storage is unconfigured.
+.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+// --- the notice ------------------------------------------------------------------------------
 
 // The "why is this off" notice. Distinct from an error: nothing is broken, it is unconfigured.
 .admin-notice {
@@ -165,20 +257,27 @@ progress {
   color: var(--brand-accent);
 }
 
-@media (max-width: 1000px) {
-  .admin-row {
+// --- phone -----------------------------------------------------------------------------------
+
+@media (max-width: 899px) {
+  .vcard {
+    // Cover on top, text under it, actions on their own row: three columns at 390px would make
+    // each of them narrower than its content, which is how a page starts scrolling sideways.
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .vcard__actions {
+    grid-column: 1 / -1;
     flex-wrap: wrap;
+  }
+
+  .vcard__primary {
+    flex: 1 1 auto;
   }
 }
 
-@media (max-width: 600px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  .editor {
+@media (max-width: 599px) {
+  .vcard {
     padding: 14px;
-  }
-  input[type='file'] {
-    width: 100%;
   }
 }

@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, catchError, combineLatest, forkJoin, of, switchMap } from 'rxjs';
+import { AuthStore } from '../../core/auth/auth.store';
 import { VideosApi } from '../../core/videos/videos.api';
 import { Video, AREA_LABELS, durationLabel } from '../../core/videos/video.models';
 
@@ -12,10 +14,10 @@ import { Video, AREA_LABELS, durationLabel } from '../../core/videos/video.model
  */
 @Component({
   selector: 'app-video-player',
-  imports: [RouterLink],
+  imports: [RouterLink, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './videos.scss',
-  template: `<section class="video-page">
+  template: `<section class="video-page plain-form">
     <a [routerLink]="admin ? '/admin/videos' : '/videos'">← Όλες οι προπονήσεις</a>
     @if (failed()) {
       <div class="empty" role="alert">
@@ -29,6 +31,16 @@ import { Video, AREA_LABELS, durationLabel } from '../../core/videos/video.model
           <span class="eyebrow">{{ areas[v.bodyArea] }} · {{ duration(v.durationSeconds) }}</span>
           <h1>{{ v.title }}</h1>
         </div>
+        @if (isAdmin()) {
+          <a
+            class="button"
+            [routerLink]="['/admin/videos', v.id, 'edit']"
+            [queryParams]="{ returnUrl: currentUrl }"
+          >
+            <mat-icon aria-hidden="true">edit</mat-icon>
+            <span>Επεξεργασία</span>
+          </a>
+        }
       </header>
       <video
         class="player"
@@ -62,6 +74,12 @@ export class VideoPlayerComponent {
   protected readonly duration = durationLabel;
   private readonly route = inject(ActivatedRoute);
   protected readonly admin = this.route.snapshot.data['admin'] === true;
+  protected readonly isAdmin = inject(AuthStore).isAdmin;
+
+  /** Where the editor returns to, so saving from here comes back to this video, not the list. */
+  protected get currentUrl(): string {
+    return (this.admin ? '/admin/videos/' : '/videos/') + this.route.snapshot.paramMap.get('id');
+  }
   private readonly reload = new BehaviorSubject(0);
 
   protected retry(): void {

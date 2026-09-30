@@ -37,6 +37,9 @@ public static class EmailLayout
     private const string Text = "#f5f5f0";
     private const string Muted = "#8b8b84";
     private const string Accent = "#c6f24e";
+
+    /// <summary>The "powered by Tasos" credit. 8.2:1 on the email background, so it stays legible.</summary>
+    private const string Orange = "#ff8a3d";
     private const string OnAccent = "#0e0e10";
     private const string Font = "'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif";
 
@@ -65,7 +68,10 @@ public static class EmailLayout
             <tr><td align="center" style="padding:24px 12px;">
             <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
             <tr><td align="center" style="padding:8px 0 20px;">
-            <img src="{Encode(origin)}{LogoPath}" width="{LogoWidth}" alt="Move Your Ass" style="display:block;border:0;width:{LogoWidth}px;max-width:80%;height:auto;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="right">
+            <img src="{Encode(origin)}{LogoPath}" width="{LogoWidth}" alt="Move Your Ass" style="display:block;border:0;width:{LogoWidth}px;max-width:100%;height:auto;">
+            <div style="padding-top:6px;font-family:{Font};font-size:11px;font-weight:500;letter-spacing:0.02em;line-height:1;color:{Orange};text-align:right;">powered by Tasos</div>
+            </td></tr></table>
             </td></tr>
             <tr><td style="background:{Surface};border:1px solid {Border};border-radius:14px;padding:32px 28px;">
             <h1 style="margin:0 0 18px;font-family:{Font};font-size:22px;line-height:1.3;font-weight:600;color:{Text};">{Encode(content.Heading)}</h1>
@@ -133,7 +139,8 @@ public static class EmailLayout
             text.Append(note).Append("\n\n");
         }
 
-        text.Append("—\nMove Your Ass — προσωπική βιβλιοθήκη προπονήσεων\n")
+        // The same credit the HTML header carries, so the two versions say the same thing.
+        text.Append("—\nMoveYourAss · powered by Tasos\nMove Your Ass — προσωπική βιβλιοθήκη προπονήσεων\n")
             .Append(origin)
             .Append("\nΑυτό το μήνυμα στάλθηκε αυτόματα. Μην απαντήσεις σε αυτή τη διεύθυνση.\n");
 

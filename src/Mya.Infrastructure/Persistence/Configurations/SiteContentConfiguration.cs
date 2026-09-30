@@ -19,6 +19,8 @@ public sealed class SiteContentConfiguration : IEntityTypeConfiguration<SiteCont
         builder.Property(x => x.AboutMarkdown).HasMaxLength(4000);
         builder.Property(x => x.ContactEmail).HasMaxLength(256);
         builder.Property(x => x.Phone).HasMaxLength(40);
+        builder.Property(x => x.BookingUrl).HasMaxLength(200);
+        builder.Property(x => x.SocialLinksJson).HasMaxLength(4000);
         builder.Property(x => x.Instagram).HasMaxLength(200);
         builder.Property(x => x.YouTube).HasMaxLength(200);
         builder.Property(x => x.TikTok).HasMaxLength(200);

@@ -1,79 +1,58 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  HostListener,
-  OnDestroy,
-  inject,
-  signal,
-} from '@angular/core';
-import { FormsModule, NgForm } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
-import { MAX_IMAGE_BYTES, resizeImage } from '../../core/images/image-resize';
-import { NotifyService } from '../../core/ui/notify.service';
 import { VideosApi } from '../../core/videos/videos.api';
 import {
-  UploadHandle,
-  VideoUploadService,
-  captureFrame,
-} from '../../core/videos/video-upload.service';
-import {
-  ACCEPTED_VIDEO_TYPES,
-  Audience,
-  BodyArea,
   STATUS_LABELS,
   StorageUsage,
   Tag,
-  UploadTicket,
   Video,
-  VideoInput,
   VideoPage,
   sizeLabel,
 } from '../../core/videos/video.models';
+import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
+
+/** Videos per page. Also the offset step when the whole page is re-sorted. */
+const PAGE_SIZE = 12;
+
+/**
+ * The trainer's own list of workouts.
+ *
+ * One card per video, and one obvious action on it — publish, or withdraw. Everything else lives
+ * behind the card's own menu. The previous version put ten buttons in a row under each title,
+ * which on a phone wrapped into a block of controls with no visible boundary between one video
+ * and the next; it was impossible to tell at a glance where a workout began, let alone which
+ * "Διαγραφή" belonged to which.
+ *
+ * Editing is a page of its own (admin-video-editor), not a form that unfolds in here.
+ */
 @Component({
   selector: 'app-admin-videos',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, MatIconModule, MatMenuModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-videos.component.html',
   styleUrls: ['./videos.scss', './admin-videos.scss'],
 })
-export class AdminVideosComponent implements OnDestroy {
+export class AdminVideosComponent {
   private readonly api = inject(VideosApi);
-  private readonly uploader = inject(VideoUploadService);
   private readonly confirmDialog = inject(ConfirmDialogService);
-  private readonly notify = inject(NotifyService);
+
   protected readonly page = signal<VideoPage | null>(null);
   protected readonly tags = signal<Tag[]>([]);
   protected readonly busy = signal(false);
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
-  protected readonly editor = signal(false);
-  protected readonly progress = signal<number | null>(null);
-  protected readonly uploading = signal(false);
-  protected readonly paused = signal(false);
   protected readonly note = signal('');
   protected readonly configured = signal(false);
   protected readonly storage = signal<StorageUsage | null>(null);
-  /** The video whose cover is being changed, so only its row shows a busy state. */
-  protected readonly coverBusyId = signal<string | null>(null);
+
   protected readonly status = STATUS_LABELS;
   protected readonly size = sizeLabel;
   protected search = '';
   protected pageNumber = 1;
-  protected editing: Video | null = null;
-  protected recovering = false;
-  protected title = '';
-  protected description = '';
-  protected audience: Audience | '' = '';
-  protected bodyArea: BodyArea | '' = '';
-  protected equipment: boolean | null = null;
-  protected tagIds: string[] = [];
-  protected newTag = '';
-  protected file: File | null = null;
-  private creationKey = crypto.randomUUID();
-  private createdId: string | null = null;
-  private upload: UploadHandle | null = null;
 
   /** Percentage of the storage allowance in use, for the bar and its warning band. */
   protected get storagePercent(): number {
@@ -93,19 +72,13 @@ export class AdminVideosComponent implements OnDestroy {
     void this.loadSummary();
   }
 
-  protected recover(video: Video): void {
-    this.open(video);
-    this.recovering = true;
-    this.createdId = video.id;
-  }
-
   protected async load(page = this.pageNumber): Promise<void> {
     this.pageNumber = page;
     this.loading.set(true);
     this.failed.set(false);
     try {
       this.page.set(
-        await firstValueFrom(this.api.list({ page, pageSize: 12, search: this.search }, true)),
+        await firstValueFrom(this.api.list({ page, pageSize: PAGE_SIZE, search: this.search }, true)),
       );
     } catch {
       this.failed.set(true);
@@ -132,70 +105,13 @@ export class AdminVideosComponent implements OnDestroy {
     }
   }
 
-  protected open(video: Video | null = null): void {
-    if (this.uploading() || this.paused()) return;
-    this.recovering = false;
-    this.editing = video;
-    this.title = video?.title ?? '';
-    this.description = video?.description ?? '';
-    this.audience = video?.audience ?? '';
-    this.bodyArea = video?.bodyArea ?? '';
-    this.equipment = video?.requiresEquipment ?? null;
-    this.tagIds = video?.tags.map((t) => t.id) ?? [];
-    this.file = null;
-    this.createdId = null;
-    this.creationKey = crypto.randomUUID();
-    this.progress.set(null);
-    this.note.set('');
-    this.editor.set(true);
-  }
-
-  protected close(): void {
-    if (!this.uploading() && !this.paused() && !this.busy()) this.editor.set(false);
-  }
-
-  protected choose(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
-    this.file = null;
-    if (!file) {
-      this.note.set('');
-      return;
-    }
-    // The same two rules the API enforces, said early so the trainer is not left waiting.
-    if (!(ACCEPTED_VIDEO_TYPES as readonly string[]).includes(file.type)) {
-      this.note.set(
-        'Δεκτά αρχεία: MP4 ή MOV. Στο iPhone επίλεξε Ρυθμίσεις → Κάμερα → Μορφές → «Μέγιστη συμβατότητα».',
-      );
-      return;
-    }
-    const limit = this.storage()?.maxFileBytes ?? 0;
-    if (!file.size || (limit > 0 && file.size > limit)) {
-      this.note.set(`Το αρχείο είναι πολύ μεγάλο. Όριο: ${sizeLabel(limit)}.`);
-      return;
-    }
-    this.file = file;
-    this.note.set('');
-  }
-
-  protected toggleTag(id: string): void {
-    this.tagIds = this.tagIds.includes(id)
-      ? this.tagIds.filter((x) => x !== id)
-      : [...this.tagIds, id];
-  }
-
-  protected async addTag(): Promise<void> {
-    if (!this.newTag.trim() || this.busy()) return;
-    this.busy.set(true);
-    try {
-      const t = await firstValueFrom(this.api.addTag(this.newTag.trim()));
-      await this.loadTags();
-      if (!this.tagIds.includes(t.id)) this.tagIds.push(t.id);
-      this.newTag = '';
-    } catch {
-      this.note.set('Δεν αποθηκεύτηκε η ετικέτα.');
-    } finally {
-      this.busy.set(false);
-    }
+  /** The one line of facts under a title: how long, how big, when it was added. */
+  protected meta(video: Video): string {
+    const parts: string[] = [];
+    if (video.durationSeconds) parts.push(duration(video.durationSeconds));
+    if (video.sizeBytes) parts.push(sizeLabel(video.sizeBytes));
+    parts.push(new Date(video.createdAtUtc).toLocaleDateString('el-GR'));
+    return parts.join(' · ');
   }
 
   protected async removeTag(tag: Tag): Promise<void> {
@@ -210,245 +126,14 @@ export class AdminVideosComponent implements OnDestroy {
     try {
       await firstValueFrom(this.api.deleteTag(tag.id));
       await this.loadTags();
-      this.tagIds = this.tagIds.filter((x) => x !== tag.id);
     } catch {
       this.note.set('Η ετικέτα χρησιμοποιείται ή άλλαξε. Ανανέωσε τη λίστα.');
     }
   }
 
-  protected async save(form: NgForm): Promise<void> {
-    if (this.busy() || this.uploading() || this.paused()) return;
-    if (
-      form.invalid ||
-      !this.audience ||
-      !this.bodyArea ||
-      this.equipment === null ||
-      ((!this.editing || this.recovering) && !this.file)
-    ) {
-      form.control.markAllAsTouched();
-      this.note.set('Συμπλήρωσε τίτλο, κατηγορίες, εξοπλισμό και αρχείο βίντεο.');
-      return;
-    }
-    const input: VideoInput = {
-      title: this.title,
-      description: this.description || null,
-      audience: this.audience,
-      bodyArea: this.bodyArea,
-      requiresEquipment: this.equipment,
-      tagIds: this.tagIds,
-      revision: this.editing?.revision,
-    };
-    this.busy.set(true);
-    this.note.set('');
-    try {
-      if (this.editing && !this.recovering) {
-        await firstValueFrom(this.api.update(this.editing.id, input));
-        this.editor.set(false);
-        await this.load();
-        return;
-      }
-      const file = this.file!;
-      const request = { contentType: file.type, sizeBytes: file.size };
-      if (this.editing && this.recovering) {
-        await firstValueFrom(this.api.update(this.editing.id, input));
-      }
-      let ticket;
-      if (this.createdId) ticket = await firstValueFrom(this.api.upload(this.createdId, request));
-      else {
-        const result = await firstValueFrom(this.api.create(input, request, this.creationKey));
-        this.createdId = result.id;
-        ticket = result.upload;
-      }
-      if (!ticket) {
-        this.note.set('Το βίντεο έχει ήδη δημιουργηθεί. Ανανέωσε τη λίστα για την κατάστασή του.');
-        await this.load();
-        return;
-      }
-      this.startUpload(file, ticket);
-    } catch {
-      this.note.set('Δεν ολοκληρώθηκε η ενέργεια. Ανανέωσε τη λίστα πριν αλλάξεις τα στοιχεία.');
-    } finally {
-      this.busy.set(false);
-    }
-  }
-
-  private startUpload(file: File, ticket: UploadTicket): void {
-    this.uploading.set(true);
-    this.paused.set(false);
-    this.progress.set(0);
-    this.upload = this.uploader.start(file, ticket, {
-      progress: (value) => this.progress.set(value),
-      done: () => void this.finish(file, ticket.thumbnailUploadUrl),
-      failed: (message) => {
-        this.uploading.set(false);
-        this.paused.set(true);
-        this.note.set(message);
-      },
-    });
-  }
-
-  /**
-   * The server completes and verifies the upload. A poster frame is best effort: a browser that
-   * cannot decode the recording simply sends none, and the library shows the placeholder.
-   */
-  private async finish(file: File, thumbnailUrl: string): Promise<void> {
-    const id = this.createdId!;
-    this.note.set('Ολοκλήρωση ανεβάσματος…');
-    let thumbnailUploaded = false;
-    let duration: number | null = null;
-    try {
-      const captured = await captureFrame(file);
-      duration = captured.duration;
-      if (captured.frame) {
-        thumbnailUploaded = await this.uploader.uploadThumbnail(thumbnailUrl, captured.frame);
-      }
-    } catch {
-      thumbnailUploaded = false;
-    }
-    try {
-      await firstValueFrom(this.api.completeUpload(id, thumbnailUploaded, duration));
-      this.uploading.set(false);
-      this.paused.set(false);
-      this.upload = null;
-      this.note.set('Το βίντεο ανέβηκε. Κάνε προεπισκόπηση και μετά δημοσίευσέ το.');
-      this.editor.set(false);
-    } catch {
-      this.uploading.set(false);
-      this.paused.set(true);
-      this.note.set('Το ανέβασμα δεν επιβεβαιώθηκε. Πάτησε «Συνέχεια» για νέα προσπάθεια.');
-    }
-    await this.load();
-    await this.loadSummary();
-  }
-
-  protected pause(): void {
-    this.upload?.pause();
-    this.upload = null;
-    this.uploading.set(false);
-    this.paused.set(true);
-    this.note.set('Σε παύση. Πάτησε «Συνέχεια» για να συνεχίσει από εκεί που έμεινε.');
-  }
-
-  /** Resume asks the API for a fresh ticket, so it also survives an expired part URL. */
-  protected async resume(): Promise<void> {
-    if (!this.file || !this.createdId || this.busy()) return;
-    this.busy.set(true);
-    this.note.set('');
-    try {
-      const ticket = await firstValueFrom(
-        this.api.upload(this.createdId, { contentType: this.file.type, sizeBytes: this.file.size }),
-      );
-      this.paused.set(false);
-      this.startUpload(this.file, ticket);
-    } catch {
-      this.note.set('Δεν ήταν δυνατή η συνέχιση. Ανανέωσε τη λίστα και δοκίμασε ξανά.');
-    } finally {
-      this.busy.set(false);
-    }
-  }
-
-  protected async cancelUpload(): Promise<void> {
-    const ok = await this.confirmDialog.confirm({
-      title: 'Διακοπή ανεβάσματος',
-      message: 'Να σταματήσει το ανέβασμα;',
-      detail: 'Το πρόχειρο βίντεο παραμένει στη λίστα και μπορείς να ξαναδοκιμάσεις αργότερα.',
-      confirmLabel: 'Διακοπή',
-      cancelLabel: 'Συνέχιση ανεβάσματος',
-      destructive: true,
-    });
-    if (!ok) return;
-    this.upload?.cancel();
-    this.upload = null;
-    this.uploading.set(false);
-    this.paused.set(false);
-    this.editor.set(false);
-    if (this.createdId) {
-      // Abandon the multipart upload so its parts stop using the storage allowance.
-      try {
-        await firstValueFrom(this.api.abortUpload(this.createdId));
-      } catch {
-        this.note.set('Το ανέβασμα σταμάτησε, αλλά το πρόχειρο χρειάζεται έλεγχο.');
-      }
-    }
-    await this.load();
-    await this.loadSummary();
-  }
-
-  /**
-   * Uploads a cover image for one video: resize, presign, PUT, confirm.
-   *
-   * The picture is shrunk before it leaves the browser. A phone photo is several megabytes and
-   * several thousand pixels wide; as a card cover it is displayed a few hundred wide, so sending
-   * the original would spend the storage allowance and every client's data on nothing.
-   */
-  protected async chooseCover(video: Video, event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file || this.coverBusyId()) return;
-
-    this.coverBusyId.set(video.id);
-    try {
-      const resized = await resizeImage(file);
-      if (resized === 'type') {
-        this.notify.error('Δεκτές εικόνες: JPG, PNG ή WebP.');
-        return;
-      }
-      if (resized === 'size') {
-        this.notify.error(`Η εικόνα ξεπερνά τα ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)} MB.`);
-        return;
-      }
-      if (resized === 'decode') {
-        this.notify.error('Η εικόνα δεν διαβάστηκε. Δοκίμασε άλλο αρχείο.');
-        return;
-      }
-
-      const ticket = await firstValueFrom(
-        this.api.coverTicket(video.id, resized.contentType, resized.blob.size),
-      );
-      const stored = await putBlob(ticket.uploadUrl, resized.blob);
-      if (!stored) {
-        this.notify.error('Η εικόνα δεν ανέβηκε. Δοκίμασε ξανά.');
-        return;
-      }
-
-      await firstValueFrom(this.api.confirmCover(video.id, ticket.objectKey));
-      await this.load();
-      await this.loadSummary();
-      this.notify.success('Η εικόνα εξωφύλλου ενημερώθηκε.');
-    } catch {
-      // Reported by the error interceptor.
-    } finally {
-      this.coverBusyId.set(null);
-    }
-  }
-
-  /** Removes the cover; the card falls back to the captured frame, then to the placeholder. */
-  protected async removeCover(video: Video): Promise<void> {
-    if (this.coverBusyId()) return;
-    const ok = await this.confirmDialog.confirm({
-      title: 'Αφαίρεση εικόνας',
-      message: `Να αφαιρεθεί η εικόνα εξωφύλλου από το «${video.title}»;`,
-      detail: 'Θα χρησιμοποιηθεί ξανά το καρέ που κρατήθηκε κατά το ανέβασμα, αν υπάρχει.',
-      confirmLabel: 'Αφαίρεση',
-      destructive: true,
-    });
-    if (!ok) return;
-
-    this.coverBusyId.set(video.id);
-    try {
-      await firstValueFrom(this.api.removeCover(video.id));
-      await this.load();
-      await this.loadSummary();
-    } catch {
-      // Reported by the error interceptor.
-    } finally {
-      this.coverBusyId.set(null);
-    }
-  }
-
   protected async action(video: Video, action: 'publish' | 'delete' | 'refresh'): Promise<void> {
-    if (this.busy() || this.uploading() || this.paused()) return;
+    if (this.busy()) return;
+
     if (action === 'delete') {
       const ok = await this.confirmDialog.confirm({
         title: 'Οριστική διαγραφή βίντεο',
@@ -459,6 +144,7 @@ export class AdminVideosComponent implements OnDestroy {
       });
       if (!ok) return;
     }
+
     if (action === 'publish') {
       const withdrawing = video.isPublished;
       const ok = await this.confirmDialog.confirm({
@@ -474,6 +160,7 @@ export class AdminVideosComponent implements OnDestroy {
       });
       if (!ok) return;
     }
+
     this.busy.set(true);
     try {
       await firstValueFrom(
@@ -498,8 +185,10 @@ export class AdminVideosComponent implements OnDestroy {
     const index = items.findIndex((x) => x.id === video.id);
     const other = items[index + direction];
     if (!other || this.busy()) return;
+
     const sorted = [...items];
     [sorted[index], sorted[index + direction]] = [sorted[index + direction], sorted[index]];
+
     this.busy.set(true);
     try {
       await firstValueFrom(
@@ -507,7 +196,7 @@ export class AdminVideosComponent implements OnDestroy {
           sorted.map((v, i) => ({
             id: v.id,
             revision: v.revision,
-            sortOrder: (this.pageNumber - 1) * 12 + i,
+            sortOrder: (this.pageNumber - 1) * PAGE_SIZE + i,
           })),
         ),
       );
@@ -518,43 +207,11 @@ export class AdminVideosComponent implements OnDestroy {
       this.busy.set(false);
     }
   }
-
-  /**
-   * The router guard awaits this. A dialog rather than a browser confirm, which the guard can do
-   * because CanDeactivate accepts a promise.
-   */
-  async canLeave(): Promise<boolean> {
-    if (!this.uploading() && !this.paused()) {
-      return true;
-    }
-
-    return this.confirmDialog.confirm({
-      title: 'Ημιτελές ανέβασμα',
-      message: 'Υπάρχει ανέβασμα σε εξέλιξη. Αν φύγεις τώρα θα διακοπεί.',
-      detail: 'Μπορείς να το συνεχίσεις αργότερα από το πρόχειρο βίντεο, επιλέγοντας ξανά το αρχείο.',
-      confirmLabel: 'Έξοδος',
-      cancelLabel: 'Παραμονή',
-      destructive: true,
-    });
-  }
-
-  @HostListener('window:beforeunload', ['$event']) protected warn(event: BeforeUnloadEvent): void {
-    if (this.uploading() || this.paused()) event.preventDefault();
-  }
-
-  ngOnDestroy(): void {
-    this.upload?.cancel();
-  }
 }
 
-/** Straight PUT to a presigned URL, the same shape the video parts use. */
-function putBlob(url: string, body: Blob): Promise<boolean> {
-  return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url, true);
-    xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
-    xhr.onerror = () => resolve(false);
-    xhr.ontimeout = () => resolve(false);
-    xhr.send(body);
-  });
+/** m:ss, which is how a workout's length is read. */
+function duration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return `${minutes}:${rest.toString().padStart(2, '0')}`;
 }

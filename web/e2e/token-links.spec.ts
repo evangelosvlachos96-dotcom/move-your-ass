@@ -35,7 +35,10 @@ test.describe('password token links end the current session', () => {
       );
     }
 
-    await page.waitForURL(/\/dashboard/, { timeout: 20_000, waitUntil: 'commit' });
+    // 45s, not 20: signing in is a round trip plus a full app bootstrap, and WebKit on this
+  // machine regularly needs more than twenty seconds for it. A sign-in slower than this is a
+  // real problem; twenty seconds was only ever a guess.
+  await page.waitForURL(/\/dashboard/, { timeout: 45_000, waitUntil: 'commit' });
     await expect(page.locator('app-shell')).toBeAttached();
   }
 
@@ -47,14 +50,18 @@ test.describe('password token links end the current session', () => {
    * whether the session exists. This asks the server directly with the same cookie jar.
    */
   async function refreshStatus(page: Page): Promise<number> {
-    const response = await page.context().request.post('/api/auth/refresh', { failOnStatusCode: false });
+    const response = await page
+      .context()
+      .request.post('/api/auth/refresh', { failOnStatusCode: false });
     return response.status();
   }
 
   for (const route of ['/set-password', '/reset-password']) {
     test(`${route} signs the previous account out`, async ({ page }) => {
       await signInAsAdmin(page);
-      expect(await refreshStatus(page), 'the admin session should be live before we start').toBe(200);
+      expect(await refreshStatus(page), 'the admin session should be live before we start').toBe(
+        200,
+      );
 
       // A token link, of the shape the emails send: the credential lives in the fragment.
       await page.goto(`${route}#token=${'A'.repeat(64)}`);
@@ -69,12 +76,14 @@ test.describe('password token links end the current session', () => {
 
       // Navigating to the dashboard must now land on login, never inside the admin's account.
       await page.goto('/dashboard');
-      await page.waitForURL(/\/login/, { timeout: 20_000 });
+      await page.waitForURL(/\/login/, { timeout: 45_000 });
       await expect(page.locator('input[formControlName="email"]')).toBeVisible();
     });
   }
 
-  test('a second tab of the old session does not stay half-authenticated', async ({ browser }, testInfo) => {
+  test('a second tab of the old session does not stay half-authenticated', async ({
+    browser,
+  }, testInfo) => {
     const context = await browser.newContext({
       baseURL: testInfo.project.use.baseURL,
       viewport: testInfo.project.use.viewport,
@@ -95,7 +104,7 @@ test.describe('password token links end the current session', () => {
       await expect(first.locator('mat-card')).toBeVisible();
 
       // The other tab is told over the shared channel and returns to login on its own.
-      await second.waitForURL(/\/login/, { timeout: 20_000 });
+      await second.waitForURL(/\/login/, { timeout: 45_000 });
     } finally {
       await context.close();
     }

@@ -44,9 +44,6 @@
       </div>
       <div class="dashboard__card-actions">
         <a mat-flat-button routerLink="/about">Ο γυμναστής σου</a>
-        <button mat-button type="button" [disabled]="testEmailBusy()" (click)="sendTestEmail()">
-          {{ testEmailBusy() ? 'Αποστολή…' : 'Αποστολή δοκιμαστικού email' }}
-        </button>
       </div>
     </mat-card-content></mat-card>
   } @else { <app-video-library /> }

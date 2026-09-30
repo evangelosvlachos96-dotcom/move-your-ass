@@ -43,8 +43,16 @@ public static class ServiceCollectionExtensions
     private const int DefaultPerUserWritePermitLimit = 5;
     private static readonly TimeSpan PerUserWriteWindow = TimeSpan.FromMinutes(10);
 
-    /// <summary>Backstop across every IP for one email. Generous: a real person never meets it.</summary>
-    private const int AuthGlobalPermitLimit = 50;
+    /// <summary>
+    /// Backstop across every IP for one email. Generous: a real person never meets it.
+    ///
+    /// Configurable for the same reason the per-IP limit is: the end-to-end suite signs the admin
+    /// in roughly forty times per run, across five browser projects, and two runs inside an hour
+    /// met a limit that exists to stop distributed guessing rather than to stop a test. Production
+    /// keeps the default.
+    /// </summary>
+    private const string AuthGlobalLimitKey = "RateLimits:AuthGlobalPermitLimit";
+    private const int DefaultAuthGlobalPermitLimit = 50;
     private static readonly TimeSpan AuthGlobalWindow = TimeSpan.FromHours(1);
     private static readonly TimeSpan JwtClockSkew = TimeSpan.FromSeconds(30);
 
@@ -160,6 +168,7 @@ public static class ServiceCollectionExtensions
         // could reason about.
         var authPermitLimit = configuration.GetValue(AuthPermitLimitKey, DefaultAuthPermitLimit);
         var perUserWriteLimit = configuration.GetValue(PerUserWriteLimitKey, DefaultPerUserWritePermitLimit);
+        var authGlobalLimit = configuration.GetValue(AuthGlobalLimitKey, DefaultAuthGlobalPermitLimit);
 
         services.AddRateLimiter(options =>
         {
@@ -220,7 +229,7 @@ public static class ServiceCollectionExtensions
                         AuthRateLimitKeyMiddleware.EmailOnlyPartitionKey(httpContext),
                         _ => new FixedWindowRateLimiterOptions
                         {
-                            PermitLimit = AuthGlobalPermitLimit,
+                            PermitLimit = authGlobalLimit,
                             Window = AuthGlobalWindow,
                             QueueLimit = 0,
                             AutoReplenishment = true,

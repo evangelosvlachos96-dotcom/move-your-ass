@@ -12,7 +12,6 @@ public static class OutboxMessageTypes
     public const string AccountDeclined = "AccountDeclined";
     public const string PasswordReset = "PasswordReset";
     public const string ContactMessage = "ContactMessage";
-    public const string TestEmail = "TestEmail";
 }
 
 public sealed record PasswordInvitationPayload(string To, string FirstName, string Token, DateTime ExpiresAtUtc);
@@ -29,7 +28,6 @@ public sealed record AccountDeclinedPayload(string To, string FirstName, string?
 public sealed record ContactMessagePayload(string To, string ReplyTo, string SenderName, string SenderEmail, string Subject, string Message);
 
 /// <summary>An admin proving delivery works, to their own address.</summary>
-public sealed record TestEmailPayload(string To, string FirstName);
 
 /// <summary>
 /// Builds account notification and invitation emails. Handlers add these in the same
@@ -90,12 +88,6 @@ public static class EmailOutbox
             new ContactMessagePayload(to, sender.Email, $"{sender.FirstName} {sender.LastName}".Trim(), sender.Email, subject, message),
             nowUtc,
             subjectUserId: fingerprint);
-    }
-
-    public static OutboxMessage TestEmail(UserAccount admin, DateTime nowUtc)
-    {
-        ArgumentNullException.ThrowIfNull(admin);
-        return Create(OutboxMessageTypes.TestEmail, new TestEmailPayload(admin.Email, admin.FirstName), nowUtc, admin.Id);
     }
 
     public static T Deserialize<T>(string payloadJson) =>

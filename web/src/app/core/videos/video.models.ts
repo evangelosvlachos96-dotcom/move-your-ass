@@ -21,6 +21,8 @@ export interface Video {
   /** True when the trainer uploaded a cover, as opposed to a frame captured at upload. */
   hasCustomCover: boolean;
   sizeBytes: number | null;
+  /** UTC, as everything on the wire is. Shown in Europe/Athens by the browser. */
+  createdAtUtc: string;
   revision: string;
   tags: Tag[];
 }

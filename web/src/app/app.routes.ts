@@ -43,9 +43,17 @@ export const routes: Routes = [
     loadComponent: () => import('./layout/shell.component').then((m) => m.ShellComponent),
     children: [
       { path: 'about', canActivate: [mustChangePasswordGuard], loadComponent: () => import('./features/about/about.component').then(m => m.AboutComponent) },
+      // Editing the trainer's page is a route of its own, with the same unsaved-changes guard
+      // the video editor uses. Admin only, and the endpoints behind it are admin only too.
+      { path: 'about/edit', canActivate: [mustChangePasswordGuard, roleGuard('Admin')], canDeactivate: [(component: { canLeave(): Promise<boolean> }) => component.canLeave()], loadComponent: () => import('./features/about/about-editor.component').then(m => m.AboutEditorComponent) },
       { path: 'videos', canActivate: [mustChangePasswordGuard], loadComponent: () => import('./features/videos/library.component').then(m => m.VideoLibraryComponent) },
       { path: 'videos/:id', canActivate: [mustChangePasswordGuard], loadComponent: () => import('./features/videos/player.component').then(m => m.VideoPlayerComponent) },
-      { path: 'admin/videos', canActivate: [mustChangePasswordGuard, roleGuard('Admin')], canDeactivate: [(component: { canLeave(): Promise<boolean> }) => component.canLeave()], loadComponent: () => import('./features/videos/admin-videos.component').then(m => m.AdminVideosComponent) },
+      { path: 'admin/videos', canActivate: [mustChangePasswordGuard, roleGuard('Admin')], loadComponent: () => import('./features/videos/admin-videos.component').then(m => m.AdminVideosComponent) },
+      // 'new' before ':id', or the editor for a brand-new video would be read as a video whose id
+      // is the word "new". The unsaved-changes guard lives on the editor, which is the only place
+      // that now holds unsaved work.
+      { path: 'admin/videos/new', canActivate: [mustChangePasswordGuard, roleGuard('Admin')], canDeactivate: [(component: { canLeave(): Promise<boolean> }) => component.canLeave()], loadComponent: () => import('./features/videos/admin-video-editor.component').then(m => m.AdminVideoEditorComponent) },
+      { path: 'admin/videos/:id/edit', canActivate: [mustChangePasswordGuard, roleGuard('Admin')], canDeactivate: [(component: { canLeave(): Promise<boolean> }) => component.canLeave()], loadComponent: () => import('./features/videos/admin-video-editor.component').then(m => m.AdminVideoEditorComponent) },
       { path: 'admin/videos/:id', data: { admin: true }, canActivate: [mustChangePasswordGuard, roleGuard('Admin')], loadComponent: () => import('./features/videos/player.component').then(m => m.VideoPlayerComponent) },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {

@@ -240,7 +240,7 @@ public sealed class UserService(UserManager<AppUser> userManager, AppDbContext d
         (await userManager.UpdateSecurityStampAsync(user)).ThrowIfFailed("rotate the security stamp");
     }
 
-    public async Task SetStatusAsync(string userId, UserStatus status, string? reason, string? actorUserId, CancellationToken cancellationToken)
+    public async Task<bool> SetStatusAsync(string userId, UserStatus status, string? reason, string? actorUserId, CancellationToken cancellationToken)
     {
         var user = await RequireAsync(userId);
         var now = clock.UtcNow;
@@ -273,7 +273,7 @@ public sealed class UserService(UserManager<AppUser> userManager, AppDbContext d
         }
 
         user.Status = status;
-        (await userManager.UpdateAsync(user)).ThrowIfFailed($"set status {status}");
+        return (await userManager.UpdateAsync(user)).SucceededOrLostRace($"set status {status}");
     }
 
     public async Task SetMustChangePasswordAsync(string userId, bool mustChangePassword, CancellationToken cancellationToken)

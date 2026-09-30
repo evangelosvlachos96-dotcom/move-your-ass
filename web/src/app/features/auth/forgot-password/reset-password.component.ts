@@ -37,7 +37,7 @@ import {
   template: `
     <div class="auth-page">
       <div class="auth-page__panel">
-        <app-brand-logo class="auth-page__logo" />
+        <app-brand-logo class="auth-page__logo" [phoneCompact]="true" />
 
         <mat-card class="auth-page__card" appearance="outlined">
           <mat-card-header class="auth-page__header">

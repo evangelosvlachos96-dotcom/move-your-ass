@@ -35,7 +35,6 @@ public sealed class EmailTemplateTests
         { OutboxMessageTypes.AccountApproved, new AccountApprovedPayload("a@example.test", "Μαρία") },
         { OutboxMessageTypes.AccountDeclined, new AccountDeclinedPayload("a@example.test", "Μαρία", "Διπλή εγγραφή") },
         { OutboxMessageTypes.ContactMessage, new ContactMessagePayload("coach@example.test", "m@example.test", "Μαρία Παπά", "m@example.test", "Ερώτηση", "Το μήνυμά μου.") },
-        { OutboxMessageTypes.TestEmail, new TestEmailPayload("admin@example.test", "Τάσος") },
     };
 
     [Theory]
@@ -60,9 +59,28 @@ public sealed class EmailTemplateTests
         message.Html.ShouldContain("#f5f5f0");
         message.Html.ShouldContain("Move Your Ass");
 
+        // "powered by Tasos" is real text in the header, not baked into the PNG, so it is crisp
+        // and still there when the client blocks images.
+        message.Html.ShouldContain("powered by Tasos");
+        message.Html.ShouldContain("#ff8a3d");
+
         message.Text.ShouldNotBeNullOrWhiteSpace();
         message.Text.ShouldNotContain("<");
         message.Text.ShouldContain("Move Your Ass");
+        // The plain-text version says the same thing rather than quietly dropping the credit.
+        message.Text.ShouldContain("MoveYourAss · powered by Tasos");
+    }
+
+    [Theory]
+    [MemberData(nameof(AllTemplates))]
+    public void The_header_still_reads_as_the_brand_with_images_blocked(string type, object payload)
+    {
+        var message = Templates().Render(Message(type, payload));
+
+        // Everything a client shows when it refuses to load the PNG: the alt text and the credit
+        // beneath it, both as text in the document.
+        message.Html.ShouldContain("alt=\"Move Your Ass\"");
+        message.Html.ShouldContain(">powered by Tasos<");
     }
 
     [Theory]
@@ -147,7 +165,7 @@ public sealed class EmailTemplateTests
     [Fact]
     public void Only_the_contact_message_sets_a_reply_to()
     {
-        Templates().Render(Message(OutboxMessageTypes.TestEmail, new TestEmailPayload("a@example.test", "Τάσος")))
+        Templates().Render(Message(OutboxMessageTypes.AccountDeclined, new AccountDeclinedPayload("a@example.test", "Μαρία", null)))
             .ReplyTo.ShouldBeNull();
         Templates().Render(Message(OutboxMessageTypes.AccountApproved, new AccountApprovedPayload("a@example.test", "Μαρία")))
             .ReplyTo.ShouldBeNull();

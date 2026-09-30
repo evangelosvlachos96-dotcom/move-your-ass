@@ -24,7 +24,17 @@ const CLIENT = {
 /** Routes reachable without signing in. */
 const PUBLIC_ROUTES = ['/login', '/register', '/pending', '/forgot-password', '/reset-password'];
 
-const ADMIN_ROUTES = ['/dashboard', '/videos', '/about', '/admin/videos', '/admin/users', '/profile', '/change-password'];
+const ADMIN_ROUTES = [
+  '/dashboard',
+  '/videos',
+  '/about',
+  '/about/edit',
+  '/admin/videos',
+  '/admin/videos/new',
+  '/admin/users',
+  '/profile',
+  '/change-password',
+];
 
 const CLIENT_ROUTES = ['/dashboard', '/videos', '/about', '/profile', '/change-password'];
 
@@ -63,9 +73,10 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
       const right = element.getBoundingClientRect().right;
       if (right > worst.right) {
         const id = element.id ? `#${element.id}` : '';
-        const cls = typeof element.className === 'string' && element.className
-          ? `.${element.className.trim().split(/\s+/).join('.')}`
-          : '';
+        const cls =
+          typeof element.className === 'string' && element.className
+            ? `.${element.className.trim().split(/\s+/).join('.')}`
+            : '';
         worst = { selector: `${element.tagName.toLowerCase()}${id}${cls}`, right };
       }
     }
@@ -85,7 +96,10 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
  */
 async function settle(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
-  await page.locator('app-shell, .auth-page, mat-card').first().waitFor({ state: 'visible' });
+  await page
+    .locator('app-shell, .auth-page, mat-card, .about, .editor-page')
+    .first()
+    .waitFor({ state: 'visible' });
   // A route inside the shell renders its own content after the shell appears, so waiting for
   // the shell alone can measure an empty page. Wait for the loading state to clear too.
   await page
@@ -93,6 +107,9 @@ async function settle(page: Page): Promise<void> {
     .first()
     .waitFor({ state: 'detached' })
     .catch(() => undefined);
+  // The icon font changes what a mat-icon measures: before it loads the element holds the
+  // literal text "account_circle", which is a different size from the glyph it becomes.
+  await page.evaluate(() => document.fonts?.ready);
   // One frame, so layout has been applied before anything is measured.
   await page.evaluate(() => new Promise(requestAnimationFrame));
 }
@@ -153,7 +170,10 @@ function signedInAs(credentials: { email?: string; password?: string }): () => P
       );
     }
 
-    await page.waitForURL(/\/(dashboard|change-password)/, { timeout: 20_000, waitUntil: 'commit' });
+    await page.waitForURL(/\/(dashboard|change-password)/, {
+      timeout: 20_000,
+      waitUntil: 'commit',
+    });
     await settle(page);
   });
 
@@ -279,15 +299,26 @@ test.describe('signed in as admin', () => {
     await page.goto('/dashboard');
     await settle(page);
 
-    const button = await page.locator('.shell__user').boundingBox();
-    const icon = await page.locator('.shell__user-icon').boundingBox();
+    // Measured as the four gaps between the glyph and the circle around it, rather than as two
+    // centre points: when this fails, the gaps say which side it is leaning to.
+    const gaps = await page.locator('.shell__user').evaluate((el) => {
+      const outer = el.getBoundingClientRect();
+      const inner = el.querySelector('mat-icon')!.getBoundingClientRect();
+      const round = (n: number) => Math.round(n * 100) / 100;
+      return {
+        left: round(inner.left - outer.left),
+        right: round(outer.right - inner.right),
+        top: round(inner.top - outer.top),
+        bottom: round(outer.bottom - inner.bottom),
+        button: round(outer.height),
+        icon: round(inner.height),
+      };
+    });
 
-    const buttonCentre = { x: button!.x + button!.width / 2, y: button!.y + button!.height / 2 };
-    const iconCentre = { x: icon!.x + icon!.width / 2, y: icon!.y + icon!.height / 2 };
-
+    const detail = JSON.stringify(gaps);
     // One pixel of tolerance for sub-pixel layout; anything more is visible as an off-centre glyph.
-    expect(Math.abs(buttonCentre.x - iconCentre.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(buttonCentre.y - iconCentre.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(gaps.left - gaps.right), detail).toBeLessThanOrEqual(1);
+    expect(Math.abs(gaps.top - gaps.bottom), detail).toBeLessThanOrEqual(1);
 
     // And it is the generic account icon, never a photograph.
     await expect(page.locator('.shell__user-icon')).toHaveText('account_circle');
@@ -299,10 +330,20 @@ test.describe('signed in as admin', () => {
     await page.goto('/about');
     await settle(page);
 
-    await expect(page.getByRole('button', { name: 'Επεξεργασία' })).toBeVisible();
+    // Editing is its own route now, so this is a link rather than a mode toggle.
+    const edit = page.getByRole('link', { name: 'Επεξεργασία' });
+    await expect(edit).toBeVisible();
     // The portrait belongs to the page, not the shell.
-    await expect(page.locator('.about__portrait')).toBeVisible();
+    await expect(page.locator('.about-hero__portrait')).toBeVisible();
     await expect(page.locator('.shell__user img')).toHaveCount(0);
+
+    await edit.click();
+    await expect(page).toHaveURL(/\/about\/edit/);
+    await expect(page.getByRole('heading', { name: 'Επεξεργασία σελίδας' })).toBeVisible();
+
+    // And there is a way back that is not the browser's own button.
+    await page.getByRole('button', { name: 'Πίσω' }).click();
+    await expect(page).toHaveURL(/\/about$/);
   });
 
   test('a destructive action opens the branded dialog, never a browser one', async () => {
@@ -311,9 +352,11 @@ test.describe('signed in as admin', () => {
     await page.goto('/admin/videos');
     await settle(page);
 
-    const deleteButton = page.getByRole('button', { name: 'Διαγραφή' }).first();
-    test.skip(!(await deleteButton.count()), 'no video in the library to delete');
+    const menu = page.locator('.vcard__more').first();
+    test.skip(!(await menu.count()), 'no video in the library to delete');
 
+    await menu.click();
+    const deleteButton = page.getByRole('menuitem', { name: 'Διαγραφή' });
     await deleteButton.click();
 
     const dialog = page.locator('.confirm');
@@ -343,7 +386,7 @@ test.describe('signed in as client', () => {
     await page.goto('/about');
     await settle(page);
 
-    await expect(page.getByRole('button', { name: 'Επεξεργασία' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Επεξεργασία' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Αλλαγή φωτογραφίας' })).toHaveCount(0);
     await expect(page.getByRole('textbox', { name: 'Θέμα' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Αποστολή' })).toBeVisible();

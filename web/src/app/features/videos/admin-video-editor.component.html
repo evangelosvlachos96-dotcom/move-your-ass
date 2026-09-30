@@ -1,0 +1,227 @@
+<section class="editor-page plain-form">
+  <header class="editor-page__header">
+    <button type="button" class="editor-page__back" (click)="cancel()">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      <span>Πίσω</span>
+    </button>
+    <h1>{{ heading }}</h1>
+  </header>
+
+  @if (loading()) {
+    <p role="status">Φόρτωση…</p>
+  } @else if (failed()) {
+    <p class="editor-card editor-card--alert" role="alert">
+      Δεν φορτώθηκε το βίντεο. Γύρνα πίσω και δοκίμασε ξανά.
+    </p>
+  } @else {
+    @if (!configured() && needsFile) {
+      <p class="editor-card editor-card--alert" role="status">
+        <strong>Το ανέβασμα βίντεο είναι απενεργοποιημένο.</strong>
+        Ο αποθηκευτικός χώρος δεν έχει ρυθμιστεί σε αυτό το περιβάλλον. Μπορείς να οργανώσεις τον
+        κατάλογο και τις ετικέτες κανονικά. Ζήτησε από τον διαχειριστή του συστήματος να
+        συμπληρώσει τις ρυθμίσεις <code>Video:S3</code>.
+      </p>
+    }
+
+    @if (note()) {
+      <p class="editor-card editor-card--note" role="status">{{ note() }}</p>
+    }
+
+    <form class="editor-form" #form="ngForm" (ngSubmit)="save(form)">
+      <fieldset class="editor-fieldset" [disabled]="busy() || uploading() || paused()">
+        <!-- Βασικά στοιχεία -->
+        <section class="editor-card">
+          <h2 class="editor-card__title">Βασικά στοιχεία</h2>
+          <label>
+            Τίτλος
+            <input name="title" [(ngModel)]="title" required maxlength="200" />
+          </label>
+          <label>
+            Οδηγίες
+            <textarea name="description" [(ngModel)]="description" maxlength="2000"></textarea>
+          </label>
+          <p class="field-hint">Πες τι περιλαμβάνει η προπόνηση και τι χρειάζεται η πελάτισσα.</p>
+        </section>
+
+        <!-- Κατηγοριοποίηση -->
+        <section class="editor-card">
+          <h2 class="editor-card__title">Κατηγοριοποίηση</h2>
+          <div class="editor-grid">
+            <label>
+              Κοινό
+              <select name="audience" [(ngModel)]="audience" required>
+                <option value="" disabled>Επίλεξε</option>
+                <option value="Male">Άντρες</option>
+                <option value="Female">Γυναίκες</option>
+                <option value="Both">Όλοι</option>
+              </select>
+            </label>
+            <label>
+              Περιοχή σώματος
+              <select name="bodyArea" [(ngModel)]="bodyArea" required>
+                <option value="" disabled>Επίλεξε</option>
+                <option value="FullBody">Όλο το σώμα</option>
+                <option value="UpperBody">Πάνω μέρος</option>
+                <option value="LowerBody">Κάτω μέρος</option>
+              </select>
+            </label>
+            <label>
+              Εξοπλισμός
+              <select name="equipment" [(ngModel)]="equipment" required>
+                <option [ngValue]="null" disabled>Επίλεξε</option>
+                <option [ngValue]="false">Χωρίς εξοπλισμό</option>
+                <option [ngValue]="true">Με εξοπλισμό</option>
+              </select>
+            </label>
+          </div>
+
+          <h3 class="editor-card__subtitle">Ετικέτες</h3>
+          <div class="editor-chips">
+            @for (tag of tags(); track tag.id) {
+              <label class="editor-chip" [class.editor-chip--on]="tagIds.includes(tag.id)">
+                <input
+                  type="checkbox"
+                  [checked]="tagIds.includes(tag.id)"
+                  (change)="toggleTag(tag.id)"
+                />
+                {{ tag.name }}
+              </label>
+            }
+            @if (!tags().length) {
+              <p class="field-hint">Δεν υπάρχουν ακόμη ετικέτες. Πρόσθεσε την πρώτη παρακάτω.</p>
+            }
+          </div>
+          <div class="editor-inline">
+            <label class="editor-inline__field">
+              Νέα ετικέτα
+              <input name="newTag" [(ngModel)]="newTag" maxlength="60" placeholder="π.χ. αλτήρες" />
+            </label>
+            <button type="button" (click)="addTag()" [disabled]="!newTag.trim()">
+              Προσθήκη ετικέτας
+            </button>
+          </div>
+        </section>
+
+        <!-- Εξώφυλλο -->
+        <section class="editor-card">
+          <h2 class="editor-card__title">Εξώφυλλο</h2>
+          <p class="field-hint">
+            Η εικόνα που βλέπουν οι πελάτισσες στη λίστα. Αν δεν βάλεις δική σου, χρησιμοποιείται
+            ένα καρέ από το βίντεο.
+          </p>
+
+          <div class="editor-cover">
+            <div class="editor-cover__preview">
+              @if (coverPreview; as preview) {
+                <img [src]="preview" alt="Προεπισκόπηση εξωφύλλου" />
+              } @else {
+                <span class="editor-cover__placeholder" aria-hidden="true">MYA</span>
+              }
+            </div>
+
+            <div class="editor-cover__side">
+              <p class="editor-cover__kind" role="status">
+                @switch (coverKind) {
+                  @case ('pending') {
+                    Δική σου εικόνα — θα ανέβει μόλις ολοκληρωθεί το βίντεο
+                  }
+                  @case ('custom') {
+                    Δική σου εικόνα
+                  }
+                  @case ('frame') {
+                    Καρέ από το βίντεο
+                  }
+                  @default {
+                    Χωρίς εικόνα — θα εμφανίζεται το λογότυπο
+                  }
+                }
+              </p>
+
+              <div class="editor-cover__actions">
+                <label class="editor-filebutton" [class.is-busy]="coverBusy()">
+                  <mat-icon aria-hidden="true">image</mat-icon>
+                  <span>{{ coverKind === 'none' ? 'Ανέβασμα εικόνας' : 'Αλλαγή' }}</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    [disabled]="coverBusy()"
+                    (change)="chooseCover($event)"
+                  />
+                </label>
+
+                @if (coverKind === 'pending') {
+                  <button type="button" (click)="clearPendingCover()">
+                    <mat-icon aria-hidden="true">close</mat-icon>
+                    <span>Αφαίρεση</span>
+                  </button>
+                } @else if (coverKind === 'custom') {
+                  <button type="button" [disabled]="coverBusy()" (click)="removeCover()">
+                    <mat-icon aria-hidden="true">delete_outline</mat-icon>
+                    <span>Αφαίρεση</span>
+                  </button>
+                }
+              </div>
+
+              <p class="field-hint">JPG, PNG ή WebP, έως 5 MB. Οριζόντια εικόνα δείχνει καλύτερα.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Αρχείο βίντεο -->
+        @if (needsFile) {
+          <section class="editor-card">
+            <h2 class="editor-card__title">Αρχείο βίντεο</h2>
+            <label class="editor-filebutton editor-filebutton--wide">
+              <mat-icon aria-hidden="true">movie</mat-icon>
+              <span>{{ file ? 'Αλλαγή αρχείου' : 'Επιλογή αρχείου' }}</span>
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime,.mp4,.mov"
+                (change)="choose($event)"
+              />
+            </label>
+            @if (file) {
+              <p class="editor-file"><strong>{{ file.name }}</strong> — {{ size(file.size) }}</p>
+            }
+            <p class="field-hint">
+              MP4 ή MOV, έως {{ size(storage()?.maxFileBytes ?? null) }}. Κράτα τη σελίδα ανοιχτή
+              μέχρι να ολοκληρωθεί το ανέβασμα.
+            </p>
+          </section>
+        }
+      </fieldset>
+
+      @if (progress() !== null) {
+        <section class="editor-card">
+          <h2 class="editor-card__title">Ανέβασμα</h2>
+          <progress max="100" [value]="progress()" aria-label="Πρόοδος ανεβάσματος"></progress>
+          <p role="status">
+            {{ progress() }}%{{ paused() ? ' — σε παύση' : '' }}
+          </p>
+        </section>
+      }
+
+      <!-- One Save, one Cancel, always in the same place. -->
+      <div class="editor-actions">
+        @if (uploading()) {
+          <button type="button" (click)="pause()">Παύση</button>
+          <button type="button" (click)="cancelUpload()">Διακοπή ανεβάσματος</button>
+        } @else if (paused()) {
+          <button type="button" class="primary" [disabled]="busy()" (click)="resume()">
+            {{ busy() ? 'Συνέχιση…' : 'Συνέχεια' }}
+          </button>
+          <button type="button" (click)="cancelUpload()">Διακοπή ανεβάσματος</button>
+        } @else {
+          <button
+            type="submit"
+            class="primary"
+            [disabled]="busy() || (needsFile && (!file || !configured()))"
+          >
+            {{ busy() ? 'Αποθήκευση…' : needsFile ? 'Ανέβασμα βίντεο' : 'Αποθήκευση' }}
+          </button>
+          <button type="button" [disabled]="busy()" (click)="cancel()">Ακύρωση</button>
+        }
+      </div>
+    </form>
+  }
+</section>

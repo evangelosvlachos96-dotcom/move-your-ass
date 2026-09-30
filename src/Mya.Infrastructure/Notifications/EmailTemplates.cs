@@ -36,8 +36,6 @@ public sealed class EmailTemplates(IConfiguration configuration)
                 EmailOutbox.Deserialize<PasswordResetPayload>(message.PayloadJson)),
             OutboxMessageTypes.ContactMessage => ContactMessage(
                 EmailOutbox.Deserialize<ContactMessagePayload>(message.PayloadJson)),
-            OutboxMessageTypes.TestEmail => TestEmail(
-                EmailOutbox.Deserialize<TestEmailPayload>(message.PayloadJson)),
             _ => throw new InvalidOperationException($"No email template for outbox message type '{message.Type}'."),
         };
     }
@@ -101,18 +99,6 @@ public sealed class EmailTemplates(IConfiguration configuration)
 
         return built with { ReplyTo = p.ReplyTo };
     }
-
-    /// <summary>Proves delivery end to end, on demand, without inventing a fake account event.</summary>
-    private EmailMessage TestEmail(TestEmailPayload p) =>
-        Build(p.To, "Δοκιμαστικό email από το Move Your Ass", new EmailContent(
-            $"Γεια σας {p.FirstName},",
-            [
-                "Αυτό είναι ένα δοκιμαστικό μήνυμα. Αν το διαβάζετε, η αποστολή email λειτουργεί.",
-                "Δεν χρειάζεται καμία ενέργεια.",
-            ])
-        {
-            Cta = Link("/dashboard", "Άνοιγμα πίνακα"),
-        });
 
     private EmailMessage AdminNewRegistration(AdminNewRegistrationPayload p) =>
         Build(p.To, $"Νέα εγγραφή: {p.FirstName} {p.LastName}", new EmailContent(

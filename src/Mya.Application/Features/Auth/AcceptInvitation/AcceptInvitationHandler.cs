@@ -47,7 +47,12 @@ public sealed class AcceptInvitationHandler(IAppDbContext db, IUserService users
 
         await users.ResetPasswordAsync(user.Id, command.NewPassword, cancellationToken);
         await users.SetMustChangePasswordAsync(user.Id, false, cancellationToken);
-        await users.SetStatusAsync(user.Id, UserStatus.Active, null, null, cancellationToken);
+        if (!await users.SetStatusAsync(user.Id, UserStatus.Active, null, null, cancellationToken))
+        {
+            // The account changed while the link was being used; the token is no longer good.
+            return Result.Failure(Errors.InvalidInvitation);
+        }
+
         await transaction.CommitAsync(cancellationToken);
         return Result.Success();
     }

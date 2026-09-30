@@ -1,0 +1,142 @@
+// The app's native form controls, defined once.
+//
+// Most forms use Angular Material, which brings its own field. A few screens use plain
+// <input>/<select>/<textarea> because a Material field would be heavier than the job needs — the
+// video filters, the video editor, the About editor. Those controls still have to look like the
+// rest of the app and behave on a phone.
+//
+// Everything here hangs off `.plain-form`, which those screens put on their root element. It is
+// global rather than a per-component mixin for two reasons: the rules exist once instead of being
+// copied into four component stylesheets, and there is exactly one place to change when the
+// answer to "what does a control look like" changes.
+//
+// The 16px floor is not cosmetic. **iOS Safari zooms the whole page in when a control with a
+// computed font-size below 16px receives focus**, and it does not zoom back out. The page is then
+// wider than the screen and scrolls sideways, which reads as "the layout is broken" rather than
+// "the browser zoomed". This was the actual cause of the horizontal scrolling reported on a real
+// iPhone: every Material field was already 16px, which is why the login page alone looked right.
+
+.plain-form {
+  label {
+    display: grid;
+    gap: 6px;
+    // The label text may be small; the control inside it must not inherit that.
+    font-size: 0.85rem;
+    color: var(--brand-muted);
+    min-inline-size: 0;
+  }
+
+  input,
+  select,
+  textarea {
+    // 1rem, never less. Not `font: inherit` — that pulls the label's small size into the control
+    // and hands iOS a reason to zoom.
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.4;
+    inline-size: 100%;
+    min-inline-size: 0;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    border: 1px solid var(--brand-border);
+    border-radius: 10px;
+    background: var(--brand-surface-2);
+    color: var(--brand-text);
+    // A control in a grid or flex row must not be stretched to the row's height. Two fields side
+    // by side, one with a hint under it, were visibly different heights because of exactly that.
+    align-self: start;
+  }
+
+  // One height for every single-line control in the app, whatever is written under it. The
+  // padding moves to the sides only: a fixed box plus vertical padding is a box of a different
+  // height, which is how "the Phone field is taller than the others" happens.
+  input:not([type='file']):not([type='checkbox']):not([type='radio']),
+  select {
+    block-size: 44px;
+    padding-block: 0;
+  }
+
+  textarea {
+    min-block-size: 120px;
+    resize: vertical;
+    // A pasted URL or a long Greek word must wrap rather than widen the field.
+    overflow-wrap: anywhere;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 1px;
+    border-color: var(--brand-accent);
+  }
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    opacity: 0.55;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--brand-muted);
+  }
+
+  // A file input is never styled directly; screens wrap it in a labelled button instead, and
+  // those wrappers hide the control with their own rules. This only stops a bare one stretching.
+  input[type='file'] {
+    max-inline-size: 100%;
+  }
+
+  // Buttons drawn without Material, sharing the controls' metrics so a mixed row lines up.
+  button,
+  .button {
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-block-size: 44px;
+    padding: 10px 16px;
+    border: 1px solid var(--brand-border);
+    border-radius: 10px;
+    background: var(--brand-surface-2);
+    color: var(--brand-text);
+    box-sizing: border-box;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  button:disabled,
+  .button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  button:focus-visible,
+  .button:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  .primary {
+    background: var(--brand-accent);
+    border-color: var(--brand-accent);
+    color: var(--brand-on-accent);
+  }
+
+  .field-error {
+    color: var(--brand-danger);
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .field-hint {
+    margin: 0;
+    color: var(--brand-muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+}

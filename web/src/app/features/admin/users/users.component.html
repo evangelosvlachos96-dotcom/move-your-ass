@@ -1,34 +1,156 @@
-<header class="heading"><div><h1>Χρήστες</h1><p>Εγγραφές, προσκλήσεις και διαχείριση πρόσβασης.</p></div>
+<header class="heading">
+  <div>
+    <h1>Χρήστες</h1>
+    <p class="heading__lead">Εγγραφές, προσκλήσεις και διαχείριση πρόσβασης.</p>
+  </div>
   <button mat-flat-button type="button" (click)="open('create')">Πρόσκληση χρήστη</button>
 </header>
-<form class="filters" (ngSubmit)="filter()">
-  <mat-form-field><mat-label>Αναζήτηση ονόματος ή email</mat-label><input matInput [formControl]="search" maxlength="100"></mat-form-field>
-  <mat-form-field><mat-label>Κατάσταση</mat-label><mat-select [formControl]="status" (selectionChange)="filter()">
-    <mat-option value="">Όλες</mat-option>@for (s of statuses; track s) { <mat-option [value]="s">{{ labels[s] }}</mat-option> }
-  </mat-select></mat-form-field>
-  <button mat-button type="submit">Αναζήτηση</button><button mat-button type="button" (click)="reload()">Ανανέωση</button>
-</form>
-@if (loading()) { <p role="status">Φόρτωση χρηστών…</p> }
-@else if (failed()) { <p role="alert">Δεν ήταν δυνατή η φόρτωση. Δοκίμασε την ανανέωση.</p> }
-@else if (users().length === 0) { <p role="status">Δεν βρέθηκαν χρήστες.</p> }
-@else {
-  <div class="users">
-  @for (user of users(); track user.id) {
-    <article class="user">
-      <div><h2>{{ fullName(user) }}</h2><p class="email">{{ user.email }}</p><p>{{ labels[user.status] }} · {{ user.role === 'Admin' ? 'Διαχειριστής' : 'Πελάτης' }}</p><p>Εγγραφή: {{ user.createdAtUtc | athensDate }}</p></div>
-      <div class="actions">
-        <button mat-button type="button" (click)="open('edit', user)">Επεξεργασία</button>
-        @if (user.status === 'PendingApproval') {
-          <button mat-flat-button type="button" (click)="open('approve', user)">Έγκριση</button>
-          <button mat-button type="button" (click)="open('decline', user)">Απόρριψη</button>
-        }
-        @if (user.status === 'Invited') { <button mat-button type="button" (click)="open('resend', user)">Νέα πρόσκληση</button> }
-        @if (user.status === 'Active' && user.id !== store.user()?.id) { <button mat-button type="button" (click)="open('suspend', user)">Αναστολή</button> }
-        @if (user.status === 'Suspended' || user.status === 'Declined') { <button mat-button type="button" (click)="open('reactivate', user)">Ενεργοποίηση</button> }
-        @if (user.id !== store.user()?.id) { <button mat-button type="button" (click)="open('delete', user)">Διαγραφή</button> }
-      </div>
-    </article>
-  }
-  </div>
+
+<!-- Pending registrations are the one thing on this page that is waiting for an answer, so they
+     get their own way in rather than being a value in a dropdown nobody opens. -->
+@if (pendingCount(); as waiting) {
+  <button
+    type="button"
+    class="pending-banner"
+    [class.pending-banner--on]="status.value === 'PendingApproval'"
+    (click)="togglePending()"
+  >
+    <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+    <span class="pending-banner__text">
+      <strong>{{ waiting }} {{ waiting === 1 ? 'εγγραφή περιμένει' : 'εγγραφές περιμένουν' }} έγκριση</strong>
+      <small>{{ status.value === 'PendingApproval' ? 'Δείχνει μόνο αυτές. Πάτα ξανά για όλους.' : 'Πάτα για να δεις μόνο αυτές.' }}</small>
+    </span>
+  </button>
 }
-<mat-paginator [length]="total()" [pageIndex]="pageIndex()" [pageSize]="pageSize()" [pageSizeOptions]="[10, 20, 50]" (page)="paginate($event)" aria-label="Σελίδες χρηστών" />
+
+<form class="filters" (ngSubmit)="filter()">
+  <mat-form-field>
+    <mat-label>Αναζήτηση ονόματος ή email</mat-label>
+    <input matInput [formControl]="search" maxlength="100" />
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Κατάσταση</mat-label>
+    <mat-select [formControl]="status" (selectionChange)="filter()">
+      <mat-option value="">Όλες</mat-option>
+      @for (s of statuses; track s) {
+        <mat-option [value]="s">{{ labels[s] }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <button mat-button type="submit">Αναζήτηση</button>
+  <button mat-button type="button" (click)="reload()">Ανανέωση</button>
+</form>
+
+@if (loading()) {
+  <p role="status">Φόρτωση χρηστών…</p>
+} @else if (failed()) {
+  <p role="alert">Δεν ήταν δυνατή η φόρτωση. Δοκίμασε την ανανέωση.</p>
+} @else if (users().length === 0) {
+  <p role="status">Δεν βρέθηκαν χρήστες.</p>
+} @else {
+  <!-- One row per person. A list rather than a <table>: the same markup has to become a stack of
+       cards on a phone, and a table that reflows is a table that has stopped being one. -->
+  <ul class="urows">
+    <li class="urows__head" aria-hidden="true">
+      <span></span>
+      <span>Όνομα</span>
+      <span>Ρόλος</span>
+      <span>Κατάσταση</span>
+      <span>Εγγραφή</span>
+      <span></span>
+    </li>
+
+    @for (user of users(); track user.id) {
+      <li class="urow">
+        <span class="urow__avatar" aria-hidden="true">{{ initials(user) }}</span>
+
+        <span class="urow__identity">
+          <span class="urow__name">{{ fullName(user) }}</span>
+          <span class="urow__email">{{ user.email }}</span>
+        </span>
+
+        <span class="urow__cell urow__cell--role">
+          <span class="ubadge">{{ user.role === 'Admin' ? 'Διαχειριστής' : 'Πελάτης' }}</span>
+        </span>
+
+        <span class="urow__cell urow__cell--status">
+          <span class="ubadge" [class]="'ubadge--' + statusTone(user.status)">
+            {{ labels[user.status] }}
+          </span>
+        </span>
+
+        <span class="urow__cell urow__cell--date">{{ user.createdAtUtc | athensDate }}</span>
+
+        <span class="urow__actions">
+          <button
+            type="button"
+            class="urow__more"
+            [matMenuTriggerFor]="menu"
+            [attr.aria-label]="'Ενέργειες για ' + fullName(user)"
+          >
+            <mat-icon aria-hidden="true">more_vert</mat-icon>
+          </button>
+
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item type="button" (click)="open('edit', user)">
+              <mat-icon>edit</mat-icon>
+              <span>Επεξεργασία</span>
+            </button>
+            @if (user.status === 'PendingApproval') {
+              <button mat-menu-item type="button" (click)="open('approve', user)">
+                <mat-icon>check_circle</mat-icon>
+                <span>Έγκριση</span>
+              </button>
+              <button mat-menu-item type="button" (click)="open('decline', user)">
+                <mat-icon>cancel</mat-icon>
+                <span>Απόρριψη</span>
+              </button>
+            }
+            @if (user.status === 'Invited') {
+              <button mat-menu-item type="button" (click)="open('resend', user)">
+                <mat-icon>forward_to_inbox</mat-icon>
+                <span>Νέα πρόσκληση</span>
+              </button>
+            }
+            @if (user.status === 'Active' && user.id !== store.user()?.id) {
+              <button mat-menu-item type="button" (click)="open('suspend', user)">
+                <mat-icon>pause_circle</mat-icon>
+                <span>Αναστολή</span>
+              </button>
+            }
+            @if (user.status === 'Suspended' || user.status === 'Declined') {
+              <button mat-menu-item type="button" (click)="open('reactivate', user)">
+                <mat-icon>play_circle</mat-icon>
+                <span>Ενεργοποίηση</span>
+              </button>
+            }
+            @if (user.id !== store.user()?.id) {
+              <button mat-menu-item type="button" (click)="open('delete', user)">
+                <mat-icon>delete</mat-icon>
+                <span>Διαγραφή</span>
+              </button>
+            }
+          </mat-menu>
+        </span>
+
+        <!-- Waiting on the admin: kept on the row itself, because burying "approve" in a menu
+             would hide the one action this page exists for. -->
+        @if (user.status === 'PendingApproval') {
+          <span class="urow__primary">
+            <button mat-flat-button type="button" (click)="open('approve', user)">Έγκριση</button>
+            <button mat-button type="button" (click)="open('decline', user)">Απόρριψη</button>
+          </span>
+        }
+      </li>
+    }
+  </ul>
+}
+
+<mat-paginator
+  [length]="total()"
+  [pageIndex]="pageIndex()"
+  [pageSize]="pageSize()"
+  [pageSizeOptions]="[10, 20, 50]"
+  (page)="paginate($event)"
+  aria-label="Σελίδες χρηστών"
+/>

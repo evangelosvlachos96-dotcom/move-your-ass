@@ -6,6 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { catchError, combineLatest, debounceTime, distinctUntilChanged, map, of, Subject, startWith, switchMap, tap } from 'rxjs';
@@ -20,7 +22,7 @@ import { AthensDatePipe } from '../../../shared/pipes/athens-date.pipe';
 
 @Component({
   selector: 'app-users',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatPaginatorModule, AthensDatePipe],
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatPaginatorModule, MatIconModule, MatMenuModule, AthensDatePipe],
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,6 +48,31 @@ export class UsersComponent {
   protected readonly statuses = USER_STATUSES;
   protected readonly labels = USER_STATUS_LABELS;
   protected readonly fullName = fullName;
+  /** Drives the banner; the same count the sidebar badge shows, from the same service. */
+  protected readonly pendingCount = this.pending.count;
+
+  /** Initials for the avatar circle, so a row is identifiable before its text is read. */
+  protected initials(user: AdminUser): string {
+    return [user.firstName, user.lastName]
+      .map((part) => part?.trim()?.[0] ?? '')
+      .join('')
+      .toLocaleUpperCase('el-GR');
+  }
+
+  /**
+   * Three tones, not six. A badge per status in its own colour teaches nothing; "waiting on you",
+   * "fine" and "not fine" is the distinction an admin actually scans for.
+   */
+  protected statusTone(status: UserStatus): 'waiting' | 'good' | 'bad' {
+    if (status === 'PendingApproval' || status === 'Invited') return 'waiting';
+    return status === 'Active' ? 'good' : 'bad';
+  }
+
+  /** The banner is a filter toggle: on for pending only, off for everyone. */
+  protected togglePending(): void {
+    this.status.setValue(this.status.value === 'PendingApproval' ? '' : 'PendingApproval');
+    this.filter();
+  }
 
   constructor() {
     combineLatest([this.route.queryParamMap, this.refresh.pipe(startWith(undefined))]).pipe(

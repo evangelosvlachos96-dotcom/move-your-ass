@@ -1,78 +1,79 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../core/auth/auth.store';
 import { SiteApi } from '../../core/site/site.api';
-import { About, ABOUT_LIMITS, AboutInput, CONTACT_MIN } from '../../core/site/site.models';
-import { MAX_IMAGE_BYTES, resizeSquare } from '../../core/images/image-resize';
-import { NotifyService } from '../../core/ui/notify.service';
+import { About, CONTACT_MIN, NETWORK_INFO, Network, WHATSAPP } from '../../core/site/site.models';
 import { renderSafeMarkdown } from '../../shared/text/safe-markdown';
-import { ContactChannel, ContactIconComponent } from '../../shared/ui/contact-icon/contact-icon.component';
-import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
+import { BookingButtonComponent } from '../../shared/ui/booking-button/booking-button.component';
+import {
+  ContactChannel,
+  ContactIconComponent,
+} from '../../shared/ui/contact-icon/contact-icon.component';
 
-interface ContactLink {
+export interface ContactLink {
   channel: ContactChannel;
   label: string;
   href: string;
   text: string;
+  /** Profile pages open in a new tab; mailto, tel and WhatsApp hand off to an app instead. */
+  external: boolean;
 }
 
 /**
- * "Ο γυμναστής σου" — the trainer's page. Every approved user reads it; an admin edits it in
- * place rather than on a separate screen, so what they are editing is what everyone sees.
+ * "Ο γυμναστής σου" — the trainer's page, as everyone reads it.
+ *
+ * Read-only. Editing is /about/edit, a page of its own: the in-place version had no clear way
+ * back out, and mixing "this is what clients see" with "this is what you are changing" made it
+ * impossible to tell which of the two was on screen.
  */
 @Component({
   selector: 'app-about',
-  imports: [FormsModule, ContactIconComponent],
+  imports: [FormsModule, ContactIconComponent, MatIconModule, RouterLink, BookingButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './about.component.html',
   styleUrl: './about.component.scss',
 })
 export class AboutComponent {
   private readonly api = inject(SiteApi);
-  private readonly notify = inject(NotifyService);
-  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly store = inject(AuthStore);
 
-  protected readonly limits = ABOUT_LIMITS;
   protected readonly contactMin = CONTACT_MIN;
-  protected readonly isAdmin = computed(() => this.store.user()?.role === 'Admin');
+  protected readonly isAdmin = this.store.isAdmin;
 
   protected readonly about = signal<About | null>(null);
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
-  protected readonly editing = signal(false);
-  protected readonly saving = signal(false);
-  protected readonly photoBusy = signal(false);
   protected readonly sending = signal(false);
   protected readonly sent = signal(false);
 
   /** Already escaped and reduced to a known tag set; see renderSafeMarkdown. */
   protected readonly bioHtml = computed(() => renderSafeMarkdown(this.about()?.aboutMarkdown));
 
-  protected readonly links = computed<ContactLink[]>(() => {
-    const a = this.about();
-    if (!a) return [];
+  protected readonly links = computed<ContactLink[]>(() => contactLinks(this.about()));
 
-    const links: ContactLink[] = [];
-    if (a.contactEmail) links.push({ channel: 'email', label: 'Email', href: `mailto:${a.contactEmail}`, text: a.contactEmail });
-    if (a.phone) links.push({ channel: 'phone', label: 'Τηλέφωνο', href: `tel:${a.phone.replace(/\s/g, '')}`, text: a.phone });
-    if (a.whatsApp) links.push({ channel: 'whatsapp', label: 'WhatsApp', href: `https://wa.me/${a.whatsApp}`, text: 'WhatsApp' });
-    if (a.instagram) links.push({ channel: 'instagram', label: 'Instagram', href: a.instagram, text: 'Instagram' });
-    if (a.youTube) links.push({ channel: 'youtube', label: 'YouTube', href: a.youTube, text: 'YouTube' });
-    if (a.tikTok) links.push({ channel: 'tiktok', label: 'TikTok', href: a.tikTok, text: 'TikTok' });
-    if (a.facebook) links.push({ channel: 'facebook', label: 'Facebook', href: a.facebook, text: 'Facebook' });
-    if (a.website) links.push({ channel: 'website', label: 'Ιστοσελίδα', href: a.website, text: 'Ιστοσελίδα' });
-    return links;
-  });
-
-  /** True when an admin has filled in nothing yet, so the page is not simply blank. */
+  /** True when nothing has been filled in yet, so the page explains itself instead of being blank. */
   protected readonly isEmpty = computed(() => {
     const a = this.about();
-    return !a || (!a.trainerName && !a.tagline && !a.aboutMarkdown && !a.photoUrl && this.links().length === 0);
+    return (
+      !a ||
+      (!a.trainerName && !a.tagline && !a.aboutMarkdown && !a.photoUrl && this.links().length === 0)
+    );
   });
 
-  protected form: AboutInput = blank();
+  /** The circle's fallback: the trainer's initials when there is a name, the brand mark otherwise. */
+  protected readonly initials = computed(() => {
+    const name = this.about()?.trainerName?.trim();
+    if (!name) return null;
+    return name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toLocaleUpperCase('el-GR') ?? '')
+      .join('');
+  });
+
   protected subject = '';
   protected message = '';
 
@@ -92,105 +93,6 @@ export class AboutComponent {
     }
   }
 
-  protected startEditing(): void {
-    const a = this.about();
-    if (!a) return;
-    // A copy, so cancelling leaves what is on screen untouched. The photo has its own endpoints
-    // and is not part of the form.
-    this.form = {
-      trainerName: a.trainerName, tagline: a.tagline, aboutMarkdown: a.aboutMarkdown,
-      contactEmail: a.contactEmail, phone: a.phone, instagram: a.instagram, youTube: a.youTube,
-      tikTok: a.tikTok, facebook: a.facebook, whatsApp: a.whatsApp, website: a.website,
-      revision: a.revision,
-    };
-    this.editing.set(true);
-  }
-
-  protected cancelEditing(): void {
-    if (!this.saving()) this.editing.set(false);
-  }
-
-  protected async save(form: NgForm): Promise<void> {
-    if (this.saving()) return;
-    if (form.invalid) {
-      form.control.markAllAsTouched();
-      this.notify.error('Έλεγξε τα στοιχεία που συμπλήρωσες.');
-      return;
-    }
-
-    this.saving.set(true);
-    try {
-      await firstValueFrom(this.api.save(this.form));
-      await this.load();
-      this.editing.set(false);
-      this.notify.success('Η σελίδα αποθηκεύτηκε.');
-    } catch {
-      // The interceptor already said what went wrong.
-    } finally {
-      this.saving.set(false);
-    }
-  }
-
-  protected async choosePhoto(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file || this.photoBusy()) return;
-
-    this.photoBusy.set(true);
-    try {
-      const resized = await resizeSquare(file);
-      if (resized === 'type') {
-        this.notify.error('Δεκτές εικόνες: JPG, PNG ή WebP.');
-        return;
-      }
-      if (resized === 'size') {
-        this.notify.error(`Η εικόνα ξεπερνά τα ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)} MB.`);
-        return;
-      }
-      if (resized === 'decode') {
-        this.notify.error('Η εικόνα δεν διαβάστηκε. Δοκίμασε άλλο αρχείο.');
-        return;
-      }
-
-      const ticket = await firstValueFrom(this.api.photoTicket(resized.contentType, resized.blob.size));
-      const uploaded = await put(ticket.uploadUrl, resized.blob);
-      if (!uploaded) {
-        this.notify.error('Η φωτογραφία δεν ανέβηκε. Δοκίμασε ξανά.');
-        return;
-      }
-
-      await firstValueFrom(this.api.confirmPhoto(ticket.objectKey));
-      await this.load();
-      this.notify.success('Η φωτογραφία ενημερώθηκε.');
-    } catch {
-      // Reported by the interceptor.
-    } finally {
-      this.photoBusy.set(false);
-    }
-  }
-
-  protected async removePhoto(): Promise<void> {
-    if (this.photoBusy()) return;
-    const ok = await this.confirmDialog.confirm({
-      title: 'Αφαίρεση φωτογραφίας',
-      message: 'Να αφαιρεθεί η φωτογραφία του γυμναστή;',
-      confirmLabel: 'Αφαίρεση',
-      destructive: true,
-    });
-    if (!ok) return;
-
-    this.photoBusy.set(true);
-    try {
-      await firstValueFrom(this.api.removePhoto());
-      await this.load();
-    } catch {
-      // Reported by the interceptor.
-    } finally {
-      this.photoBusy.set(false);
-    }
-  }
-
   protected async send(form: NgForm): Promise<void> {
     if (this.sending()) return;
     if (form.invalid) {
@@ -200,7 +102,9 @@ export class AboutComponent {
 
     this.sending.set(true);
     try {
-      await firstValueFrom(this.api.contact({ subject: this.subject.trim(), message: this.message.trim() }));
+      await firstValueFrom(
+        this.api.contact({ subject: this.subject.trim(), message: this.message.trim() }),
+      );
       this.subject = '';
       this.message = '';
       form.resetForm();
@@ -213,22 +117,55 @@ export class AboutComponent {
   }
 }
 
-function blank(): AboutInput {
-  return {
-    trainerName: null, tagline: null, aboutMarkdown: null, contactEmail: null, phone: null,
-    instagram: null, youTube: null, tikTok: null, facebook: null, whatsApp: null, website: null,
-    revision: '00000000-0000-0000-0000-000000000000',
-  };
+/**
+ * The contact rows, in the order they are shown. Exported so the editor can preview exactly what
+ * the page will look like rather than approximating it.
+ */
+export function contactLinks(a: About | null): ContactLink[] {
+  if (!a) return [];
+
+  const links: ContactLink[] = [];
+
+  // Email and phone are their own fields: every trainer has them, and they are the two the
+  // contact form falls back to. The rest are whatever she chose to add, in her order.
+  if (a.contactEmail) {
+    links.push({
+      channel: 'email',
+      label: 'Email',
+      href: `mailto:${a.contactEmail}`,
+      text: a.contactEmail,
+      external: false,
+    });
+  }
+  if (a.phone) {
+    links.push({
+      channel: 'phone',
+      label: 'Τηλέφωνο',
+      href: `tel:${a.phone.replace(/\s/g, '')}`,
+      text: a.phone,
+      external: false,
+    });
+  }
+
+  for (const link of a.socialLinks ?? []) {
+    links.push({
+      channel: link.network as ContactChannel,
+      label: NETWORK_INFO[link.network]?.label ?? link.network,
+      href: link.network === WHATSAPP ? `https://wa.me/${link.value}` : link.value,
+      text: OPEN_LABELS[link.network] ?? 'Άνοιξε',
+      external: true,
+    });
+  }
+
+  return links;
 }
 
-/** Straight PUT to the presigned URL, exactly as the video parts do. */
-function put(url: string, body: Blob): Promise<boolean> {
-  return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url, true);
-    xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
-    xhr.onerror = () => resolve(false);
-    xhr.ontimeout = () => resolve(false);
-    xhr.send(body);
-  });
-}
+/** What the row's action reads as, per network. */
+const OPEN_LABELS: Partial<Record<Network, string>> = {
+  instagram: 'Δες το προφίλ',
+  youtube: 'Δες το κανάλι',
+  tiktok: 'Δες το προφίλ',
+  facebook: 'Δες τη σελίδα',
+  whatsapp: 'Στείλε μήνυμα',
+  website: 'Άνοιξε τη σελίδα',
+};

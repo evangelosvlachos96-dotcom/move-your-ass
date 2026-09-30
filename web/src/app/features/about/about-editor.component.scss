@@ -1,0 +1,270 @@
+@use '../../../styles/spacing' as *;
+@use './about-shared' as *;
+
+@include about-shared;
+
+.about-editor {
+  max-inline-size: 760px;
+  margin-inline: auto;
+  // Room for the sticky action bar, so the last field is never trapped behind it.
+  padding-block-end: 96px;
+}
+
+.about-editor__header {
+  display: grid;
+  gap: $space-tight;
+  margin-block-end: $space-card-gap;
+}
+
+.about-editor__back {
+  justify-self: start;
+  min-block-size: 44px;
+  padding-inline: 12px;
+  background: transparent;
+  border-color: transparent;
+  color: var(--brand-muted);
+}
+
+.about-editor__back:hover {
+  color: var(--brand-text);
+  background: var(--brand-surface-2);
+}
+
+.about-editor__header h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  line-height: 1.2;
+}
+
+.about-editor__form {
+  display: grid;
+  gap: $space-card-gap;
+}
+
+// --- photo ---------------------------------------------------------------------------------
+
+.about-editor__photo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-card-padding;
+}
+
+// The same circle the page shows, at the size it is edited: what you see here is what clients
+// get, which is the point of previewing it at all.
+.about-editor__portrait {
+  inline-size: 120px;
+  block-size: 120px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--brand-surface-2);
+  border: 1px solid var(--brand-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-editor__portrait img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.about-editor__mark {
+  display: flex;
+  inline-size: 44%;
+  color: var(--brand-accent);
+}
+
+.about-editor__mark svg {
+  inline-size: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.about-editor__photo-side {
+  flex: 1 1 240px;
+  min-inline-size: 0;
+  display: grid;
+  gap: $space-tight;
+}
+
+// A file input dressed as a button: the control is off-screen but still focusable, so keyboard
+// users reach it exactly as they would a button.
+.about-editor__filebutton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-block-size: 44px;
+  padding-inline: 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  background: var(--brand-surface-2);
+  color: var(--brand-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.about-editor__filebutton.is-busy {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.about-editor__filebutton input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  min-block-size: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.about-editor__filebutton:focus-within {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+// --- biography preview -----------------------------------------------------------------------
+
+.about-editor__preview {
+  padding: $space-tight;
+  border: 1px dashed var(--brand-border);
+  border-radius: 12px;
+  background: var(--brand-bg);
+}
+
+.about-editor__preview-title {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-muted);
+}
+
+// --- contact grid ------------------------------------------------------------------------------
+
+.about-editor__grid {
+  display: grid;
+  gap: $space-tight;
+  // Two columns where there is room, one where there is not, without a media query — and with a
+  // `min()` floor so a narrow phone can never be given a column wider than the screen.
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+}
+
+.about-editor__field {
+  display: grid;
+  gap: 4px;
+  min-inline-size: 0;
+}
+
+.about-editor__field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brand-accent);
+}
+
+// --- actions -----------------------------------------------------------------------------------
+
+// Pinned to the bottom of the viewport: Save should not require scrolling past eight contact
+// fields to reach, which on a phone is most of the point.
+.about-editor__actions {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-tight;
+  padding: $space-tight 0;
+  padding-block-end: calc(#{$space-tight} + var(--app-bottom-inset, 0px));
+  background: linear-gradient(to top, var(--brand-bg) 70%, transparent);
+}
+
+.about-editor__actions button {
+  flex: 1 1 160px;
+}
+
+// --- social links ------------------------------------------------------------------------------
+
+.about-editor__links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: $space-tight;
+}
+
+.about-editor__link {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: $space-tight;
+  padding: 12px;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: var(--brand-surface-2);
+}
+
+.about-editor__link-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--brand-accent);
+  min-inline-size: 0;
+}
+
+.about-editor__link-field {
+  min-inline-size: 0;
+}
+
+.about-editor__link-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.about-editor__link-hint {
+  grid-column: 1 / -1;
+}
+
+// Icon-only, so each carries the network's name in its accessible label.
+.about-editor__icon-button {
+  inline-size: 44px;
+  block-size: 44px;
+  min-block-size: 44px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.about-editor__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: $space-tight;
+}
+
+.about-editor__add-field {
+  flex: 1 1 200px;
+  min-inline-size: 0;
+}
+
+@media (max-width: 599px) {
+  .about-editor__link {
+    // Name, then field, then the buttons on their own row: three columns at 375px leaves the
+    // input about forty pixels wide.
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .about-editor__link-actions {
+    justify-content: end;
+  }
+}

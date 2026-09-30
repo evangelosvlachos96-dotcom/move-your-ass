@@ -22,8 +22,11 @@ export class ConfirmDialogService {
         panelClass: 'confirm-panel',
         // Phones get a bottom sheet within thumb reach; larger screens get a centred card.
         position: phone ? { bottom: '0' } : undefined,
-        width: phone ? '100vw' : '440px',
-        maxWidth: '100vw',
+        // 100% of the overlay, not 100vw: on iOS with viewport-fit=cover, 100vw is the full
+        // screen including the safe-area insets, so a "full width" sheet is wider than the space
+        // it is allowed to occupy and the page gains a horizontal scrollbar behind it.
+        width: phone ? '100%' : '440px',
+        maxWidth: '100%',
         // Cancel is first in the DOM. For a destructive action that is exactly where focus
         // should land, so a stray Enter cannot delete anything; otherwise focus the confirm.
         autoFocus: data.destructive ? 'first-tabbable' : '.confirm__button--confirm',

@@ -104,7 +104,7 @@ public sealed class TagInputValidator : AbstractValidator<TagInput>
 public sealed record TagDto(Guid Id, string Name, int UsageCount);
 public sealed record VideoDto(Guid Id, string Title, string? Description, VideoAudience Audience, VideoBodyArea BodyArea,
     bool RequiresEquipment, VideoStatus Status, bool IsPublished, int SortOrder, int? DurationSeconds,
-    string? ThumbnailUrl, bool HasCustomCover, long? SizeBytes, Guid Revision, IReadOnlyList<TagDto> Tags);
+    string? ThumbnailUrl, bool HasCustomCover, long? SizeBytes, DateTime CreatedAtUtc, Guid Revision, IReadOnlyList<TagDto> Tags);
 public sealed record RevisionInput(Guid Revision);
 public sealed record VideoOrder(Guid Id, int SortOrder, Guid Revision);
 public static class VideoRules
@@ -174,7 +174,7 @@ public static class VideoRules
         var thumbnailKey = v.CoverObjectKey ?? v.ThumbnailObjectKey;
         var thumbnail = thumbnailKey is null || presign is null ? null : presign(thumbnailKey);
         return new(v.Id, v.Title, v.Description, v.Audience, v.BodyArea, v.RequiresEquipment,
-        v.Status, v.IsPublished, v.SortOrder, v.DurationSeconds, thumbnail, v.CoverObjectKey is not null, v.SizeBytes, v.Revision,
+        v.Status, v.IsPublished, v.SortOrder, v.DurationSeconds, thumbnail, v.CoverObjectKey is not null, v.SizeBytes, v.CreatedAtUtc, v.Revision,
         v.VideoTags.Select(t => new TagDto(t.TagId, t.Tag.Name, 0)).OrderBy(t => t.Name).ToList());
     }
     public static string NormalizeTag(string name)

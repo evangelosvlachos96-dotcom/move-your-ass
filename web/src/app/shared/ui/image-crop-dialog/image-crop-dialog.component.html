@@ -1,0 +1,69 @@
+<div class="crop">
+  <h2 class="crop__title" id="crop-title">{{ data.title }}</h2>
+  <p class="crop__hint">{{ data.hint }}</p>
+
+  @if (failed()) {
+    <p class="crop__error" role="alert">
+      Η εικόνα δεν διαβάστηκε. Δοκίμασε άλλο αρχείο (JPG, PNG ή WebP).
+    </p>
+  }
+
+  <div class="crop__stage" [class.crop__stage--round]="data.round">
+    <image-cropper
+      [imageFile]="data.file"
+      [maintainAspectRatio]="true"
+      [aspectRatio]="data.aspectRatio"
+      [roundCropper]="data.round"
+      [resizeToWidth]="data.width"
+      [onlyScaleDown]="true"
+      [transform]="transform"
+      [allowMoveImage]="true"
+      [imageQuality]="85"
+      [format]="format"
+      output="blob"
+      cropperFrameAriaLabel="Περιοχή εικόνας"
+      imageAltText="Η εικόνα που ανέβασες"
+      (imageCropped)="onCropped($event)"
+      (imageLoaded)="onLoaded()"
+      (loadImageFailed)="onFailed()"
+    />
+  </div>
+
+  <label class="crop__zoom">
+    <span class="crop__zoom-label">
+      <mat-icon aria-hidden="true">zoom_in</mat-icon>
+      Μεγέθυνση
+    </span>
+    <input
+      type="range"
+      [min]="minZoom"
+      [max]="maxZoom"
+      step="0.05"
+      [ngModel]="zoom"
+      (ngModelChange)="onZoom($event)"
+      [disabled]="!ready()"
+      name="zoom"
+    />
+  </label>
+
+  @if (preview(); as url) {
+    <div class="crop__preview">
+      <span class="crop__preview-label">Προεπισκόπηση</span>
+      <span class="crop__preview-frame" [class.crop__preview-frame--round]="data.round">
+        <img [src]="url" alt="Προεπισκόπηση της περικομμένης εικόνας" />
+      </span>
+    </div>
+  }
+
+  <div class="crop__actions">
+    <button type="button" class="crop__button" (click)="cancel()">Ακύρωση</button>
+    <button
+      type="button"
+      class="crop__button crop__button--confirm"
+      [disabled]="!ready() || busy()"
+      (click)="confirm()"
+    >
+      {{ busy() ? 'Αποθήκευση…' : 'Χρήση εικόνας' }}
+    </button>
+  </div>
+</div>

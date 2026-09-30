@@ -38,6 +38,11 @@ public sealed class ContactHandler(
         var sender = await users.FindByIdAsync(userId, ct);
         if (sender is not { Status: UserStatus.Active, MustChangePassword: false }) return Result.Failure(SiteRules.Forbidden);
 
+        // The form writes to the trainer. An admin writing to the trainer is an admin writing to
+        // themselves — or, where there are several, to each other — which is not what this is for.
+        // Refused here and not only hidden in the UI: the endpoint is the control.
+        if (sender.Role == Roles.Admin) return Result.Failure(SiteRules.Forbidden);
+
         var subject = input.Subject.Trim();
         var message = input.Message.Trim();
         if (subject.Length == 0 || message.Length == 0) return Result.Failure(SiteRules.Invalid);
@@ -63,21 +68,6 @@ public sealed class ContactHandler(
             db.OutboxMessages.Add(EmailOutbox.ContactMessage(recipient, sender, subject, message, now, fingerprint));
         }
 
-        await db.SaveChangesAsync(ct);
-        return Result.Success();
-    }
-
-    /// <summary>
-    /// Queues a branded message to the signed-in admin, so delivery can be proved in production
-    /// at any time without waiting for a real account event to happen.
-    /// </summary>
-    public async Task<Result> SendTestAsync(CancellationToken ct)
-    {
-        if (current.UserId is not { Length: > 0 } userId) return Result.Failure(SiteRules.Forbidden);
-        var admin = await users.FindByIdAsync(userId, ct);
-        if (admin is not { Status: UserStatus.Active } || admin.Role != Roles.Admin) return Result.Failure(SiteRules.Forbidden);
-
-        db.OutboxMessages.Add(EmailOutbox.TestEmail(admin, clock.UtcNow));
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }
