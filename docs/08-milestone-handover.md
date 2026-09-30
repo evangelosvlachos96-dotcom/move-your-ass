@@ -23,6 +23,13 @@ a real iPhone, the admin video list and editor, the About page, a regression pas
 cropping, social links as a list, form-field heights, the user list, "powered by Tasos", and the
 booking link. All done and green; the only thing still needing the owner is the live email send.
 
+**2026-09-30 — logo cleanup finished (`fix/register-logo`).** The post-registration pending page
+was the last screen still using the old stacked SVG; it now renders `BrandLogoComponent` like the
+other auth pages. With that, nothing referenced `web/src/assets/` any more, so the eight dead
+brand SVGs and the now-empty `src/assets` entry in `angular.json` are gone (the favicons and
+`email-logo.png` live in `web/public`, untouched). Emails already shared one branded header via
+`EmailLayout`, so no email changed.
+
 **Regression as of 2026-09-30:** `dotnet build -c Release` **0 warnings / 0 errors** ·
 `dotnet test` **156 passed** (16 unit, 3 architecture, 137 integration) · `npm run lint` clean ·
 `npm test` **33 passed** · production `npm run build` succeeds, no budget warnings · Playwright
