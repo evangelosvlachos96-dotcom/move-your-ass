@@ -20,28 +20,52 @@
         maxlength="200"
         placeholder="Τίτλος ή περιγραφή"
     /></label>
-    <label
-      >Για ποιον<select name="audience" [(ngModel)]="audience" (change)="apply()">
-        <option value="">Όλοι</option>
-        <option value="Male">Άντρες</option>
-        <option value="Female">Γυναίκες</option>
-      </select></label
-    >
-    <label
-      >Περιοχή σώματος<select name="bodyArea" [(ngModel)]="bodyArea" (change)="apply()">
-        <option value="">Όλο το πρόγραμμα</option>
-        <option value="FullBody">Όλο το σώμα</option>
-        <option value="UpperBody">Πάνω μέρος</option>
-        <option value="LowerBody">Κάτω μέρος</option>
-      </select></label
-    >
-    <label
-      >Εξοπλισμός<select name="equipment" [(ngModel)]="equipment" (change)="apply()">
-        <option value="">Όλες οι επιλογές</option>
-        <option value="false">Χωρίς εξοπλισμό</option>
-        <option value="true">Με εξοπλισμό</option>
-      </select></label
-    >
+    <div class="filter-field">
+      <span>Για ποιον</span
+      ><mat-select
+        class="filter-select"
+        panelClass="filter-select-panel"
+        aria-label="Για ποιον"
+        name="audience"
+        [(ngModel)]="audience"
+        (selectionChange)="apply()"
+      >
+        <mat-option value="">Όλοι</mat-option>
+        <mat-option value="Male">Άντρες</mat-option>
+        <mat-option value="Female">Γυναίκες</mat-option>
+      </mat-select>
+    </div>
+    <div class="filter-field">
+      <span>Περιοχή σώματος</span
+      ><mat-select
+        class="filter-select"
+        panelClass="filter-select-panel"
+        aria-label="Περιοχή σώματος"
+        name="bodyArea"
+        [(ngModel)]="bodyArea"
+        (selectionChange)="apply()"
+      >
+        <mat-option value="">Όλο το πρόγραμμα</mat-option>
+        <mat-option value="FullBody">Όλο το σώμα</mat-option>
+        <mat-option value="UpperBody">Πάνω μέρος</mat-option>
+        <mat-option value="LowerBody">Κάτω μέρος</mat-option>
+      </mat-select>
+    </div>
+    <div class="filter-field">
+      <span>Εξοπλισμός</span
+      ><mat-select
+        class="filter-select"
+        panelClass="filter-select-panel"
+        aria-label="Εξοπλισμός"
+        name="equipment"
+        [(ngModel)]="equipment"
+        (selectionChange)="apply()"
+      >
+        <mat-option value="">Όλες οι επιλογές</mat-option>
+        <mat-option value="false">Χωρίς εξοπλισμό</mat-option>
+        <mat-option value="true">Με εξοπλισμό</mat-option>
+      </mat-select>
+    </div>
     <button class="primary" type="submit">Αναζήτηση</button
     ><button type="button" (click)="clear()">Καθαρισμός</button>
   </form>

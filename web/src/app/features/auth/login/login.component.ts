@@ -1,6 +1,19 @@
-import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, FormGroupDirective, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  FormGroupDirective,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -17,7 +30,9 @@ import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.
 
 @Component({
   selector: 'app-login',
-  imports: [SiteFooterComponent, BrandLogoComponent, 
+  imports: [
+    SiteFooterComponent,
+    BrandLogoComponent,
     ReactiveFormsModule,
     RouterLink,
     MatCardModule,
@@ -29,6 +44,12 @@ import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './login.component.html',
+  styles: `
+    .login-title {
+      font-size: 1.35rem;
+      font-weight: 500;
+    }
+  `,
 })
 export class LoginComponent {
   private readonly auth = inject(AuthService);
@@ -43,7 +64,10 @@ export class LoginComponent {
   protected readonly loginError = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
-    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+    email: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.email],
+    }),
     password: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
   });
 
@@ -74,7 +98,9 @@ export class LoginComponent {
       .subscribe({
         next: (user) => {
           const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-          void this.router.navigateByUrl(user.mustChangePassword ? '/change-password' : (returnUrl ?? '/dashboard'));
+          void this.router.navigateByUrl(
+            user.mustChangePassword ? '/change-password' : (returnUrl ?? '/dashboard'),
+          );
         },
         error: (error: unknown) => {
           // Clear the password through the directive so `submitted` resets too; otherwise the

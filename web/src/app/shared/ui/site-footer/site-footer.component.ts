@@ -13,11 +13,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     <footer class="site-footer">
       <small>
         Created by
-        <a
-          href="https://github.com/evangelosvlachos96-dotcom"
-          target="_blank"
-          rel="noopener noreferrer"
-        >Evangelos Vlachos</a>
+        <a href="https://www.linkedin.com/in/evanvlac/" target="_blank" rel="noopener noreferrer"
+          >Evangelos Vlachos</a
+        >
         · {{ year }}
       </small>
     </footer>
