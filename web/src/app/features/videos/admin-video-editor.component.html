@@ -8,7 +8,7 @@
   </header>
 
   @if (loading()) {
-    <p role="status">Φόρτωση…</p>
+    <app-skeleton variant="form" [count]="2" label="Φόρτωση βίντεο…" />
   } @else if (failed()) {
     <p class="editor-card editor-card--alert" role="alert">
       Δεν φορτώθηκε το βίντεο. Γύρνα πίσω και δοκίμασε ξανά.
@@ -18,8 +18,8 @@
       <p class="editor-card editor-card--alert" role="status">
         <strong>Το ανέβασμα βίντεο είναι απενεργοποιημένο.</strong>
         Ο αποθηκευτικός χώρος δεν έχει ρυθμιστεί σε αυτό το περιβάλλον. Μπορείς να οργανώσεις τον
-        κατάλογο και τις ετικέτες κανονικά. Ζήτησε από τον διαχειριστή του συστήματος να
-        συμπληρώσει τις ρυθμίσεις <code>Video:S3</code>.
+        κατάλογο και τις ετικέτες κανονικά. Ζήτησε από τον διαχειριστή του συστήματος να συμπληρώσει
+        τις ρυθμίσεις <code>Video:S3</code>.
       </p>
     }
 
@@ -162,7 +162,9 @@
                 }
               </div>
 
-              <p class="field-hint">JPG, PNG ή WebP, έως 5 MB. Οριζόντια εικόνα δείχνει καλύτερα.</p>
+              <p class="field-hint">
+                JPG, PNG ή WebP, έως 5 MB. Οριζόντια εικόνα δείχνει καλύτερα.
+              </p>
             </div>
           </div>
         </section>
@@ -181,7 +183,9 @@
               />
             </label>
             @if (file) {
-              <p class="editor-file"><strong>{{ file.name }}</strong> — {{ size(file.size) }}</p>
+              <p class="editor-file">
+                <strong>{{ file.name }}</strong> — {{ size(file.size) }}
+              </p>
             }
             <p class="field-hint">
               MP4 ή MOV, έως {{ size(storage()?.maxFileBytes ?? null) }}. Κράτα τη σελίδα ανοιχτή
@@ -195,9 +199,7 @@
         <section class="editor-card">
           <h2 class="editor-card__title">Ανέβασμα</h2>
           <progress max="100" [value]="progress()" aria-label="Πρόοδος ανεβάσματος"></progress>
-          <p role="status">
-            {{ progress() }}%{{ paused() ? ' — σε παύση' : '' }}
-          </p>
+          <p role="status">{{ progress() }}%{{ paused() ? ' — σε παύση' : '' }}</p>
         </section>
       }
 

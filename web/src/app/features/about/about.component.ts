@@ -1,3 +1,4 @@
+import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -31,7 +32,14 @@ export interface ContactLink {
  */
 @Component({
   selector: 'app-about',
-  imports: [FormsModule, ContactIconComponent, MatIconModule, RouterLink, BookingButtonComponent],
+  imports: [
+    SkeletonComponent,
+    FormsModule,
+    ContactIconComponent,
+    MatIconModule,
+    RouterLink,
+    BookingButtonComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './about.component.html',
   styleUrl: './about.component.scss',

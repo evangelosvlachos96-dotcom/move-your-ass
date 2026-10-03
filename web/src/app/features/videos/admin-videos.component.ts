@@ -1,3 +1,4 @@
+import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -31,7 +32,7 @@ const PAGE_SIZE = 12;
  */
 @Component({
   selector: 'app-admin-videos',
-  imports: [FormsModule, RouterLink, MatIconModule, MatMenuModule],
+  imports: [SkeletonComponent, FormsModule, RouterLink, MatIconModule, MatMenuModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-videos.component.html',
   styleUrls: ['./videos.scss', './admin-videos.scss'],
@@ -46,7 +47,7 @@ export class AdminVideosComponent {
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
   protected readonly note = signal('');
-  protected readonly configured = signal(false);
+  protected readonly configured = signal<boolean | null>(null);
   protected readonly storage = signal<StorageUsage | null>(null);
 
   protected readonly status = STATUS_LABELS;
@@ -78,7 +79,9 @@ export class AdminVideosComponent {
     this.failed.set(false);
     try {
       this.page.set(
-        await firstValueFrom(this.api.list({ page, pageSize: PAGE_SIZE, search: this.search }, true)),
+        await firstValueFrom(
+          this.api.list({ page, pageSize: PAGE_SIZE, search: this.search }, true),
+        ),
       );
     } catch {
       this.failed.set(true);

@@ -1,6 +1,6 @@
 <section class="about plain-form">
   @if (loading()) {
-    <p role="status">Φόρτωση…</p>
+    <app-skeleton variant="profile" [count]="2" />
   } @else if (failed()) {
     <div class="about-card" role="alert">
       <h1>Η σελίδα δεν φορτώθηκε.</h1>
@@ -44,15 +44,13 @@
         @if (isAdmin()) {
           <h2 class="about-card__title">Η σελίδα σου είναι άδεια.</h2>
           <p class="about__muted">
-            Πάτησε «Επεξεργασία» για να προσθέσεις φωτογραφία, το όνομά σου, λίγα λόγια για σένα
-            και τα στοιχεία επικοινωνίας σου. Μέχρι τότε οι πελάτισσές σου βλέπουν αυτή τη σελίδα
-            χωρίς πληροφορίες.
+            Πάτησε «Επεξεργασία» για να προσθέσεις φωτογραφία, το όνομά σου, λίγα λόγια για σένα και
+            τα στοιχεία επικοινωνίας σου. Μέχρι τότε οι πελάτισσές σου βλέπουν αυτή τη σελίδα χωρίς
+            πληροφορίες.
           </p>
         } @else {
           <h2 class="about-card__title">Ο γυμναστής θα προσθέσει σύντομα πληροφορίες.</h2>
-          <p class="about__muted">
-            Μπορείς να στείλεις μήνυμα από τη φόρμα παρακάτω όποτε θέλεις.
-          </p>
+          <p class="about__muted">Μπορείς να στείλεις μήνυμα από τη φόρμα παρακάτω όποτε θέλεις.</p>
         }
       </div>
     }
@@ -105,47 +103,45 @@
     <!-- Message form. Clients only: an admin writing here would be writing to themselves, and
          the endpoint refuses it regardless of what is drawn. -->
     @if (!isAdmin()) {
-    <div class="about-card">
-      <h2 class="about-card__title">Στείλε μήνυμα</h2>
-      @if (sent()) {
-        <p class="about__sent" role="status">
-          Το μήνυμα στάλθηκε. Θα λάβεις απάντηση στο email σου.
-        </p>
-      } @else {
-        <p class="field-hint">
-          Η απάντηση έρχεται στο email με το οποίο συνδέεσαι.
-        </p>
-        <form class="about__form" #contactForm="ngForm" (ngSubmit)="send(contactForm)">
-          <label>
-            Θέμα
-            <input
-              name="subject"
-              [(ngModel)]="subject"
-              required
-              [minlength]="contactMin.subject"
-              maxlength="150"
-              [disabled]="sending()"
-            />
-          </label>
-          <label>
-            Μήνυμα
-            <textarea
-              name="message"
-              [(ngModel)]="message"
-              required
-              [minlength]="contactMin.message"
-              maxlength="4000"
-              [disabled]="sending()"
-            ></textarea>
-          </label>
-          <div class="about__actions">
-            <button type="submit" class="primary" [disabled]="sending()">
-              {{ sending() ? 'Αποστολή…' : 'Αποστολή' }}
-            </button>
-          </div>
-        </form>
-      }
-    </div>
+      <div class="about-card">
+        <h2 class="about-card__title">Στείλε μήνυμα</h2>
+        @if (sent()) {
+          <p class="about__sent" role="status">
+            Το μήνυμα στάλθηκε. Θα λάβεις απάντηση στο email σου.
+          </p>
+        } @else {
+          <p class="field-hint">Η απάντηση έρχεται στο email με το οποίο συνδέεσαι.</p>
+          <form class="about__form" #contactForm="ngForm" (ngSubmit)="send(contactForm)">
+            <label>
+              Θέμα
+              <input
+                name="subject"
+                [(ngModel)]="subject"
+                required
+                [minlength]="contactMin.subject"
+                maxlength="150"
+                [disabled]="sending()"
+              />
+            </label>
+            <label>
+              Μήνυμα
+              <textarea
+                name="message"
+                [(ngModel)]="message"
+                required
+                [minlength]="contactMin.message"
+                maxlength="4000"
+                [disabled]="sending()"
+              ></textarea>
+            </label>
+            <div class="about__actions">
+              <button type="submit" class="primary" [disabled]="sending()">
+                {{ sending() ? 'Αποστολή…' : 'Αποστολή' }}
+              </button>
+            </div>
+          </form>
+        }
+      </div>
     }
   }
 </section>

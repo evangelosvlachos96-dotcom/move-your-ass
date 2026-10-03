@@ -60,7 +60,7 @@
     </div>
   }
   @if (busy()) {
-    <p class="empty" role="status">Φόρτωση προπονήσεων…</p>
+    <app-skeleton variant="cards" [count]="3" label="Φόρτωση προπονήσεων…" />
   } @else if (failed()) {
     <div class="empty" role="alert">
       <h2>Δεν μπορέσαμε να φορτώσουμε τα βίντεο.</h2>
@@ -92,28 +92,30 @@
             </a>
           }
           <a class="video-card__link" [routerLink]="['/videos', video.id]">
-          <div class="thumbnail">
-            @if (video.thumbnailUrl) {
-              <img [src]="video.thumbnailUrl" alt="" loading="lazy" />
-            } @else {
-              <span class="video-placeholder">MOVE<br />YOUR ASS</span>
-            }
-            <span class="duration">{{ duration(video.durationSeconds) }}</span
-            ><span class="play-mark" aria-hidden="true">▶</span>
-          </div>
-          <div class="card-copy">
-            <span class="eyebrow">{{ areas[video.bodyArea] }}</span>
-            <h2>{{ video.title }}</h2>
-            <p>
-              {{ video.requiresEquipment ? 'Με εξοπλισμό' : 'Χωρίς εξοπλισμό' }} ·
-              {{ audiences[video.audience] }}
-            </p>
-            <div class="tags">
-              @for (tag of video.tags; track tag.id) {
-                <span>{{ tag.name }}</span>
+            <div class="thumbnail">
+              @if (video.thumbnailUrl) {
+                <img [src]="video.thumbnailUrl" alt="" loading="lazy" />
+              } @else {
+                <span class="video-placeholder">MOVE<br />YOUR ASS</span>
               }
+              <span class="duration">{{ duration(video.durationSeconds) }}</span
+              ><span class="play-mark" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" focusable="false"><path d="M8 5v14l11-7z" /></svg
+              ></span>
             </div>
-          </div>
+            <div class="card-copy">
+              <span class="eyebrow">{{ areas[video.bodyArea] }}</span>
+              <h2>{{ video.title }}</h2>
+              <p>
+                {{ video.requiresEquipment ? 'Με εξοπλισμό' : 'Χωρίς εξοπλισμό' }} ·
+                {{ audiences[video.audience] }}
+              </p>
+              <div class="tags">
+                @for (tag of video.tags; track tag.id) {
+                  <span>{{ tag.name }}</span>
+                }
+              </div>
+            </div>
           </a>
         </div>
       }

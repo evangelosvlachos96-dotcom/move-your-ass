@@ -1,3 +1,4 @@
+import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -27,7 +28,10 @@ import { NotifyService } from '../../core/ui/notify.service';
 import { renderSafeMarkdown } from '../../shared/text/safe-markdown';
 import { ContactIconComponent } from '../../shared/ui/contact-icon/contact-icon.component';
 import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
-import { ImageCropService, PORTRAIT_CROP } from '../../shared/ui/image-crop-dialog/image-crop.service';
+import {
+  ImageCropService,
+  PORTRAIT_CROP,
+} from '../../shared/ui/image-crop-dialog/image-crop.service';
 
 /**
  * Editing "Ο γυμναστής σου", on its own route.
@@ -38,7 +42,7 @@ import { ImageCropService, PORTRAIT_CROP } from '../../shared/ui/image-crop-dial
  */
 @Component({
   selector: 'app-about-editor',
-  imports: [FormsModule, ContactIconComponent, MatIconModule],
+  imports: [SkeletonComponent, FormsModule, ContactIconComponent, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './about-editor.component.html',
   styleUrl: './about-editor.component.scss',
@@ -103,7 +107,6 @@ export class AboutEditorComponent {
       current.map((link, i) => (i === index ? { ...link, value } : link)),
     );
   }
-
 
   protected form: AboutInput = blank();
   /** Signal-backed so the live preview updates as the biography is typed. */

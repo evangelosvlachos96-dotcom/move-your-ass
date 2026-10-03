@@ -1,3 +1,4 @@
+import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
@@ -14,7 +15,7 @@ import { NotifyService } from '../../core/ui/notify.service';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [MatCardModule, MatButtonModule, RouterLink, VideoLibraryComponent],
+  imports: [SkeletonComponent, MatCardModule, MatButtonModule, RouterLink, VideoLibraryComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
@@ -29,15 +30,25 @@ export class DashboardComponent {
   protected readonly pending = signal<AdminUser[]>([]);
   protected readonly count = signal<number | null>(null);
   protected readonly failed = signal(false);
+  protected readonly summaryFailed = signal(false);
   protected readonly fullName = fullName;
 
   constructor() {
     if (this.store.user()?.role === 'Admin') {
-      this.videos.summary().pipe(takeUntilDestroyed()).subscribe({next: s => this.summary.set(s), error: () => this.failed.set(true)});
-      this.api.list({ status: 'PendingApproval', page: 1, pageSize: 5 }).pipe(takeUntilDestroyed()).subscribe({
-        next: result => { this.pending.set(result.items); this.count.set(result.totalCount); },
-        error: () => this.failed.set(true),
-      });
+      this.videos
+        .summary()
+        .pipe(takeUntilDestroyed())
+        .subscribe({ next: (s) => this.summary.set(s), error: () => this.summaryFailed.set(true) });
+      this.api
+        .list({ status: 'PendingApproval', page: 1, pageSize: 5 })
+        .pipe(takeUntilDestroyed())
+        .subscribe({
+          next: (result) => {
+            this.pending.set(result.items);
+            this.count.set(result.totalCount);
+          },
+          error: () => this.failed.set(true),
+        });
     }
   }
 }

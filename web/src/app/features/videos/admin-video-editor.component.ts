@@ -1,3 +1,4 @@
+import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -46,7 +47,7 @@ import { ResizedImage } from '../../core/images/image-resize';
  */
 @Component({
   selector: 'app-admin-video-editor',
-  imports: [FormsModule, MatIconModule],
+  imports: [SkeletonComponent, FormsModule, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-video-editor.component.html',
   styleUrl: './admin-video-editor.component.scss',
@@ -369,7 +370,9 @@ export class AdminVideoEditorComponent implements OnDestroy {
       }
 
       if (!ticket) {
-        this.note.set('Το βίντεο έχει ήδη δημιουργηθεί. Επέστρεψε στη λίστα για την κατάστασή του.');
+        this.note.set(
+          'Το βίντεο έχει ήδη δημιουργηθεί. Επέστρεψε στη λίστα για την κατάστασή του.',
+        );
         return;
       }
 

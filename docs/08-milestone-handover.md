@@ -1,6 +1,43 @@
 # 08 — Milestone handover
 
-# Current state
+# Current state — 2026-10-03 mobile and loading polish
+
+Branch: **feature/mobile-loading-polish**, created from `fix/register-logo` at `bda8c7f`.
+The owner authorized committing and pushing this branch, and will merge through GitHub; no deployment,
+production database mutation or real email send was performed in this round.
+
+The delivered application remains live at https://moveyourass.gr. This round addresses the
+owner's iPhone screenshots:
+
+- Corrected the registration email from `από τη διαχειρίστρια` to `από τον διαχειριστή`.
+- Reworked mobile user cards into explicit grid positions for identity, actions, wrapping badges
+  and date; grouped the search and refresh buttons. New-route navigation starts at the top;
+  browser back/forward uses Angular scroll restoration.
+- Full-width phone filters avoid clipped selected text. Replaced the video-card emoji with a
+  consistent SVG play icon, and styled the player return link as a button with a back arrow.
+- Kept the existing animated three-chevron startup loader, fixed to the viewport, and locked
+  document scrolling while session restoration waits. Normal page scrolling resumes afterward.
+- Added one accessible, reduced-motion-aware skeleton component with shared shimmer styling for
+  users, dashboards, video lists/player/editor and trainer profile/editor. Existing error and
+  empty states remain distinct from loading. Video-summary errors no longer affect the pending
+  registrations state; the provider warning waits until configuration is actually known.
+- Disabled automatic iOS text detection for ordinary names, dates and email text; explicit links
+  continue to work.
+
+Verification: Angular production build and lint pass; 33 frontend unit tests pass; all 156 backend
+ tests pass (16 unit, 3 architecture, 137 integration). Docker Desktop was started for the isolated
+ integration databases. The new `web/e2e/mobile-loading.spec.ts` uses synthetic API responses and
+ deliberately delayed requests against a local production build, with no production credentials.
+ Browser regressions: 50 passed across phone, tablet and desktop Chromium plus phone and tablet
+ WebKit (10 checks per project). A desktop-only ambiguous heading selector was corrected before
+ the final successful run.
+
+Before release: inspect these changes on a physical iPhone, especially Safari's elastic scrolling
+ and changing browser toolbars. Windows WebKit checks layout and loading behavior but does not
+ reproduce the full iOS browser environment. Real email delivery and real video playback were not
+ re-tested for this UI-only round.
+
+# Previous handover — historical state
 
 Updated 2026-09-30. Branch: **feature/final-polish**, cut from `main` at **8fa9b53** (the
 B2/auth/UI merge). Nothing on this branch is committed yet.

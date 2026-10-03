@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth/auth.service';
@@ -30,7 +31,12 @@ import { ChevronLoaderComponent } from './shared/ui/chevron-loader/chevron-loade
   `,
   styles: `
     .boot {
-      min-height: 100dvh;
+      position: fixed;
+      inset: 0;
+      height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -46,8 +52,12 @@ export class App {
   private readonly router = inject(Router);
 
   constructor() {
+    const document = inject(DOCUMENT);
+    document.body.classList.add('app-booting');
+    inject(DestroyRef).onDestroy(() => document.body.classList.remove('app-booting'));
     // restoreSession never throws; whatever the outcome, the app starts.
     this.auth.restoreSession().subscribe(() => {
+      document.body.classList.remove('app-booting');
       this.booting.set(false);
       this.router.initialNavigation();
     });
