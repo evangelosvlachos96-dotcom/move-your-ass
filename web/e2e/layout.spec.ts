@@ -274,7 +274,7 @@ test.describe('signed in as admin', () => {
 
     const link = page.getByRole('link', { name: 'Evangelos Vlachos' });
     await expect(link).toBeVisible();
-    await expect(link).toHaveAttribute('href', 'https://github.com/evangelosvlachos96-dotcom');
+    await expect(link).toHaveAttribute('href', 'https://www.linkedin.com/in/evanvlac/');
     await expect(link).toHaveAttribute('target', '_blank');
     // Without noopener the opened page gets a handle on this one.
     await expect(link).toHaveAttribute('rel', /noopener/);

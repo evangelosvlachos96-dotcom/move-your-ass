@@ -37,6 +37,29 @@ Before release: inspect these changes on a physical iPhone, especially Safari's 
  reproduce the full iOS browser environment. Real email delivery and real video playback were not
  re-tested for this UI-only round.
 
+## Follow-up — dropdowns, page spacing and long mobile pages
+
+After `af12154`, the owner requested another local polish pass on the same branch:
+
+- Workout filters now use Material select overlays with rounded brand surfaces, selected states,
+  keyboard navigation and full-width phone controls instead of operating-system menus.
+- Removed extra workout heading margins so the first content aligns with the trainer page at the
+  shell's 24px desktop / 16px phone inset.
+- Login now has one quieter `Καλώς ήρθες` title instead of the repeated sign-in heading and subtitle.
+- The footer credit now links to https://www.linkedin.com/in/evanvlac/.
+- Changed the document body from fixed `height: 100%` to `min-height: 100%`. Long pages now grow
+  their body box with the content instead of leaving content outside a viewport-height clipping
+  box. The startup scroll lock remains separately controlled by `app-booting`.
+- Strengthened the users regression: scroll through every synthetic row and hit-test its visible
+  content. The earlier DOM-count assertion could not detect painting/clipping problems. Added
+  dropdown interaction and top-inset checks, plus screenshots using synthetic data only.
+
+Verification: production build and lint pass; 33 unit tests pass with one worker (the first
+parallel run timed out starting workers under load). All 33 browser checks pass across phone and desktop
+Chromium plus phone WebKit, including a focused nine-check rerun after correcting test scroll
+coordinates and the Material keyboard-open shortcut. Dropdown screenshots were visually inspected.
+The owner authorized committing and pushing these follow-up changes for a GitHub merge. They have not been deployed by this session. A physical iPhone check is still
+required to confirm the owner's exact black-screen symptom is resolved on the deployed build.
 # Previous handover — historical state
 
 Updated 2026-09-30. Branch: **feature/final-polish**, cut from `main` at **8fa9b53** (the

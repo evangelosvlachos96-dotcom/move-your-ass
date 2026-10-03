@@ -120,7 +120,21 @@ test('users skeleton resolves to complete reachable cards and route changes star
     const badges = await row.locator('.urow__badges').boundingBox();
     expect(badges!.y).toBeGreaterThan(identity!.y);
   }
-  await page.locator('.urow').last().scrollIntoViewIfNeeded();
+  // A DOM count alone misses off-screen content clipped by a viewport-height body.
+  for (const row of await page.locator('.urow').all()) {
+    await row.evaluate(e => e.scrollIntoView({block: 'center'}));
+    await expect(row).toBeInViewport();
+    expect(
+      await row.evaluate((e) => {
+        const r = e.getBoundingClientRect();
+        const y = Math.max(80, Math.min(window.innerHeight - 100, r.y + r.height / 2));
+        return e.contains(document.elementFromPoint(r.x + r.width / 2, y));
+      }),
+    ).toBe(true);
+  }
+  expect(
+    await page.locator('body').evaluate((e) => e.getBoundingClientRect().height),
+  ).toBeGreaterThan(page.viewportSize()!.height);
   const nav = page.locator('nav').getByRole('link', { name: 'Προπονήσεις', exact: true });
   await nav.click();
   await expect(page.locator('.video-card')).toHaveCount(1);
@@ -129,7 +143,9 @@ test('users skeleton resolves to complete reachable cards and route changes star
     .locator('nav')
     .getByRole('link', { name: /Χρήστες/ })
     .click();
-  await expect(page.getByRole('main').getByRole('heading', { name: 'Χρήστες', exact: true })).toBeInViewport();
+  await expect(
+    page.getByRole('main').getByRole('heading', { name: 'Χρήστες', exact: true }),
+  ).toBeInViewport();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
@@ -167,21 +183,43 @@ test('filter values fit, play icon is vector, and player back link is a control'
   await page.goto('/videos');
   await expect(page.locator('.video-card')).toHaveCount(1);
   await expect(page.locator('.play-mark svg')).toBeVisible();
-  if ((page.viewportSize()?.width ?? 0) < 600) {
-    for (const control of await page.locator('.filters select').all()) {
-      expect(
-        await control.evaluate((e) => {
-          const s = e as HTMLSelectElement,
-            c = document.createElement('canvas').getContext('2d')!;
-          c.font = getComputedStyle(s).font;
-          return c.measureText(s.selectedOptions[0].text).width + 60 <= s.clientWidth;
-        }),
-      ).toBe(true);
-    }
-  }
+  const equipment = page.getByRole('combobox', { name: 'Εξοπλισμός', exact: true });
+  await equipment.click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.getByRole('option', { name: 'Χωρίς εξοπλισμό', exact: true }).click();
+  await expect(equipment).toContainText('Χωρίς εξοπλισμό');
+  await expect(page).toHaveURL(/equipment=false/);
+  await equipment.focus();
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
   await page.locator('.video-card__link').click();
   await expect(page.locator('.back-link')).toBeVisible();
   await expect(page.locator('.back-link mat-icon')).toHaveText('arrow_back');
   await page.locator('.back-link').click();
   await expect(page).toHaveURL(/\/videos$/);
+});
+
+test('workouts and trainer share the shell top inset', async ({ page }, testInfo) => {
+  await mock(page);
+  await page.goto('/videos');
+  await expect(page.locator('.video-card')).toHaveCount(1);
+  const header = await page.locator('.shell__topbar').boundingBox();
+  const heading = await page.locator('.video-heading').boundingBox();
+  const gap = heading!.y - header!.y - header!.height;
+  expect(gap).toBe((page.viewportSize()?.width ?? 0) < 600 ? 16 : 24);
+  await expect(page.getByRole('link', { name: 'Evangelos Vlachos' })).toHaveAttribute(
+    'href',
+    'https://www.linkedin.com/in/evanvlac/',
+  );
+  await page.getByRole('combobox', { name: 'Περιοχή σώματος', exact: true }).click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('dropdown.png') });
+  await page.keyboard.press('Escape');
+  await page.goto('/about');
+  await expect(page.locator('.about-hero')).toBeVisible();
+  const trainer = await page.locator('.about-hero').boundingBox();
+  const bar = await page.locator('.shell__topbar').boundingBox();
+  expect(trainer!.y - bar!.y - bar!.height).toBe(gap);
 });

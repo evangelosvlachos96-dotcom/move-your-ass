@@ -70,7 +70,7 @@ html {
 
 body {
   margin: 0;
-  height: 100%;
+  min-height: 100%;
   background-color: var(--brand-bg);
   color: var(--brand-text);
   font: var(--mat-sys-body-medium);
@@ -243,4 +243,20 @@ body.app-booting {
   position: fixed;
   inset: 0;
   touch-action: none;
+}
+
+// Material overlays live outside their feature component.
+.filter-select-panel.mat-mdc-select-panel {
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: var(--brand-surface-2);
+  padding: 6px;
+}
+.filter-select-panel .mat-mdc-option {
+  border-radius: 8px;
+  min-height: 48px;
+}
+.filter-select-panel .mat-mdc-option.mdc-list-item--selected {
+  background: var(--brand-surface);
+  color: var(--brand-accent);
 }

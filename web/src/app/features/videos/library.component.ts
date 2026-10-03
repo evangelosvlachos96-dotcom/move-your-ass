@@ -1,5 +1,6 @@
 import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -18,7 +19,14 @@ import {
 } from '../../core/videos/video.models';
 @Component({
   selector: 'app-video-library',
-  imports: [SkeletonComponent, FormsModule, RouterLink, MatIconModule, BookingButtonComponent],
+  imports: [
+    MatSelectModule,
+    SkeletonComponent,
+    FormsModule,
+    RouterLink,
+    MatIconModule,
+    BookingButtonComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './library.component.html',
   styleUrl: './videos.scss',
