@@ -10,12 +10,12 @@
     </a>
   </header>
 
-  @if (!configured()) {
+  @if (configured() === false) {
     <p class="admin-notice" role="status">
       <strong>Το ανέβασμα βίντεο είναι απενεργοποιημένο.</strong>
       Ο αποθηκευτικός χώρος βίντεο δεν έχει ρυθμιστεί σε αυτό το περιβάλλον, οπότε δεν μπορούν να
-      εκδοθούν σύνδεσμοι ανεβάσματος. Μπορείς να οργανώσεις τον κατάλογο και τις ετικέτες
-      κανονικά. Ζήτησε από τον διαχειριστή του συστήματος να συμπληρώσει τις ρυθμίσεις
+      εκδοθούν σύνδεσμοι ανεβάσματος. Μπορείς να οργανώσεις τον κατάλογο και τις ετικέτες κανονικά.
+      Ζήτησε από τον διαχειριστή του συστήματος να συμπληρώσει τις ρυθμίσεις
       <code>Video:S3</code>.
     </p>
   }
@@ -24,7 +24,9 @@
     <div class="storage" [class.storage--warning]="storageNearlyFull">
       <div class="storage__text">
         <strong>Αποθηκευτικός χώρος</strong>
-        <span>{{ size(used.usedBytes) }} από {{ size(used.capBytes) }} ({{ storagePercent }}%)</span>
+        <span
+          >{{ size(used.usedBytes) }} από {{ size(used.capBytes) }} ({{ storagePercent }}%)</span
+        >
       </div>
       <div
         class="storage__bar"
@@ -58,7 +60,7 @@
   </form>
 
   @if (loading()) {
-    <p role="status">Φόρτωση…</p>
+    <app-skeleton variant="rows" [count]="4" label="Φόρτωση βίντεο…" />
   } @else if (failed()) {
     <p class="empty" role="alert">Δεν φορτώθηκε η λίστα. Δοκίμασε ανανέωση.</p>
   } @else if (page(); as result) {

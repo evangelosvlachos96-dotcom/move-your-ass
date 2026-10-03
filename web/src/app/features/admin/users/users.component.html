@@ -17,8 +17,15 @@
   >
     <mat-icon aria-hidden="true">how_to_reg</mat-icon>
     <span class="pending-banner__text">
-      <strong>{{ waiting }} {{ waiting === 1 ? 'εγγραφή περιμένει' : 'εγγραφές περιμένουν' }} έγκριση</strong>
-      <small>{{ status.value === 'PendingApproval' ? 'Δείχνει μόνο αυτές. Πάτα ξανά για όλους.' : 'Πάτα για να δεις μόνο αυτές.' }}</small>
+      <strong
+        >{{ waiting }}
+        {{ waiting === 1 ? 'εγγραφή περιμένει' : 'εγγραφές περιμένουν' }} έγκριση</strong
+      >
+      <small>{{
+        status.value === 'PendingApproval'
+          ? 'Δείχνει μόνο αυτές. Πάτα ξανά για όλους.'
+          : 'Πάτα για να δεις μόνο αυτές.'
+      }}</small>
     </span>
   </button>
 }
@@ -37,12 +44,14 @@
       }
     </mat-select>
   </mat-form-field>
-  <button mat-button type="submit">Αναζήτηση</button>
-  <button mat-button type="button" (click)="reload()">Ανανέωση</button>
+  <div class="filters__actions">
+    <button mat-flat-button type="submit">Αναζήτηση</button>
+    <button mat-button type="button" (click)="reload()">Ανανέωση</button>
+  </div>
 </form>
 
 @if (loading()) {
-  <p role="status">Φόρτωση χρηστών…</p>
+  <app-skeleton variant="rows" [count]="4" label="Φόρτωση χρηστών…" />
 } @else if (failed()) {
   <p role="alert">Δεν ήταν δυνατή η φόρτωση. Δοκίμασε την ανανέωση.</p>
 } @else if (users().length === 0) {
@@ -69,16 +78,17 @@
           <span class="urow__email">{{ user.email }}</span>
         </span>
 
-        <span class="urow__cell urow__cell--role">
-          <span class="ubadge">{{ user.role === 'Admin' ? 'Διαχειριστής' : 'Πελάτης' }}</span>
-        </span>
+        <span class="urow__badges"
+          ><span class="urow__cell urow__cell--role">
+            <span class="ubadge">{{ user.role === 'Admin' ? 'Διαχειριστής' : 'Πελάτης' }}</span>
+          </span>
 
-        <span class="urow__cell urow__cell--status">
-          <span class="ubadge" [class]="'ubadge--' + statusTone(user.status)">
-            {{ labels[user.status] }}
+          <span class="urow__cell urow__cell--status">
+            <span class="ubadge" [class]="'ubadge--' + statusTone(user.status)">
+              {{ labels[user.status] }}
+            </span>
           </span>
         </span>
-
         <span class="urow__cell urow__cell--date">{{ user.createdAtUtc | athensDate }}</span>
 
         <span class="urow__actions">

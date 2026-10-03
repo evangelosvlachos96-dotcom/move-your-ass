@@ -1,3 +1,4 @@
+import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -14,11 +15,13 @@ import { Video, AREA_LABELS, durationLabel } from '../../core/videos/video.model
  */
 @Component({
   selector: 'app-video-player',
-  imports: [RouterLink, MatIconModule],
+  imports: [SkeletonComponent, RouterLink, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './videos.scss',
   template: `<section class="video-page plain-form">
-    <a [routerLink]="admin ? '/admin/videos' : '/videos'">← Όλες οι προπονήσεις</a>
+    <a class="button back-link" [routerLink]="admin ? '/admin/videos' : '/videos'"
+      ><mat-icon aria-hidden="true">arrow_back</mat-icon><span>Όλες οι προπονήσεις</span></a
+    >
     @if (failed()) {
       <div class="empty" role="alert">
         <h1>Το βίντεο δεν είναι διαθέσιμο.</h1>
@@ -60,7 +63,7 @@ import { Video, AREA_LABELS, durationLabel } from '../../core/videos/video.model
         }
       </div>
     } @else {
-      <p role="status">Φόρτωση βίντεο…</p>
+      <app-skeleton variant="player" label="Φόρτωση βίντεο…" />
     }
   </section>`,
 })

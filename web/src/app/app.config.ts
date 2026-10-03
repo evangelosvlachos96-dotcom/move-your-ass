@@ -2,7 +2,11 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
-import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import {
+  provideRouter,
+  withDisabledInitialNavigation,
+  withInMemoryScrolling,
+} from '@angular/router';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/http/interceptors/auth.interceptor';
 import { errorInterceptor } from './core/http/interceptors/error.interceptor';
@@ -15,7 +19,11 @@ export const appConfig: ApplicationConfig = {
 
     // The root component runs the silent /auth/refresh behind the boot loader and then calls
     // router.initialNavigation() itself, so guards see the restored session.
-    provideRouter(routes, withDisabledInitialNavigation()),
+    provideRouter(
+      routes,
+      withDisabledInitialNavigation(),
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
+    ),
 
     // Order matters: auth is innermost so it sees a 401 first and can refresh + replay before
     // the error interceptor gets a chance to report it.

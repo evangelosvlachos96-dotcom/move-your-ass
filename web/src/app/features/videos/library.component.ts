@@ -1,3 +1,4 @@
+import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,7 +18,7 @@ import {
 } from '../../core/videos/video.models';
 @Component({
   selector: 'app-video-library',
-  imports: [FormsModule, RouterLink, MatIconModule, BookingButtonComponent],
+  imports: [SkeletonComponent, FormsModule, RouterLink, MatIconModule, BookingButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './library.component.html',
   styleUrl: './videos.scss',

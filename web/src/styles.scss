@@ -231,3 +231,16 @@ select:autofill {
   white-space: nowrap;
   border: 0;
 }
+
+// Lock only session restoration, including Safari rubber-band scrolling.
+html:has(body.app-booting),
+body.app-booting {
+  overflow: hidden;
+  overscroll-behavior: none;
+  block-size: 100%;
+}
+body.app-booting {
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+}

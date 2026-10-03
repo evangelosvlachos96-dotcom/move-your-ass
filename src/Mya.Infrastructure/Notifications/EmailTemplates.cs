@@ -56,7 +56,7 @@ public sealed class EmailTemplates(IConfiguration configuration)
             Cta = new EmailCta("Ορισμός κωδικού", link),
             Note = $"Ο σύνδεσμος χρησιμοποιείται μία φορά και λήγει στις "
                  + $"{p.ExpiresAtUtc.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)} UTC. "
-                 + "Αν έχει λήξει, ζητήστε νέα πρόσκληση από τη διαχειρίστρια.",
+                 + "Αν έχει λήξει, ζητήστε νέα πρόσκληση από τον διαχειριστή.",
         });
     }
 
