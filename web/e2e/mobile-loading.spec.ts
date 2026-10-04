@@ -262,3 +262,39 @@ test('saved thumbnail is shown in full in library, admin list and editor', async
     expect(await picture.evaluate((e) => getComputedStyle(e).display)).toBe('block');
   }
 });
+
+test('contact arrows stay alongside their text and pagination clears the last user', async ({
+  page,
+}) => {
+  await mock(page);
+  await page.route('**/api/site/about', (route) =>
+    route.fulfill({
+      json: {
+        trainerName: 'Test trainer',
+        tagline: 'Training',
+        aboutMarkdown: 'About',
+        photoUrl: null,
+        contactEmail: 'trainer@example.test',
+        phone: null,
+        bookingUrl: null,
+        socialLinks: [{ network: 'instagram', value: 'https://www.instagram.com/example/' }],
+        revision: 'revision',
+      },
+    }),
+  );
+  await page.goto('/about');
+  await expect(page.locator('.about__link').first()).toBeVisible();
+  for (const link of await page.locator('.about__link').all()) {
+    const arrow = await link.locator('.about__link-go').boundingBox();
+    const label = await link.locator('.about__link-label').boundingBox();
+    const value = await link.locator('.about__link-value').boundingBox();
+    expect(arrow!.x).toBeGreaterThan(label!.x + label!.width);
+    expect(arrow!.y).toBeLessThan(value!.y + value!.height);
+    expect(arrow!.y + arrow!.height).toBeGreaterThan(label!.y);
+  }
+  await page.goto('/admin/users');
+  await expect(page.locator('.urow')).toHaveCount(12);
+  const last = await page.locator('.urow').last().boundingBox();
+  const paginator = await page.locator('mat-paginator').boundingBox();
+  expect(paginator!.y - last!.y - last!.height).toBeGreaterThanOrEqual(24);
+});

@@ -73,6 +73,15 @@ when originally cropping/uploading must be restored from the original artwork.
 Added a browser regression using synthetic 1280x720 edge-labelled artwork across all three
 screens. Production build passed; all five browser projects passed this regression (phone, tablet,
 desktop Chromium and phone/tablet WebKit). The owner authorized committing and pushing this fix for merge; no deployment was performed by this session.
+## 2026-10-04 — Contact arrows and user pagination
+
+Phone contact rows now explicitly place the icon and label on the first row, the contact value
+below the label, and the chevron in a right-hand column spanning both rows. The contact value
+no longer consumes the chevron column and pushes the arrow below the entire row.
+The user paginator has a 24px gap below the list and its own bordered, rounded surface.
+Production build passed. The synthetic regression for arrow position and paginator-to-last-card
+gap passed in all five browser projects: phone, tablet and desktop Chromium, plus phone/tablet WebKit.
+The owner requested commit and push only, explicitly cancelling the earlier merge request.
 # Previous handover — historical state
 
 Updated 2026-09-30. Branch: **feature/final-polish**, cut from `main` at **8fa9b53** (the
