@@ -161,7 +161,7 @@
 
 .editor-cover__preview {
   inline-size: 200px;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   flex: 0 0 auto;
   max-inline-size: 100%;
   border-radius: 12px;
@@ -176,7 +176,7 @@
 .editor-cover__preview img {
   inline-size: 100%;
   block-size: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 

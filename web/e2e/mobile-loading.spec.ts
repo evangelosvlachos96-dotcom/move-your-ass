@@ -122,7 +122,7 @@ test('users skeleton resolves to complete reachable cards and route changes star
   }
   // A DOM count alone misses off-screen content clipped by a viewport-height body.
   for (const row of await page.locator('.urow').all()) {
-    await row.evaluate(e => e.scrollIntoView({block: 'center'}));
+    await row.evaluate((e) => e.scrollIntoView({ block: 'center' }));
     await expect(row).toBeInViewport();
     expect(
       await row.evaluate((e) => {
@@ -222,4 +222,43 @@ test('workouts and trainer share the shell top inset', async ({ page }, testInfo
   const trainer = await page.locator('.about-hero').boundingBox();
   const bar = await page.locator('.shell__topbar').boundingBox();
   expect(trainer!.y - bar!.y - bar!.height).toBe(gap);
+});
+
+test('saved thumbnail is shown in full in library, admin list and editor', async ({ page }) => {
+  await mock(page);
+  const artwork =
+    'data:image/svg+xml,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720"><rect width="1280" height="720" fill="black"/><text x="0" y="360" fill="white">LEFT EDGE</text><text x="1280" y="360" text-anchor="end" fill="white">RIGHT EDGE</text></svg>',
+    );
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/videos'))
+      await route.fulfill({
+        json: {
+          items: [{ ...video, thumbnailUrl: artwork }],
+          totalCount: 1,
+          page: 1,
+          pageSize: 12,
+          totalPages: 1,
+        },
+      });
+    else if (path.endsWith(video.id))
+      await route.fulfill({ json: { ...video, thumbnailUrl: artwork } });
+    else await route.fallback();
+  });
+  for (const [url, frame] of [
+    ['/videos', '.thumbnail'],
+    ['/admin/videos', '.vcard__cover'],
+    ['/admin/videos/' + video.id + '/edit', '.editor-cover__preview'],
+  ]) {
+    await page.goto(url);
+    const container = page.locator(frame).first();
+    const picture = container.locator('img');
+    await expect(picture).toBeVisible();
+    await expect.poll(() => picture.evaluate((e: HTMLImageElement) => e.naturalWidth)).toBe(1280);
+    expect(await container.evaluate((e) => getComputedStyle(e).aspectRatio)).toBe('16 / 9');
+    expect(await picture.evaluate((e) => getComputedStyle(e).objectFit)).toBe('contain');
+    expect(await picture.evaluate((e) => getComputedStyle(e).display)).toBe('block');
+  }
 });

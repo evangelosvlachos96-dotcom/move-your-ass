@@ -75,7 +75,7 @@
 
 .vcard__cover {
   inline-size: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   border-radius: 10px;
   overflow: hidden;
   background: var(--brand-surface-2);
@@ -87,7 +87,7 @@
 .vcard__cover img {
   inline-size: 100%;
   block-size: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
