@@ -60,6 +60,19 @@ Chromium plus phone WebKit, including a focused nine-check rerun after correctin
 coordinates and the Material keyboard-open shortcut. Dropdown screenshots were visually inspected.
 The owner authorized committing and pushing these follow-up changes for a GitHub merge. They have not been deployed by this session. A physical iPhone check is still
 required to confirm the owner's exact black-screen symptom is resolved on the deployed build.
+## 2026-10-04 — Thumbnail crop/display consistency
+
+The cover cropper exports 16:9, but the library, admin list and editor preview used 16:10 with
+`object-fit: cover`. This applied a second crop to saved artwork, hiding text near the sides.
+All three now use 16:9 and `object-fit: contain`, preserving the complete uploaded image even
+for older covers with other proportions. Library images are block elements to remove baseline
+spacing. Crop selection and uploaded bytes are unchanged; no existing files were rewritten.
+Existing lettering will reappear if it is present in the stored image. Content already removed
+when originally cropping/uploading must be restored from the original artwork.
+
+Added a browser regression using synthetic 1280x720 edge-labelled artwork across all three
+screens. Production build passed; all five browser projects passed this regression (phone, tablet,
+desktop Chromium and phone/tablet WebKit). The owner authorized committing and pushing this fix for merge; no deployment was performed by this session.
 # Previous handover — historical state
 
 Updated 2026-09-30. Branch: **feature/final-polish**, cut from `main` at **8fa9b53** (the
