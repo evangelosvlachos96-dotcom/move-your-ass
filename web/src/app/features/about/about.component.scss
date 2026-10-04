@@ -200,8 +200,28 @@
   }
 
   .about__link-value {
-    grid-column: 2 / -1;
+    grid-column: 2;
     text-align: start;
     font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 599px) {
+  .about__link app-contact-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .about__link-label {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .about__link-value {
+    grid-row: 2;
+    min-inline-size: 0;
+  }
+  .about__link-go {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
   }
 }

@@ -289,3 +289,12 @@ $urow-columns: 44px minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9
     block-size: 36px;
   }
 }
+
+mat-paginator {
+  display: block;
+  margin-block-start: 24px;
+  padding-block: 8px;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  background: var(--brand-surface);
+}
