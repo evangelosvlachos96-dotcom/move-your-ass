@@ -20,6 +20,7 @@ public sealed class ChangePasswordValidator : AbstractValidator<ChangePasswordCo
         RuleFor(x => x.NewPassword)
             .NotEqual(x => x.CurrentPassword!)
             .When(x => !string.IsNullOrEmpty(x.CurrentPassword))
+            .WithErrorCode("PASSWORD_UNCHANGED")
             .WithMessage("The new password must differ from the current one.");
     }
 }

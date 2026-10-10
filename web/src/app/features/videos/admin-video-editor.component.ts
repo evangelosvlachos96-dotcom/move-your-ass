@@ -192,12 +192,24 @@ export class AdminVideoEditorComponent implements OnDestroy {
 
   protected async addTag(): Promise<void> {
     if (!this.newTag.trim() || this.busy()) return;
+    const existing = this.tags().find(
+      (t) =>
+        t.name.trim().normalize('NFC').toLocaleLowerCase('el-GR') ===
+        this.newTag.trim().normalize('NFC').toLocaleLowerCase('el-GR'),
+    );
+    if (existing) {
+      if (!this.tagIds.includes(existing.id)) this.tagIds = [...this.tagIds, existing.id];
+      this.note.set('Η ετικέτα υπάρχει ήδη και είναι επιλεγμένη για αυτό το βίντεο.');
+      this.newTag = '';
+      return;
+    }
     this.busy.set(true);
     try {
       const tag = await firstValueFrom(this.api.addTag(this.newTag.trim()));
       this.tags.set(await firstValueFrom(this.api.tags(true)));
       if (!this.tagIds.includes(tag.id)) this.tagIds = [...this.tagIds, tag.id];
       this.newTag = '';
+      this.note.set('Η ετικέτα προστέθηκε και επιλέχθηκε.');
     } catch {
       this.note.set('Δεν αποθηκεύτηκε η ετικέτα.');
     } finally {

@@ -260,3 +260,57 @@ body.app-booting {
   background: var(--brand-surface);
   color: var(--brand-accent);
 }
+
+app-users .mat-mdc-select-arrow {
+  width: 24px;
+  height: 24px;
+  color: var(--brand-text);
+}
+app-users .mat-mdc-select-arrow svg {
+  width: 24px;
+  height: 24px;
+}
+
+// Material paginator internals: one compact row, with 44px navigation targets on phones.
+@media (max-width: 599px) {
+  .mat-mdc-paginator .mat-mdc-paginator-container {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 0 4px;
+    min-height: 56px;
+  }
+  .mat-mdc-paginator .mat-mdc-paginator-page-size {
+    margin: 0;
+    gap: 4px;
+    align-items: center;
+    flex: none;
+  }
+  .mat-mdc-paginator .mat-mdc-paginator-page-size-label {
+    margin: 0;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .mat-mdc-paginator .mat-mdc-paginator-page-size-select {
+    margin: 0;
+    width: 56px;
+  }
+  .mat-mdc-paginator .mat-mdc-text-field-wrapper {
+    padding-inline: 6px;
+  }
+  .mat-mdc-paginator .mat-mdc-paginator-range-actions {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .mat-mdc-paginator .mat-mdc-paginator-range-label {
+    margin: 0 4px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .mat-mdc-paginator .mat-mdc-icon-button {
+    --mdc-icon-button-state-layer-size: 44px;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+  }
+}

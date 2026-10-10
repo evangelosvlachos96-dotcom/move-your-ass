@@ -1,3 +1,4 @@
+using Mya.Application.Common.Validation;
 using FluentValidation;
 using Mya.Application.Abstractions.Identity;
 using Mya.Application.Abstractions.Persistence;
@@ -11,7 +12,7 @@ public sealed record ForgotPasswordCommand(string Email);
 
 public sealed class ForgotPasswordValidator : AbstractValidator<ForgotPasswordCommand>
 {
-    public ForgotPasswordValidator() => RuleFor(x => x.Email).NotEmpty().MaximumLength(256).EmailAddress();
+    public ForgotPasswordValidator() => RuleFor(x => x.Email).Email();
 }
 
 /// <summary>

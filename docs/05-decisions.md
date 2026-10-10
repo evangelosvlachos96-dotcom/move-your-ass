@@ -502,3 +502,17 @@ Sources: [B2 S3-compatible API](https://www.backblaze.com/docs/cloud-storage-s3-
 [B2 CORS rules](https://www.backblaze.com/docs/cloud-storage-cross-origin-resource-sharing-rules),
 [B2 pricing and free tier](https://www.backblaze.com/cloud-storage/pricing),
 [AWS SDK data-integrity settings](https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html).
+
+### ADR-020 — Command receipts and stable field validation codes (2026-10-08)
+
+The owner requested explicit JSON responses for successful operations. Commands previously
+returning 204 now return HTTP 200 with `{ "success": true, "traceId": "..." }`. The shared
+`ApiSuccess` factory uses the current activity ID or request trace identifier. Existing resource
+responses and HTTP 201 creation responses retain their schemas and status codes. Errors remain
+ProblemDetails. This changes the status/body contract for former 204 endpoints; clients must
+accept 200, and API and SPA should ship together.
+
+FluentValidation errors now also include `fieldCodes`, keyed by camel-case field names. This
+lets the UI translate `PASSWORD_UNCHANGED` without matching English message text or displaying
+arbitrary server details. The existing `errors` dictionary and `VALIDATION_FAILED` code remain.
+Forgot-password responses keep the same receipt for known and unknown accounts.

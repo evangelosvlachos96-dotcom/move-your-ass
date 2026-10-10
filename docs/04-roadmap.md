@@ -104,23 +104,23 @@ Current position, always: `docs/08-milestone-handover.md` §"Current state".
 | Method | Path | Result |
 |---|---|---|
 | POST | /api/auth/register | 202 PendingApproval; admin notification queued |
-| POST | /api/auth/accept-invitation | 204; token + newPassword; activates invited account |
+| POST | /api/auth/accept-invitation | 200 + success/traceId; token + newPassword; activates invited account |
 | POST | /api/auth/login | Access token + user + refresh cookie |
 | POST | /api/auth/refresh | Rotated refresh cookie and access token |
 | GET | /api/auth/me | Current user |
-| POST | /api/auth/change-password | 204; currentPassword required except forced change |
-| PUT | /api/auth/profile | 204; own names |
-| POST | /api/auth/logout | 204 |
+| POST | /api/auth/change-password | 200 + success/traceId; currentPassword required except forced change |
+| PUT | /api/auth/profile | 200 + success/traceId; own names |
+| POST | /api/auth/logout | 200 + success/traceId |
 | GET | /api/admin/users | Paged list; status/search/page/pageSize |
 | POST | /api/admin/users | 201 { id }; creates Invited and queues setup email |
-| PUT | /api/admin/users/{id} | 204; names/role |
+| PUT | /api/admin/users/{id} | 200 + success/traceId; names/role |
 | POST | /api/admin/users/{id}/approve | Updated UserDto |
 | POST | /api/admin/users/{id}/decline | Optional reason; updated UserDto |
 | POST | /api/admin/users/{id}/suspend | Optional reason; updated UserDto |
 | POST | /api/admin/users/{id}/reactivate | Updated UserDto |
-| POST | /api/admin/users/{id}/resend-invitation | 204; Invited accounts only |
+| POST | /api/admin/users/{id}/resend-invitation | 200 + success/traceId; Invited accounts only |
 | POST | /api/admin/users/{id}/reset-password | Existing active-user temporary-password reset |
-| DELETE | /api/admin/users/{id} | 204; confirmed hard delete |
+| DELETE | /api/admin/users/{id} | 200 + success/traceId; confirmed hard delete |
 | GET | /health | Health response |
 
 Error codes live in Application/Common/Results/ErrorCodes.cs. New onboarding codes:

@@ -33,7 +33,7 @@ public sealed class AuthController(
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.AuthPerEmail)]
     public async Task<IActionResult> AcceptInvitation(AcceptInvitationCommand command, CancellationToken ct) =>
-        (await acceptInvitation.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+        (await acceptInvitation.Handle(command, ct)).ToActionResult(HttpContext);
 
     /// <summary>
     /// Always 204, whether or not the address exists: anything else is an enumeration oracle.
@@ -43,13 +43,13 @@ public sealed class AuthController(
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.AuthPerEmail)]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordCommand command, CancellationToken ct) =>
-        (await forgotPassword.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+        (await forgotPassword.Handle(command, ct)).ToActionResult(HttpContext);
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.AuthPerEmail)]
     public async Task<IActionResult> ResetPassword(ResetPasswordCommand command, CancellationToken ct) =>
-        (await resetPassword.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+        (await resetPassword.Handle(command, ct)).ToActionResult(HttpContext);
 
     [HttpPost("register")]
     [AllowAnonymous]
@@ -92,12 +92,12 @@ public sealed class AuthController(
     [Authorize]
     [AllowWhilePasswordChangeRequired]
     public async Task<IActionResult> ChangePassword(ChangePasswordCommand command, CancellationToken ct) =>
-        (await changePassword.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+        (await changePassword.Handle(command, ct)).ToActionResult(HttpContext);
 
     [HttpPut("profile")]
     [Authorize]
     public async Task<IActionResult> UpdateProfile(UpdateProfileCommand command, CancellationToken ct) =>
-        (await updateProfile.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+        (await updateProfile.Handle(command, ct)).ToActionResult(HttpContext);
 
     [HttpPost("logout")]
     [Authorize]
@@ -106,6 +106,6 @@ public sealed class AuthController(
         (await logout.Handle(ct)).ToActionResult(HttpContext, () =>
         {
             RefreshCookie.Clear(Response);
-            return NoContent();
+            return Mya.Api.Http.ApiSuccess.Create(HttpContext);
         });
 }

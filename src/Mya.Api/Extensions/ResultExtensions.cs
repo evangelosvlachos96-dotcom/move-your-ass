@@ -7,6 +7,9 @@ namespace Mya.Api.Extensions;
 /// <summary>The "map the result" third of a thin controller action.</summary>
 public static class ResultExtensions
 {
+    public static IActionResult ToActionResult(this Result result, HttpContext httpContext) =>
+        result.ToActionResult(httpContext, () => ApiSuccess.Create(httpContext));
+
     public static IActionResult ToActionResult(this Result result, HttpContext httpContext, Func<IActionResult> onSuccess)
     {
         ArgumentNullException.ThrowIfNull(result);

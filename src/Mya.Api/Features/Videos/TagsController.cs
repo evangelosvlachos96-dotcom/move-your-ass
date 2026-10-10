@@ -12,5 +12,5 @@ public sealed class TagsController(VideoAdminHandler admin, VideoQueryHandler qu
     [HttpPost]
     public async Task<IActionResult> Create(TagInput input, CancellationToken ct) => (await admin.AddTagAsync(input, ct)).ToActionResult(HttpContext, Ok);
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct) => (await admin.DeleteTagAsync(id, ct)).ToActionResult(HttpContext, NoContent);
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct) => (await admin.DeleteTagAsync(id, ct)).ToActionResult(HttpContext);
 }

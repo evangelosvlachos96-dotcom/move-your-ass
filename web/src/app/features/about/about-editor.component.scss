@@ -6,8 +6,8 @@
 .about-editor {
   max-inline-size: 760px;
   margin-inline: auto;
-  // Room for the sticky action bar, so the last field is never trapped behind it.
-  padding-block-end: 96px;
+  // Actions remain in normal document flow, clear of mobile navigation.
+  padding-block-end: 24px;
 }
 
 .about-editor__header {
@@ -153,6 +153,7 @@
 // --- contact grid ------------------------------------------------------------------------------
 
 .about-editor__grid {
+  align-items: start;
   display: grid;
   gap: $space-tight;
   // Two columns where there is room, one where there is not, without a media query — and with a
@@ -175,18 +176,15 @@
 
 // --- actions -----------------------------------------------------------------------------------
 
-// Pinned to the bottom of the viewport: Save should not require scrolling past eight contact
-// fields to reach, which on a phone is most of the point.
+// Normal document flow avoids jumping over fields or the fixed mobile navigation.
 .about-editor__actions {
-  position: sticky;
-  inset-block-end: 0;
-  z-index: 2;
+  position: static;
   display: flex;
   flex-wrap: wrap;
   gap: $space-tight;
   padding: $space-tight 0;
-  padding-block-end: calc(#{$space-tight} + var(--app-bottom-inset, 0px));
-  background: linear-gradient(to top, var(--brand-bg) 70%, transparent);
+  padding-block-end: $space-tight;
+  background: var(--brand-bg);
 }
 
 .about-editor__actions button {

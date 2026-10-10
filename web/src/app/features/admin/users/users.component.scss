@@ -298,3 +298,42 @@ mat-paginator {
   border-radius: 12px;
   background: var(--brand-surface);
 }
+
+.urow__meta {
+  display: contents;
+}
+.users-empty {
+  padding: 32px 16px;
+  text-align: center;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+}
+.users-empty > span {
+  font-size: 2.5rem;
+}
+@media (max-width: 899px) {
+  .urow__meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-inline-size: 0;
+  }
+  .urow__badges {
+    flex: 1;
+    min-inline-size: 0;
+    gap: 6px;
+  }
+  .urow__cell--date {
+    flex: none;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    text-align: end;
+  }
+  .ubadge {
+    font-size: 0.75rem;
+    padding: 3px 7px;
+  }
+}

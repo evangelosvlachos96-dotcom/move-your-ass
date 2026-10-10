@@ -28,35 +28,35 @@ public sealed class AdminVideosController(VideoAdminHandler admin, VideoQueryHan
         (await admin.UploadAsync(id, input, ct)).ToActionResult(HttpContext, Ok);
     [HttpPost("{id:guid}/upload/complete")]
     public async Task<IActionResult> Complete(Guid id, CompleteUploadInput input, CancellationToken ct) =>
-        (await admin.CompleteAsync(id, input, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.CompleteAsync(id, input, ct)).ToActionResult(HttpContext);
     [HttpPost("{id:guid}/cover")]
     public async Task<IActionResult> CoverUpload(Guid id, CoverRequest input, CancellationToken ct) =>
         (await admin.CoverUploadAsync(id, input, ct)).ToActionResult(HttpContext, Ok);
     [HttpPut("{id:guid}/cover")]
     public async Task<IActionResult> CoverConfirm(Guid id, CoverConfirm input, CancellationToken ct) =>
-        (await admin.CoverConfirmAsync(id, input, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.CoverConfirmAsync(id, input, ct)).ToActionResult(HttpContext);
     [HttpDelete("{id:guid}/cover")]
     public async Task<IActionResult> CoverRemove(Guid id, CancellationToken ct) =>
-        (await admin.CoverRemoveAsync(id, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.CoverRemoveAsync(id, ct)).ToActionResult(HttpContext);
     [HttpPost("{id:guid}/upload/abort")]
     public async Task<IActionResult> Abort(Guid id, CancellationToken ct) =>
-        (await admin.AbortAsync(id, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.AbortAsync(id, ct)).ToActionResult(HttpContext);
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, VideoInput input, CancellationToken ct) =>
-        (await admin.UpdateAsync(id, input, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.UpdateAsync(id, input, ct)).ToActionResult(HttpContext);
     [HttpPost("{id:guid}/publish")]
     public async Task<IActionResult> Publish(Guid id, RevisionInput input, CancellationToken ct) =>
-        (await admin.PublishAsync(id, input, true, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.PublishAsync(id, input, true, ct)).ToActionResult(HttpContext);
     [HttpPost("{id:guid}/unpublish")]
     public async Task<IActionResult> Unpublish(Guid id, RevisionInput input, CancellationToken ct) =>
-        (await admin.PublishAsync(id, input, false, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.PublishAsync(id, input, false, ct)).ToActionResult(HttpContext);
     [HttpPost("{id:guid}/refresh")]
     public async Task<IActionResult> Refresh(Guid id, CancellationToken ct) =>
-        (await processing.RefreshAsync(id, ct)).ToActionResult(HttpContext, NoContent);
+        (await processing.RefreshAsync(id, ct)).ToActionResult(HttpContext);
     [HttpPost("reorder")]
     public async Task<IActionResult> Reorder(VideoOrder[] input, CancellationToken ct) =>
-        (await admin.ReorderAsync(input, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.ReorderAsync(input, ct)).ToActionResult(HttpContext);
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
-        (await admin.DeleteAsync(id, ct)).ToActionResult(HttpContext, NoContent);
+        (await admin.DeleteAsync(id, ct)).ToActionResult(HttpContext);
 }
