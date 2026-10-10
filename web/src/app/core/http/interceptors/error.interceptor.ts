@@ -6,7 +6,7 @@ import { AuthService } from '../../auth/auth.service';
 import { AuthStore } from '../../auth/auth.store';
 import { NotifyService } from '../../ui/notify.service';
 import { HANDLED_ERROR_CODES, SILENT_REQUEST } from '../http-context';
-import { ErrorCodes, problemCode } from '../problem-details';
+import { ErrorCodes, problemCode, problemOf } from '../problem-details';
 
 /**
  * Maps the ProblemDetails `code` to behaviour. Never looks at message text: titles change and
@@ -23,7 +23,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       if (error instanceof HttpErrorResponse) {
         handle(
           error,
-          { silent: req.context.get(SILENT_REQUEST), handledCodes: req.context.get(HANDLED_ERROR_CODES) },
+          {
+            silent: req.context.get(SILENT_REQUEST),
+            handledCodes: req.context.get(HANDLED_ERROR_CODES),
+          },
           { router, notify, auth, store },
         );
       }
@@ -44,7 +47,11 @@ interface RequestFlags {
   handledCodes: readonly string[];
 }
 
-function handle(error: HttpErrorResponse, flags: RequestFlags, { router, notify, auth, store }: Deps): void {
+function handle(
+  error: HttpErrorResponse,
+  flags: RequestFlags,
+  { router, notify, auth, store }: Deps,
+): void {
   const code = problemCode(error);
 
   switch (code) {
@@ -77,7 +84,11 @@ function handle(error: HttpErrorResponse, flags: RequestFlags, { router, notify,
       // A 401 after the session was dropped is already explained by the auth interceptor.
       // INVALID_CREDENTIALS is the one 401 a signed-out visitor must hear about: it is the
       // answer to their login attempt.
-      if (error.status === 401 && code !== ErrorCodes.InvalidCredentials && !store.isAuthenticated()) {
+      if (
+        error.status === 401 &&
+        code !== ErrorCodes.InvalidCredentials &&
+        !store.isAuthenticated()
+      ) {
         return;
       }
       notify.error(messageFor(error));
@@ -99,6 +110,13 @@ function messageFor(error: HttpErrorResponse): string {
     case ErrorCodes.EmailAlreadyExists:
       return 'Το email χρησιμοποιείται ήδη.';
     case ErrorCodes.ValidationFailed:
+      if (
+        Object.values(problemOf(error)?.fieldCodes ?? {}).some(
+          (codes) => Array.isArray(codes) && codes.includes('PASSWORD_UNCHANGED'),
+        )
+      ) {
+        return 'Ο νέος κωδικός πρέπει να διαφέρει από τον τρέχοντα.';
+      }
       return 'Έλεγξε τα στοιχεία που συμπλήρωσες.';
     case ErrorCodes.RateLimited:
       return 'Πολλές προσπάθειες. Δοκίμασε ξανά σε λίγο.';
@@ -128,6 +146,8 @@ function messageFor(error: HttpErrorResponse): string {
     case ErrorCodes.CannotDeleteLastAdmin:
       return 'Η ενέργεια δεν επιτρέπεται.';
     default:
-      return error.status === 0 ? 'Δεν υπάρχει σύνδεση με τον διακομιστή.' : 'Κάτι πήγε στραβά. Δοκίμασε ξανά.';
+      return error.status === 0
+        ? 'Δεν υπάρχει σύνδεση με τον διακομιστή.'
+        : 'Κάτι πήγε στραβά. Δοκίμασε ξανά.';
   }
 }

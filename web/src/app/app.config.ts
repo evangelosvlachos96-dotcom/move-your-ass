@@ -1,3 +1,5 @@
+import { MatPaginatorIntl } from '@angular/material/paginator';
+import { greekPaginatorIntl } from './shared/ui/paginator-intl';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { ErrorStateMatcher } from '@angular/material/core';
@@ -16,6 +18,7 @@ import { RewardEarlyPunishLateErrorStateMatcher } from './shared/forms/reward-ea
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: MatPaginatorIntl, useFactory: greekPaginatorIntl },
 
     // The root component runs the silent /auth/refresh behind the boot loader and then calls
     // router.initialNavigation() itself, so guards see the restored session.

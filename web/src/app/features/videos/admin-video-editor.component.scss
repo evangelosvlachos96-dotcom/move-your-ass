@@ -1,7 +1,7 @@
 @use '../../../styles/spacing' as *;
 
 // One workout on its own page: a back button, a title, four cards of fields, and one pair of
-// actions pinned to the bottom. Nothing here is wider than its column, and every control comes
+// actions at the end of the form. Nothing here is wider than its column, and every control comes
 // from the shared form-control rules, which is what keeps the 16px floor (and therefore iOS's
 // focus zoom) consistent with the rest of the app.
 
@@ -12,8 +12,8 @@
 .editor-page {
   max-inline-size: 760px;
   margin-inline: auto;
-  // Room for the sticky action bar, so the last field is never trapped behind it.
-  padding-block-end: 96px;
+  // Actions remain in normal document flow, clear of mobile navigation.
+  padding-block-end: 24px;
 }
 
 .editor-page__header {
@@ -98,6 +98,7 @@
 }
 
 .editor-grid {
+  align-items: start;
   display: grid;
   gap: $space-tight;
   // auto-fit with a minmax floor, not fixed columns: at 375px this is one column without a
@@ -111,7 +112,7 @@
   gap: 8px;
 }
 
-.editor-chip {
+.plain-form .editor-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -131,7 +132,10 @@
   color: var(--brand-accent);
 }
 
-.editor-chip input {
+.plain-form .editor-chip input {
+  align-self: center;
+  margin: 0;
+  flex: none;
   inline-size: 18px;
   min-block-size: 0;
   block-size: 18px;
@@ -261,18 +265,15 @@ progress {
 
 // --- actions --------------------------------------------------------------------------------
 
-// Pinned to the bottom of the viewport so Save is reachable without scrolling to the end of a
-// long form, which on a phone is most of the point.
+// Normal document flow avoids jumping over fields or the fixed mobile navigation.
 .editor-actions {
-  position: sticky;
-  inset-block-end: 0;
-  z-index: 2;
+  position: static;
   display: flex;
   flex-wrap: wrap;
   gap: $space-tight;
   padding: $space-tight 0;
-  padding-block-end: calc(#{$space-tight} + var(--app-bottom-inset, 0px));
-  background: linear-gradient(to top, var(--brand-bg) 70%, transparent);
+  padding-block-end: $space-tight;
+  background: var(--brand-bg);
 }
 
 .editor-actions button {

@@ -1,3 +1,4 @@
+import { emailAddress } from '../../../shared/forms/email-rules';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -66,7 +67,7 @@ export class LoginComponent {
   protected readonly form = new FormGroup({
     email: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.email],
+      validators: [Validators.required, emailAddress],
     }),
     password: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
   });

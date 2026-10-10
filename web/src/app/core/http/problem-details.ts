@@ -9,6 +9,7 @@ export interface ProblemDetails {
   instance?: string;
   code?: string;
   traceId?: string;
+  fieldCodes?: Record<string, string[]>;
   errors?: Record<string, string[]>;
 }
 

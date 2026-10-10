@@ -103,7 +103,11 @@ export class AboutComponent {
 
   protected async send(form: NgForm): Promise<void> {
     if (this.sending()) return;
-    if (form.invalid) {
+    if (
+      form.invalid ||
+      this.subject.trim().length < this.contactMin.subject ||
+      this.message.trim().length < this.contactMin.message
+    ) {
       form.control.markAllAsTouched();
       return;
     }

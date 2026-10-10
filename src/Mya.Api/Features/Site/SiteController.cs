@@ -27,7 +27,7 @@ public sealed class SiteController(SiteContentHandler content, ContactHandler co
     [HttpPost("contact")]
     [EnableRateLimiting(RateLimitPolicies.PerUserWrite)]
     public async Task<IActionResult> Contact(ContactInput input, CancellationToken ct) =>
-        (await contact.SendAsync(input, ct)).ToActionResult(HttpContext, NoContent);
+        (await contact.SendAsync(input, ct)).ToActionResult(HttpContext);
 }
 
 [ApiController, Authorize(Policy = Policies.AdminOnly), Route("api/admin/site")]
@@ -36,7 +36,7 @@ public sealed class AdminSiteController(SiteContentHandler content) : Controller
 {
     [HttpPut("about")]
     public async Task<IActionResult> Update(AboutInput input, CancellationToken ct) =>
-        (await content.UpdateAsync(input, ct)).ToActionResult(HttpContext, NoContent);
+        (await content.UpdateAsync(input, ct)).ToActionResult(HttpContext);
 
     [HttpPost("about/photo")]
     public async Task<IActionResult> PhotoUpload(CoverRequest input, CancellationToken ct) =>
@@ -44,9 +44,9 @@ public sealed class AdminSiteController(SiteContentHandler content) : Controller
 
     [HttpPut("about/photo")]
     public async Task<IActionResult> PhotoConfirm(PhotoConfirm input, CancellationToken ct) =>
-        (await content.PhotoConfirmAsync(input, ct)).ToActionResult(HttpContext, NoContent);
+        (await content.PhotoConfirmAsync(input, ct)).ToActionResult(HttpContext);
 
     [HttpDelete("about/photo")]
     public async Task<IActionResult> PhotoRemove(CancellationToken ct) =>
-        (await content.PhotoRemoveAsync(ct)).ToActionResult(HttpContext, NoContent);
+        (await content.PhotoRemoveAsync(ct)).ToActionResult(HttpContext);
 }

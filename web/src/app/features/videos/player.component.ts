@@ -56,7 +56,10 @@ import { Video, AREA_LABELS, durationLabel } from '../../core/videos/video.model
         controlsList="nodownload"
         (error)="failed.set(true)"
       ></video>
-      <p class="description">{{ v.description }}</p>
+      <section class="video-description">
+        <h2>Περιγραφή προπόνησης</h2>
+        <p class="description">{{ v.description || 'Δεν έχει προστεθεί περιγραφή ακόμη.' }}</p>
+      </section>
       <div class="tags">
         @for (tag of v.tags; track tag.id) {
           <span>{{ tag.name }}</span>

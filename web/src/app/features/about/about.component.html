@@ -134,8 +134,21 @@
                 [disabled]="sending()"
               ></textarea>
             </label>
+            <p class="field-hint">
+              Συμπλήρωσε θέμα (τουλάχιστον {{ contactMin.subject }} χαρακτήρες) και μήνυμα
+              (τουλάχιστον {{ contactMin.message }} χαρακτήρες).
+            </p>
             <div class="about__actions">
-              <button type="submit" class="primary" [disabled]="sending()">
+              <button
+                type="submit"
+                class="primary"
+                [disabled]="
+                  sending() ||
+                  contactForm.invalid ||
+                  subject.trim().length < contactMin.subject ||
+                  message.trim().length < contactMin.message
+                "
+              >
                 {{ sending() ? 'Αποστολή…' : 'Αποστολή' }}
               </button>
             </div>

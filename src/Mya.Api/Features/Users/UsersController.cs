@@ -49,7 +49,7 @@ public sealed class UsersController(
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new UpdateUserCommand(request.FirstName, request.LastName, request.Role) { UserId = id };
-        return (await update.Handle(command, ct)).ToActionResult(HttpContext, NoContent);
+        return (await update.Handle(command, ct)).ToActionResult(HttpContext);
     }
 
     [HttpPost("{id}/approve")]
@@ -76,9 +76,9 @@ public sealed class UsersController(
 
     [HttpPost("{id}/resend-invitation")]
     public async Task<IActionResult> ResendInvitation(string id, CancellationToken ct) =>
-        (await resendInvitation.Handle(id, ct)).ToActionResult(HttpContext, NoContent);
+        (await resendInvitation.Handle(id, ct)).ToActionResult(HttpContext);
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id, CancellationToken ct) =>
-        (await delete.Handle(new DeleteUserCommand(id), ct)).ToActionResult(HttpContext, NoContent);
+        (await delete.Handle(new DeleteUserCommand(id), ct)).ToActionResult(HttpContext);
 }

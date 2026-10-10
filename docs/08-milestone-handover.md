@@ -1,6 +1,57 @@
 # 08 — Milestone handover
 
-# Current state — 2026-10-03 mobile and loading polish
+# Current state — 2026-10-09 form and mobile bug fixes
+
+Branch: **feature/mobile-loading-polish**, starting commit `f63b022`. The owner requested local
+fixes and a verification report, then authorized committing and pushing the verified changes on
+2026-10-09. No deployment, real emails, production data edits or migrations were run.
+
+Implemented:
+- Invitation dialog content has safe top padding and a bounded scrolling area so the first floating
+  name label remains visible; invalid invitation details disable submission.
+- User status arrows use a 24px Material SVG box. Mobile cards place badges and registration date
+  in a shared flex row, with the date at the right. Empty searches show a friendly empty state and
+  hide pagination.
+- Video and trainer editor Save/Cancel controls stay in document flow rather than sticky above
+  the fixed mobile navigation. No screen recording was attached; the exact reported scrolling
+  behavior still needs a physical-iPhone check.
+- Shared client email validation requires a dotted domain. Login, registration, invitations and
+  password reset use it; backend login/reset share the stricter existing Email rule too.
+- Password reuse remains rejected, with explicit Greek feedback. Backend validation adds stable
+  fieldCodes; PASSWORD_UNCHANGED is translated without matching server message text. A failed
+  forced password update no longer incorrectly tells the user the password already changed.
+- Contact submission requires valid trimmed subject/message content; the disabled button is
+  accompanied by a minimum-length hint. Forgot-password return navigation is an outlined button.
+- Existing video description support is labelled clearly in create/edit and displayed in a
+  dedicated panel below playback, with a fallback for older videos that have no description.
+- Tag checkbox alignment overrides the shared label grid; duplicate tags give explicit feedback
+  and select the existing tag. Workout search and select controls use the same 44px height.
+- Former empty 204 command responses now return HTTP 200 with success and traceId. Resource and
+  201 creation payloads remain unchanged. See ADR-020; API and SPA should deploy together.
+
+Consistency follow-up:
+- Users, the workout library and the admin video list are the three pagination locations. Empty
+  results hide pagination; list footers have separate spacing. Users pagination has Greek labels
+  and a compact single row on phones, retaining 44px previous/next targets.
+- Shared plain/Material filter heights match. Trainer/video editor grids and profile/registration
+  field rows align at the start so helper/error text does not shift neighbouring controls.
+
+Verification: backend build has zero warnings/errors; all 161 backend tests and 41 frontend unit
+ tests pass. Frontend production build and lint pass. The frontend build retains its initial-bundle
+ warning (682.91 kB versus the 600 kB warning budget); it does not fail the build.
+- 21 October form/content regression cases passed across phone Chromium, desktop Chromium and
+  phone WebKit. Nine additional consistency cases passed across those same projects, covering
+  all three paginators and adjacent filter/editor controls.
+- Users pagination was measured at 390px and 320px: size selection, range and navigation share
+  one row without overlap or horizontal overflow; next-page navigation updates the range.
+- All browser checks use synthetic local API fixtures; they do not verify live email delivery,
+  production data, actual media streaming or a physical iPhone. No recording was available for
+  the reported scrolling issue. Physical Safari scrolling remains the final device acceptance.
+
+Next: owner review and merge through GitHub. API and SPA deploy together for the
+success-receipt and validation-field-code contract changes.
+
+# Previous current state — 2026-10-03 mobile and loading polish
 
 Branch: **feature/mobile-loading-polish**, created from `fix/register-logo` at `bda8c7f`.
 The owner authorized committing and pushing this branch, and will merge through GitHub; no deployment,

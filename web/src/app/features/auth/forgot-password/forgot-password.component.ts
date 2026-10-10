@@ -1,3 +1,4 @@
+import { emailAddress } from '../../../shared/forms/email-rules';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -44,8 +45,8 @@ import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.
           <mat-card-content>
             @if (sent()) {
               <p role="status">
-                Αν η διεύθυνση αντιστοιχεί σε λογαριασμό, στάλθηκε email με σύνδεσμο για νέο
-                κωδικό. Ο σύνδεσμος λήγει σε μία ώρα.
+                Αν η διεύθυνση αντιστοιχεί σε λογαριασμό, στάλθηκε email με σύνδεσμο για νέο κωδικό.
+                Ο σύνδεσμος λήγει σε μία ώρα.
               </p>
               <p>Δεν ήρθε; Έλεγξε τα ανεπιθύμητα, ή δοκίμασε ξανά σε λίγο.</p>
             } @else {
@@ -61,19 +62,34 @@ import { SiteFooterComponent } from '../../../shared/ui/site-footer/site-footer.
                   />
                   <mat-error>Συμπλήρωσε έγκυρο email.</mat-error>
                 </mat-form-field>
-                <button mat-flat-button type="submit" [disabled]="busy()">
+                <button mat-flat-button type="submit" [disabled]="busy() || email.invalid">
                   {{ busy() ? 'Αποστολή…' : 'Στείλε μου σύνδεσμο' }}
                 </button>
               </form>
             }
-            <p class="auth-page__alt"><a routerLink="/login">Επιστροφή στη σύνδεση</a></p>
+            <p class="auth-page__alt">
+              <a mat-stroked-button routerLink="/login">Επιστροφή στη σύνδεση</a>
+            </p>
           </mat-card-content>
         </mat-card>
         <app-site-footer />
       </div>
     </div>
   `,
-  styles: [`form { display: grid; gap: 12px; } mat-form-field { width: 100%; } .auth-page__alt { margin-block-start: 16px; }`],
+  styles: [
+    `
+      form {
+        display: grid;
+        gap: 12px;
+      }
+      mat-form-field {
+        width: 100%;
+      }
+      .auth-page__alt {
+        margin-block-start: 16px;
+      }
+    `,
+  ],
 })
 export class ForgotPasswordComponent {
   private readonly auth = inject(AuthService);
@@ -83,7 +99,7 @@ export class ForgotPasswordComponent {
 
   protected readonly email = new FormControl('', {
     nonNullable: true,
-    validators: [Validators.required, Validators.email, Validators.maxLength(256)],
+    validators: [Validators.required, emailAddress, Validators.maxLength(256)],
   });
 
   protected submit(): void {

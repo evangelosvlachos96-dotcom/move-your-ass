@@ -45,6 +45,8 @@ async function mock(
   page: Page,
   hold?: { matches: (path: string) => boolean; promise: Promise<void> },
 ) {
+  // Playback bytes are outside this UI suite; keep the synthetic media request pending.
+  await page.route('https://example.test/fixture.mp4', () => {});
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (hold?.matches(path)) await hold.promise;
@@ -231,6 +233,8 @@ test('saved thumbnail is shown in full in library, admin list and editor', async
     encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720"><rect width="1280" height="720" fill="black"/><text x="0" y="360" fill="white">LEFT EDGE</text><text x="1280" y="360" text-anchor="end" fill="white">RIGHT EDGE</text></svg>',
     );
+  // Playback bytes are outside this UI suite; keep the synthetic media request pending.
+  await page.route('https://example.test/fixture.mp4', () => {});
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/videos'))
@@ -297,4 +301,267 @@ test('contact arrows stay alongside their text and pagination clears the last us
   const last = await page.locator('.urow').last().boundingBox();
   const paginator = await page.locator('mat-paginator').boundingBox();
   expect(paginator!.y - last!.y - last!.height).toBeGreaterThanOrEqual(24);
+});
+
+test('October: invitation validation and compact mobile user metadata', async ({ page }) => {
+  await mock(page);
+  await page.goto('/admin/users');
+  await expect(page.locator('.urow')).toHaveCount(12);
+  if (page.viewportSize()!.width < 900) {
+    const row = page.locator('.urow').first();
+    const badges = await row.locator('.urow__badges').boundingBox();
+    const date = await row.locator('.urow__cell--date').boundingBox();
+    expect(date!.x).toBeGreaterThanOrEqual(badges!.x + badges!.width);
+    expect(date!.y).toBeLessThan(badges!.y + badges!.height);
+  }
+  await page.getByRole('button', { name: 'Πρόσκληση χρήστη', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const submit = dialog.getByRole('button', { name: 'Πρόσκληση νέου χρήστη', exact: true });
+  await expect(submit).toBeDisabled();
+  await dialog.getByLabel('Όνομα', { exact: true }).fill('Test');
+  await dialog.getByLabel('Επώνυμο', { exact: true }).fill('Person');
+  await dialog.getByLabel('Email', { exact: true }).fill('test@localhost');
+  await expect(submit).toBeDisabled();
+  await dialog.getByLabel('Email', { exact: true }).fill('test@example.test');
+  await expect(submit).toBeEnabled();
+  const label = dialog.locator('mat-label').filter({ hasText: /^Όνομα$/ });
+  const labelBox = await label.boundingBox();
+  const content = await dialog.locator('mat-dialog-content').boundingBox();
+  expect(labelBox!.y).toBeGreaterThanOrEqual(content!.y);
+});
+
+test('October: empty user search has an empty state without pagination', async ({ page }) => {
+  await mock(page);
+  await page.route('**/api/admin/users*', (route) =>
+    route.fulfill({ json: { items: [], totalCount: 0, page: 1, pageSize: 20, totalPages: 0 } }),
+  );
+  await page.goto('/admin/users');
+  await expect(page.getByRole('heading', { name: 'Δεν βρέθηκαν χρήστες' })).toBeVisible();
+  await expect(page.locator('mat-paginator')).toHaveCount(0);
+});
+
+test('October: login and reset request reject undotted email domains', async ({ page }) => {
+  await page.route('**/api/auth/refresh', (route) =>
+    route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }),
+  );
+  await page.goto('/login');
+  await page.getByLabel('Email', { exact: true }).fill('test@localhost');
+  await page.getByRole('button', { name: 'Σύνδεση', exact: true }).click();
+  await expect(page.getByText('Μη έγκυρο email', { exact: true })).toBeVisible();
+  await page.goto('/forgot-password');
+  const submit = page.getByRole('button', { name: 'Στείλε μου σύνδεσμο', exact: true });
+  await expect(submit).toBeDisabled();
+  await page.getByLabel('Email', { exact: true }).fill('test@localhost');
+  await expect(submit).toBeDisabled();
+  await page.getByLabel('Email', { exact: true }).fill('test@example.test');
+  await expect(submit).toBeEnabled();
+  await expect(page.getByRole('link', { name: 'Επιστροφή στη σύνδεση' })).toHaveClass(
+    /mat-mdc-outlined-button/,
+  );
+});
+
+test('October: repeated password has a clear inline error and backend code message', async ({
+  page,
+}) => {
+  await mock(page);
+  await page.goto('/change-password');
+  await page.locator('[formControlName="currentPassword"]').fill('ExamplePassword42');
+  await page.locator('[formControlName="newPassword"]').fill('ExamplePassword42');
+  await page.locator('[formControlName="confirmPassword"]').fill('ExamplePassword42');
+  await page.locator('button[type="submit"]').click();
+  await expect(
+    page.getByText('Ο νέος κωδικός πρέπει να διαφέρει από τον τρέχοντα.', { exact: true }),
+  ).toBeVisible();
+  await page.locator('[formControlName="currentPassword"]').fill('DifferentCurrent42');
+  await expect(page.locator('mat-error')).toHaveCount(0);
+  await page.route('**/api/auth/change-password', (route) =>
+    route.fulfill({
+      status: 400,
+      json: { code: 'VALIDATION_FAILED', fieldCodes: { newPassword: ['PASSWORD_UNCHANGED'] } },
+    }),
+  );
+  await page.locator('[formControlName="newPassword"]').fill('DifferentPassword42');
+  await page.locator('[formControlName="confirmPassword"]').fill('DifferentPassword42');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.locator('mat-snack-bar-container')).toContainText(
+    'Ο νέος κωδικός πρέπει να διαφέρει',
+  );
+});
+
+test('October: contact send is disabled until trimmed required content is valid', async ({
+  page,
+}) => {
+  await mock(page);
+  await page.route('**/api/auth/me', (route) =>
+    route.fulfill({ json: { ...user, role: 'Client' } }),
+  );
+  await page.goto('/about');
+  const send = page.getByRole('button', { name: 'Αποστολή', exact: true });
+  await expect(send).toBeDisabled();
+  await page.locator('[name="subject"]').fill('   ');
+  await page.locator('[name="message"]').fill('            ');
+  await expect(send).toBeDisabled();
+  await page.locator('[name="subject"]').fill('Training');
+  await page.locator('[name="message"]').fill('Please tell me more about training.');
+  await expect(send).toBeEnabled();
+});
+
+test('October: video filters share height and descriptions display below playback', async ({
+  page,
+}) => {
+  await mock(page);
+  await page.goto('/videos');
+  const search = await page.locator('.filters input').boundingBox();
+  const audience = await page
+    .getByRole('combobox', { name: 'Για ποιον', exact: true })
+    .boundingBox();
+  expect(Math.abs(search!.height - audience!.height)).toBeLessThanOrEqual(1);
+  await page.goto('/videos/' + video.id);
+  await expect(page.locator('.video-description')).toContainText(video.description);
+});
+
+test('October: editor actions remain in flow and duplicate tags give feedback', async ({
+  page,
+}) => {
+  await mock(page);
+  await page.route('**/api/**/tags*', (route) =>
+    route.fulfill({ json: [{ id: 'tag-one', name: 'Pilates' }] }),
+  );
+  await page.goto('/admin/videos/' + video.id + '/edit');
+  await expect(page.locator('.editor-actions')).toBeVisible();
+  expect(await page.locator('.editor-actions').evaluate((e) => getComputedStyle(e).position)).toBe(
+    'static',
+  );
+  const chip = page.locator('.editor-chip').first();
+  expect(['flex', 'inline-flex']).toContain(
+    await chip.evaluate((e) => getComputedStyle(e).display),
+  );
+  expect(await chip.locator('input').evaluate((e) => getComputedStyle(e).alignSelf)).toBe('center');
+  await page.locator('[name="newTag"]').fill(' pilates ');
+  await page.getByRole('button', { name: 'Προσθήκη ετικέτας', exact: true }).click();
+  await expect(page.locator('.editor-card--note')).toContainText('Η ετικέτα υπάρχει ήδη');
+  await expect(chip.locator('input')).toBeChecked();
+  await expect(page.locator('textarea[name="description"]')).toHaveValue(video.description);
+  await page.route('**/api/admin/videos/' + video.id, async (route) => {
+    if (route.request().method() === 'PUT')
+      await route.fulfill({ json: { success: true, traceId: 'ui-test' } });
+    else await route.fallback();
+  });
+  await page.locator('textarea[name="description"]').fill('Updated workout description');
+  const saved = page.waitForRequest(
+    (request) => request.method() === 'PUT' && request.url().endsWith('/admin/videos/' + video.id),
+  );
+  await page.getByRole('button', { name: 'Αποθήκευση', exact: true }).click();
+  expect((await saved).postDataJSON().description).toBe('Updated workout description');
+});
+
+test('Consistency: user pagination stays horizontal at narrow widths and changes pages', async ({
+  page,
+}, testInfo) => {
+  await mock(page);
+  await page.route('**/api/admin/users*', (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    return route.fulfill({
+      json: {
+        items: users,
+        totalCount: 43,
+        page: Number(query.get('page') || 1),
+        pageSize: Number(query.get('pageSize') || 20),
+        totalPages: 3,
+      },
+    });
+  });
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/admin/users');
+    const pager = page.locator('mat-paginator');
+    await expect(pager).toContainText('1–20 / 43');
+    await pager.scrollIntoViewIfNeeded();
+    const size = await pager.locator('.mat-mdc-paginator-page-size').boundingBox();
+    const range = await pager.locator('.mat-mdc-paginator-range-label').boundingBox();
+    const next = await pager
+      .getByRole('button', { name: 'Επόμενη σελίδα', exact: true })
+      .boundingBox();
+    expect(Math.abs(size!.y + size!.height / 2 - range!.y - range!.height / 2)).toBeLessThanOrEqual(
+      2,
+    );
+    expect(Math.abs(next!.y + next!.height / 2 - range!.y - range!.height / 2)).toBeLessThanOrEqual(
+      2,
+    );
+    expect(range!.x).toBeGreaterThanOrEqual(size!.x + size!.width);
+    expect(next!.x + next!.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    );
+    await pager.getByRole('button', { name: 'Επόμενη σελίδα', exact: true }).click();
+    await expect(pager).toContainText('21–40 / 43');
+    const last = await page.locator('.urow').last().boundingBox();
+    const box = await pager.boundingBox();
+    expect(box!.y - last!.y - last!.height).toBeGreaterThanOrEqual(24);
+    await pager.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath('users-' + width + '.png') });
+  }
+});
+
+test('Consistency: both video lists have compact separated pagination and hide it when empty', async ({
+  page,
+}) => {
+  await mock(page);
+  let empty = false;
+  await page.route(/\/api\/(admin\/)?videos\?/, (route) =>
+    route.fulfill({
+      json: {
+        items: empty ? [] : [video],
+        totalCount: empty ? 0 : 13,
+        page: 1,
+        pageSize: 12,
+        totalPages: empty ? 0 : 2,
+      },
+    }),
+  );
+  await page.setViewportSize({ width: 320, height: 844 });
+  for (const url of ['/videos', '/admin/videos']) {
+    empty = false;
+    await page.goto(url);
+    const pager = page.locator('.pagination');
+    await expect(pager).toBeVisible();
+    const controls = await pager.locator('button, span').all();
+    const boxes = await Promise.all(controls.map((c) => c.boundingBox()));
+    const center = boxes[0]!.y + boxes[0]!.height / 2;
+    for (const box of boxes) {
+      expect(Math.abs(box!.y + box!.height / 2 - center)).toBeLessThanOrEqual(2);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+    }
+    empty = true;
+    await page.reload();
+    await expect(pager).toHaveCount(0);
+  }
+});
+
+test('Consistency: adjacent fields share heights throughout filters and editors', async ({
+  page,
+}) => {
+  await mock(page);
+  const groups = [
+    ['/videos', '.filters input, .filters mat-select'],
+    ['/admin/videos/' + video.id + '/edit', '.editor-grid select'],
+    ['/about/edit', 'input[name="contactEmail"], input[name="phone"]'],
+  ];
+  for (const [url, selector] of groups) {
+    await page.goto(url);
+    await expect(page.locator(selector).first()).toBeVisible();
+    const boxes = await Promise.all(
+      (await page.locator(selector).all()).map((c) => c.boundingBox()),
+    );
+    expect(boxes.length).toBeGreaterThan(1);
+    for (const box of boxes)
+      expect(Math.abs(box!.height - boxes[0]!.height)).toBeLessThanOrEqual(1);
+    for (let i = 1; i < boxes.length; i++) {
+      if (boxes[i]!.x > boxes[i - 1]!.x + boxes[i - 1]!.width)
+        expect(Math.abs(boxes[i]!.y - boxes[i - 1]!.y)).toBeLessThanOrEqual(1);
+    }
+  }
+  expect(
+    await page.locator('.about-editor__actions').evaluate((e) => getComputedStyle(e).position),
+  ).toBe('static');
 });

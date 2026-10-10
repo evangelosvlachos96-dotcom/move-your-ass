@@ -144,7 +144,7 @@
         </div>
       }
     </div>
-    @if (result.totalPages > 1) {
+    @if (result.totalCount > 0 && result.items.length > 0 && result.totalPages > 1) {
       <nav class="pagination" aria-label="Σελίδες βίντεο">
         <button [disabled]="result.page <= 1" (click)="apply(result.page - 1)">Προηγούμενη</button
         ><span>{{ result.page }} / {{ result.totalPages }}</span

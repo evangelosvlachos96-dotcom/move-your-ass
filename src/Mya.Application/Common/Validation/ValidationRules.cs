@@ -16,7 +16,8 @@ public static class ValidationRules
         rule.NotEmpty().MaximumLength(NameMaxLength);
 
     public static IRuleBuilderOptions<T, string> Email<T>(this IRuleBuilder<T, string> rule) =>
-        rule.NotEmpty().EmailAddress().MaximumLength(EmailMaxLength);
+        rule.NotEmpty().EmailAddress().MaximumLength(EmailMaxLength)
+            .Matches(@"^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$").WithMessage("Enter an email with a complete domain, such as name@example.com.");
 
     /// <summary>Mirrors the Identity password policy so a bad password fails before hitting Identity.</summary>
     public static IRuleBuilderOptions<T, string> Password<T>(this IRuleBuilder<T, string> rule) =>

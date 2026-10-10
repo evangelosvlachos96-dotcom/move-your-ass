@@ -43,7 +43,11 @@ public sealed class ValidationFilter : IAsyncActionFilter
                 .GroupBy(e => JsonNamingPolicy.CamelCase.ConvertName(e.PropertyName))
                 .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).Distinct().ToArray());
 
-            context.Result = new BadRequestObjectResult(ApiProblems.Validation(context.HttpContext, errors))
+            var problem = ApiProblems.Validation(context.HttpContext, errors);
+            problem.Extensions["fieldCodes"] = result.Errors
+                .GroupBy(e => JsonNamingPolicy.CamelCase.ConvertName(e.PropertyName))
+                .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorCode).Distinct().ToArray());
+            context.Result = new BadRequestObjectResult(problem)
             {
                 ContentTypes = { ApiProblems.ContentType },
             };
