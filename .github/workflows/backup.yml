@@ -40,10 +40,10 @@ jobs:
           set -euo pipefail
           mkdir -p out
 
-          # pg_dump from the matching major version, via the official image, so the dump is never
-          # refused for a server-newer-than-client mismatch as Neon upgrades.
+          # Use the official PostgreSQL 18 image to match Neon production.
+          # Review this pin after server major-version upgrades.
           # The dump is piped straight into gpg: no plaintext file is ever created.
-          docker run --rm -i -e PGCONNECT_TIMEOUT=30 postgres:17-alpine \
+          docker run --rm -i -e PGCONNECT_TIMEOUT=30 postgres:18-alpine \
             pg_dump --no-owner --no-privileges --format=plain --dbname "$CONNECTION" \
             | gpg --batch --yes --symmetric --cipher-algo AES256 \
                   --passphrase-fd 3 --output out/production.sql.gpg 3<<<"$PASSPHRASE"
