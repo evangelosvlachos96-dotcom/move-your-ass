@@ -292,6 +292,8 @@ are downloadable by anyone who can see it, so the dump is encrypted on the runne
 before it is written anywhere. `pg_dump` is piped straight into `gpg`; no plaintext file exists at
 any point. A dump under 2 KB fails the job rather than storing a reassuring but empty artifact.
 
+The dump tool is pinned to PostgreSQL 18, matching Neon production. After a Neon major-version upgrade, update the workflow image before running the next backup. A dump tool older than the server refuses to run.
+
 ### Secrets to create
 
 **Settings → Secrets and variables → Actions → New repository secret:**
